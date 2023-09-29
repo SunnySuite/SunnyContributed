@@ -19,7 +19,6 @@ end
 # Sync with github
 cd(joinpath(root, ".."))
 run(`$(git()) pull`) # Make sure up to date
-run(git(["add", src_dir*"/*.jl"]))
 run(git(["add", build_dir*"/*.md"]))
 run(git(["add", build_dir*"/*.png"]))
 run(`$(git()) commit -am "Auto-build $(string(Dates.now()))"`)
