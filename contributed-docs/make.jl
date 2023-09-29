@@ -13,7 +13,7 @@ end
 
 # Build the notebooks
 map(docnames) do docname
-    Literate.markdown(joinpath(contrib_docs_dir, docname), build_dir; execute=true, documenter=false)
+    Literate.markdown(joinpath(contrib_docs_dir, docname), build_dir; execute=true, documenter=false, credit=false)
 end
 
 # Sync with github
