@@ -1,4 +1,6 @@
-# This is a test of literate. Here's a code block.
+# This is a test of literate.
+
+Here's a code block.
 
 ````julia
 using Sunny, GLMakie
@@ -22,8 +24,4 @@ plot_spins(sys)
 ![](test_doc-4.png)
 
 The end.
-
----
-
-*This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
 

@@ -1,4 +1,6 @@
-# # This is a test of literate. Here's a code block.
+# # This is a test of literate.
+# 
+# Here's a code block.
 
 using Sunny, GLMakie
 
