@@ -216,6 +216,19 @@ function example_fei2()
   energies = range(-8,8,length = 400)
 
   data = intensities_spectral_function(swt, path, energies, formula, decay = 0.2, susceptibility = true)
-  four_panel_plot(1:length(path),energies,data,"χxy")
-end
+  display(four_panel_plot(1:length(path),energies,data,"χxy"))
 
+  Bzs = range(0,20,length = 300)
+  dat = zeros(ComplexF64,length(Bzs),length(energies))
+  for (i,Bz) in enumerate(Bzs)
+    set_external_field!(sys_min,[0,0,Bz])
+    randomize_spins!(sys_min)
+    minimize_energy!(sys_min)
+    swt = SpinWaveTheory(sys_min)
+    formula = intensity_formula(swt, [(:Sx,:Sx),(:Sx,:Sy)], kernel = delta_function_kernel) do k,ω,S
+      S[1]
+    end
+    dat[i,:] = intensities_spectral_function(swt, [[0.,0,0]], energies, formula, decay = 0.2, susceptibility = true)
+  end
+  display(four_panel_plot(Bzs,energies,dat,"χxx(B)"))
+end
