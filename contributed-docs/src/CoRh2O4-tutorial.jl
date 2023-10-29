@@ -1,25 +1,17 @@
-# > ![](https://raw.githubusercontent.com/SunnySuite/Sunny.jl/main/assets/sunny_logo.jpg)
-# _This is a [tutorial](https://github.com/SunnySuite/SunnyTutorials/tree/main/tutorials) 
-#  for the [Sunny](https://github.com/SunnySuite/Sunny.jl/) package, 
-#  which enables dynamical simulations of ordered and thermally disordered spins with dipole 
-#  and higher order moments._
+# # Powder Averaged CoRh₂O₄ at Finite Temperature
 #
-# ## Welcome to a Sunny Tutorial on the Diamond Lattice System CoRh₂O₄</sub>
-# **Script**: Diamond Lattice Finite Temperature Calculation <br>
-# **Inspired by**: [Ge et al., Phys. Rev. B 96, 064413 (2017)](https://doi.org/10.1103/PhysRevB.96.064413) <br>
-# **Authors**: Martin Mourigal, David Dahlbom <br>
-# **Date**: August 21, 2023  (Sunny 0.5.0) <br>
+# **Inspired by**: [Ge et al., Phys. Rev. B 96, 064413 (2017)](https://doi.org/10.1103/PhysRevB.96.064413) 
+# **Authors**: Martin Mourigal, David Dahlbom
+# **Date**: October 28, 2023  (Sunny 0.5.5)
 # **Goal**: This script is to calculate the temperature dependence of the magnon excitations in the 
 # spin-3/2 Heisenberg Diamond Antiferromagnet and compare to powder-averaged results obtained for 
-# the compound CoRh₂O₄ <br>
+# the compound CoRh₂O₄
 
-# ---
-# #### Loading Packages 
+# ## Load pacakges. 
 using Sunny, GLMakie, ProgressMeter, Statistics, Random, Brillouin
-Sunny.offline_viewers() 
 cif_path = pkgdir(Sunny, "examples", "longer_examples", "CoRh2O4_#109301.cif");
 
-# #### Defining Custom functions
+# ## Define custom functions. 
 
 # The function `quench!` randomizes the spins of a given `System`, fixes a
 # target temperature, and lets the system relax at this temperature for `nrelax`
@@ -99,18 +91,19 @@ function powder_average(sc, rs, npts, formula; η=0.1)
     return output
 end
 
-# ---
-# ### System Definition for CoRh₂O₄
+# ## System Definition for CoRh₂O₄
 
-# Define the crystal structure of CoRh₂O₄ in the conventional cell
+# Define the crystal structure of CoRh₂O₄ in the conventional cell.
 xtal    = Crystal(cif_path; symprec=1e-4)
 magxtal = subcrystal(xtal,"Co1")
-view_crystal(magxtal,6.0)
+view_crystal(magxtal, 6.0)
+
+# Print the symmetry-allowed interactions.
 print_symmetry_table(magxtal, 4.0)
 
 # Assign local Hilbert space
 S = 3/2
-lhs = [SpinInfo(1, S=S, g=2)]
+lhs = [SpinInfo(1; S, g=2)]
 formfactors = [FormFactor("Co2")];
 
 # Create `System` and randomize it
@@ -120,13 +113,12 @@ sys     = System(magxtal, latsize, lhs, sunmode; seed=1)
 randomize_spins!(sys)
 plot_spins(sys)
 
-# Define Exchange Interactions 
+# Define exchange interactions.
 scaleJ = 0.63
 valJ1  = 1.00*scaleJ
 set_exchange!(sys, valJ1, Bond(1, 3, [0, 0, 0]));
 
-# ---
-# ### System thermalization to an ordered, yet finite temperature, state
+# ## Thermalize system to an ordered, yet finite temperature, state
 
 # Define Langevin Integrator and Initialize it 
 Δt0        = 0.05/abs(scaleJ*S); ## Time steps in Langevin
@@ -139,8 +131,8 @@ integrator = Langevin(Δt0; λ=λ0, kT=kT0);
 # Note: this may lead to a poorly thermalized sample
 quench!(sys, integrator; kTtarget=kT0, nrelax=10000);
 
-# Option 2: Anneal (according to a temperature schedule) than dwell once reach base
-# Note: starting from very high temperature here 
+# Option 2: Anneal (according to a temperature schedule) then dwell once we've
+# reach base temperature.  (Uncomment to execute.)
 
 ## kTs = [abs(scaleJ)*valS*100 * 0.9^k for k in 0:100]
 ## anneal!(sys,integrator;kTschedule=kTs,ndwell=500)
@@ -149,28 +141,27 @@ quench!(sys, integrator; kTtarget=kT0, nrelax=10000);
 # Plot the resulting spin system to check ordering in real space
 plot_spins(sys)
 
-# --- 
-# ### Calculation of Neutron Scattering Responses
+# ## Calculation of Neutron Scattering Responses
 
 
-# #### Fourier transformed instantaneous two-point correlation functions
+# ### Fourier transformed instantaneous two-point correlation functions
 
-# Calculate the Instantaneous/Equal-time Structure Factor
+# Calculate the instantaneous/equal-time structure factor.
 eqsf = instant_correlations(sys)
 
-# If desired, add additional samples by decorrelating and then re-calculating the eqsf
+# If desired, add additional samples by decorrelating and then re-calculating the eqsf.
 nsamples   = 1
 ndecorr    = 1000
 @time sample_sf!(eqsf, sys, integrator; nsamples=nsamples, ndecorr=ndecorr);
 
-# Project onto a constant Q-Slice in momentum space 
+# Project onto a constant Q-Slice in momentum space.
 nQpts  = 200
 Qxpts  = range(-10.0, 10.0, length=nQpts)
 Qypts  = range(-10.0, 10.0, length=nQpts)
 qz     = 1.0
 Qpts   = [[qx, qy, qz] for qx in Qxpts, qy in Qypts]
 instant_formula = intensity_formula(eqsf, :perp; formfactors)
-iq = instant_intensities_interpolated(eqsf, Qpts, instant_formula)
+iq = instant_intensities_interpolated(eqsf, Qpts, instant_formula);
 
 # Plot the resulting I(Q)
 heatmap(Qxpts, Qypts, iq;
@@ -183,9 +174,9 @@ heatmap(Qxpts, Qypts, iq;
 )
 
 
-# #### Dynamical and energy-integrated two-point correlation functions
+# ### Dynamical and energy-integrated two-point correlation functions
 
-# Calculate the Time Traces and Fourier Transform: Dynamical Structure Factor (first sample)
+# Calculate the time traces and Fourier transform: Dynamical Structure Factor (first sample).
 ωmax     = 6.0  # Maximum  energy to resolve
 nω       = 100  # Number of energies to resolve
 sc  = dynamical_correlations(sys; Δt=Δt0, nω=nω, ωmax=ωmax, process_trajectory=:symmetrize)
@@ -214,14 +205,14 @@ symQpts   = [[0.75, 0.75, 0.00],  # List of wave vectors that define a path
 formula = intensity_formula(sc, :perp; formfactors, kT=integrator.kT)
 iqw = intensities_interpolated(sc, Qpts, formula); 
 
-# If desired, broaden the sc in energy
+# If desired, broaden the sc in energy.
 η     = 0.1 ## Lorentzian energy broadening parameter
 iqwc  = broaden_energy(sc, iqw, (ω, ω₀) -> lorentzian(ω-ω₀, η));
 
 # If desired, calculated the energy-integrated structure factor
 iqt = instant_intensities_interpolated(sc, Qpts, formula); 
 
-# Plot the resulting I(Q,W)    
+# Plot the resulting I(Q,W). 
 ωs = available_energies(sc)
 heatmap(1:size(iqwc, 1), ωs, iqwc;
     colorrange = (0, maximum(iqwc)/20000.0),
@@ -234,14 +225,14 @@ heatmap(1:size(iqwc, 1), ωs, iqwc;
     )
 )
 
-# Projection into a powder-averaged neutron scattering intensity 
+# Projection into a powder-averaged neutron scattering intensity .
 Qmax       = 3.5
 nQpts      = 100
 Qpow       = range(0, Qmax, nQpts)
 npoints    = 100
 pqw = powder_average(sc, Qpow, npoints, formula; η);
 
-# Plot resulting Ipow(Q,W)    
+# Plot resulting Ipow(|Q|,W). 
 heatmap(Qpow, ωs, pqw;
     axis = (
         xlabel="|Q| (Å⁻¹)",
@@ -251,7 +242,6 @@ heatmap(Qpow, ωs, pqw;
     colorrange = (0, 40.0)
 )
 
-# --- 
 # ### Calculation of temperature-dependent powder average spectrum
 
 # Define a temperature schedule
@@ -265,7 +255,7 @@ for kT in kTs
     push!(pqw_res, powder_average(sc_loc, Qpow, npoints, formula; η))
 end
 
-# Plot the resulting Ipow(Q,W) as a function of temperature,
+# Plot the resulting Ipow(|Q|,W) as a function of temperature,
 # to compare with Fig.6 of https://arxiv.org/abs/1706.05881
 fig = Figure(; resolution=(1200,600))
 for i in 1:8 

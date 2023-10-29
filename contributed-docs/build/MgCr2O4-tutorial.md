@@ -1,16 +1,9 @@
-> ![](https://raw.githubusercontent.com/SunnySuite/Sunny.jl/main/assets/sunny_logo.jpg)
-_This is a
- [tutorial](https://github.com/SunnySuite/SunnyTutorials/)
- for the [Sunny](https://github.com/SunnySuite/Sunny.jl/) package, which
- enables dynamical simulations of ordered and thermally disordered spins with
- dipole and higher order moments._
+# MgCr2O4 at Finite Temperature
 
-# Spin Dynamics of the Heisenberg pyrochlore antiferromagnet and applications to MgCr2O4
 **Author**: Martin Mourigal <br>
-**Date**: September 9, 2022 (Updated by David Dahlbom on August 21, 2023 using Sunny 0.5.0) <br>
+**Date**: September 9, 2022 (Updated by October 28, 2023 using Sunny 0.5.5)
 
-
-In this tutorial, we will walk through a first example in Sunny and calculate
+In this tutorial, we will walk through an example in Sunny and calculate
 the spin dynamical properties of the Heisenberg pyrochlore antiferromagnet and
 apply this knowledge to MgCr2O4 and ZnCr2O4, which are known to approximate
 this model. Relevant publications include:
@@ -29,9 +22,8 @@ To run the examples in the tutorial, you will need a working installation of
 the Julia programming language and the Sunny package. Some useful references
 for getting started are:
 
-https://github.com/SunnySuite/Sunny.jl/wiki/Getting-started-with-Julia-and-Sunny
-
-https://sunnysuite.github.io/Sunny.jl/dev/
+- [Getting started with Julia for Sunny](https://github.com/SunnySuite/Sunny.jl/wiki/Getting-started-with-Julia)
+- [Sunny Docs](https://docs.juliahub.com/General/Sunny/stable/)
 
 We will begin by loading the relevant packages.
 
@@ -107,7 +99,7 @@ To examine the result interactively, we can call `view_crystal`.
 ````julia
 view_crystal(xtal_pyro, 3.2)
 ````
-![](MgCr2O4-tutorial-9.png)
+![](MgCr2O4-tutorial-10.png)
 
 ### "Experimentalist" Method #1 (Incorrect)
 A real crystal is more complicated than this, however, and we will now
@@ -468,7 +460,7 @@ know which bond is J3a and which is J3b, let's plot the structure.
 ````julia
 view_crystal(xtal_mgcro, 5.9)
 ````
-![](MgCr2O4-tutorial-28.png)
+![](MgCr2O4-tutorial-29.png)
 
 The crystal viewer shows that the second interaction -- cyan color with
 distance of 5.89Å -- is in fact the one hopping through a chromium site,
@@ -538,14 +530,14 @@ systems after themalization. First the pyrochlore,
 ````julia
 plot_spins(sys_pyro)
 ````
-![](MgCr2O4-tutorial-40.png)
+![](MgCr2O4-tutorial-41.png)
 
 and then the MgCr2O4,
 
 ````julia
 plot_spins(sys_mgcro)
 ````
-![](MgCr2O4-tutorial-42.png)
+![](MgCr2O4-tutorial-43.png)
 
 ## Instantaneous Structure Factor
 Next we can examine the instantaneous structure factor.
@@ -597,7 +589,7 @@ hm = heatmap!(ax_mgcro, qvals, qvals, Sq_mgcro)
 Colorbar(fig[1,4], hm)
 fig
 ````
-![](MgCr2O4-tutorial-50.png)
+![](MgCr2O4-tutorial-51.png)
 
 ## Dynamical Structure Factor
 We can also estimate the dynamical structure factor.
@@ -641,7 +633,7 @@ for (i, qb) in enumerate(qbs)
 end
 fig
 ````
-![](MgCr2O4-tutorial-56.png)
+![](MgCr2O4-tutorial-57.png)
 
 And let's take a look at the same slices for MgCr2O4.
 
@@ -661,7 +653,7 @@ for (i, qb) in enumerate(qbs)
 end
 fig
 ````
-![](MgCr2O4-tutorial-58.png)
+![](MgCr2O4-tutorial-59.png)
 
 ### Instantaneous structure factor from a dynamical structure factor
 
@@ -698,5 +690,5 @@ hm = heatmap!(ax_mgcro, qvals, qvals, Sq_mgcro)
 Colorbar(fig[1,4], hm)
 fig
 ````
-![](MgCr2O4-tutorial-63.png)
+![](MgCr2O4-tutorial-64.png)
 

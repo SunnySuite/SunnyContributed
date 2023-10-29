@@ -1,16 +1,9 @@
-# > ![](https://raw.githubusercontent.com/SunnySuite/Sunny.jl/main/assets/sunny_logo.jpg)
-# _This is a
-#  [tutorial](https://github.com/SunnySuite/SunnyTutorials/)
-#  for the [Sunny](https://github.com/SunnySuite/Sunny.jl/) package, which
-#  enables dynamical simulations of ordered and thermally disordered spins with
-#  dipole and higher order moments._
-#
-# # Spin Dynamics of the Heisenberg pyrochlore antiferromagnet and applications to MgCr2O4
+# # MgCr2O4 at Finite Temperature
+
 # **Author**: Martin Mourigal <br>
-# **Date**: September 9, 2022 (Updated by David Dahlbom on August 21, 2023 using Sunny 0.5.0) <br>
-#
+# **Date**: September 9, 2022 (Updated by October 28, 2023 using Sunny 0.5.5)
 # 
-# In this tutorial, we will walk through a first example in Sunny and calculate
+# In this tutorial, we will walk through an example in Sunny and calculate
 # the spin dynamical properties of the Heisenberg pyrochlore antiferromagnet and
 # apply this knowledge to MgCr2O4 and ZnCr2O4, which are known to approximate
 # this model. Relevant publications include:
@@ -29,9 +22,8 @@
 # the Julia programming language and the Sunny package. Some useful references
 # for getting started are:
 #
-# https://github.com/SunnySuite/Sunny.jl/wiki/Getting-started-with-Julia-and-Sunny
-# 
-# https://sunnysuite.github.io/Sunny.jl/dev/
+# - [Getting started with Julia for Sunny](https://github.com/SunnySuite/Sunny.jl/wiki/Getting-started-with-Julia)
+# - [Sunny Docs](https://docs.juliahub.com/General/Sunny/stable/)
 #
 # We will begin by loading the relevant packages.
 

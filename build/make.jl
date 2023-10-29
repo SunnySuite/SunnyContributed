@@ -1,5 +1,6 @@
 using Literate, Dates, Git
 
+draft = true
 root = dirname(@__FILE__)
 example_dir = joinpath(root,"..", "Sunny.jl", "examples", "spinw_ports")
 save_dir = joinpath(root, "..", "contributed-doc-assets")
@@ -9,7 +10,7 @@ examples = filter(name -> split(name, ".")[end] == "jl", readdir(example_dir))
 
 # Build the notebooks
 map(examples) do example
-    Literate.markdown(joinpath(example_dir, example), save_dir; documenter=false, execute=true)
+    Literate.markdown(joinpath(example_dir, example), save_dir; documenter=false, execute=!draft)
 end
 
 # Sync with github
