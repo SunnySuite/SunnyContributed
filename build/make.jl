@@ -1,6 +1,6 @@
 using Literate, Dates, Git
 
-draft = true
+draft = false
 root = dirname(@__FILE__)
 example_dir = joinpath(root,"..", "Sunny.jl", "examples", "spinw_ports")
 save_dir = joinpath(root, "..", "contributed-doc-assets")
