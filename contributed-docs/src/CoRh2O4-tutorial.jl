@@ -1,8 +1,11 @@
 # # Powder Averaged CoRh₂O₄ at Finite Temperature
 #
 # **Inspired by**: [Ge et al., Phys. Rev. B 96, 064413 (2017)](https://doi.org/10.1103/PhysRevB.96.064413) 
+#
 # **Authors**: Martin Mourigal, David Dahlbom
+#
 # **Date**: October 28, 2023  (Sunny 0.5.5)
+#
 # **Goal**: This script is to calculate the temperature dependence of the magnon excitations in the 
 # spin-3/2 Heisenberg Diamond Antiferromagnet and compare to powder-averaged results obtained for 
 # the compound CoRh₂O₄

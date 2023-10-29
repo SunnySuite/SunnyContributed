@@ -1,8 +1,11 @@
 # Powder Averaged CoRh₂O₄ at Finite Temperature
 
 **Inspired by**: [Ge et al., Phys. Rev. B 96, 064413 (2017)](https://doi.org/10.1103/PhysRevB.96.064413)
+
 **Authors**: Martin Mourigal, David Dahlbom
+
 **Date**: October 28, 2023  (Sunny 0.5.5)
+
 **Goal**: This script is to calculate the temperature dependence of the magnon excitations in the
 spin-3/2 Heisenberg Diamond Antiferromagnet and compare to powder-averaged results obtained for
 the compound CoRh₂O₄
@@ -32,10 +35,6 @@ function quench!(sys, integrator; kTtarget, nrelax)
 end
 ````
 
-````
-quench! (generic function with 1 method)
-````
-
 `dwell!` takes a `System`, sets a target temperature, and has the system
 dwell at this temperature for `ndwell` integration steps.
 
@@ -48,10 +47,6 @@ function dwell!(sys, integrator; kTtarget, ndwell)
         next!(prog)
     end
 end
-````
-
-````
-dwell! (generic function with 1 method)
 ````
 
 `anneal!` takes a temperature schedule and cools the `System` through it,
@@ -75,10 +70,6 @@ function anneal!(sys,  integrator;  kTschedule, ndwell)
 end
 ````
 
-````
-anneal! (generic function with 1 method)
-````
-
 `sample_sf!` samples a structure factor, which may be either an instant or
 dynamical structure factor. The integrator is run `ndecorr` times before each
 one of the samples is taken.
@@ -94,10 +85,6 @@ function sample_sf!(sf, sys, integrator; nsamples, ndecorr)
         add_sample!(sf, sys)    # Accumulate the newly sampled structure factor into `sf`
     end
 end
-````
-
-````
-sample_sf! (generic function with 1 method)
 ````
 
 `powder_average` powder averages a structure factor. Works for both instant
@@ -125,10 +112,6 @@ function powder_average(sc, rs, npts, formula; η=0.1)
 end
 ````
 
-````
-powder_average (generic function with 1 method)
-````
-
 ## System Definition for CoRh₂O₄
 
 Define the crystal structure of CoRh₂O₄ in the conventional cell.
@@ -138,32 +121,11 @@ xtal    = Crystal(cif_path; symprec=1e-4)
 magxtal = subcrystal(xtal,"Co1")
 view_crystal(magxtal, 6.0)
 ````
-![](CoRh2O4-tutorial-17.png)
 
 Print the symmetry-allowed interactions.
 
 ````julia
 print_symmetry_table(magxtal, 4.0)
-````
-
-````
-Atom 1
-Type 'Co1', position [0, 0, 0], multiplicity 8
-Allowed g-tensor: [A 0 0
-                   0 A 0
-                   0 0 A]
-Allowed anisotropy in Stevens operators:
-    c₁*(𝒪[4,0]+5𝒪[4,4]) +
-    c₂*(𝒪[6,0]-21𝒪[6,4])
-
-Sunny.Bond(1, 3, [0, 0, 0])
-Distance 3.6784429025744, coordination 4
-Connects 'Co1' at [0, 0, 0] to 'Co1' at [1/4, 1/4, 1/4]
-Allowed exchange matrix:[A B B
-                         B A B
-                         B B A]
-
-
 ````
 
 Assign local Hilbert space
@@ -183,7 +145,6 @@ sys     = System(magxtal, latsize, lhs, sunmode; seed=1)
 randomize_spins!(sys)
 plot_spins(sys)
 ````
-![](CoRh2O4-tutorial-23.png)
 
 Define exchange interactions.
 
@@ -226,7 +187,6 @@ Plot the resulting spin system to check ordering in real space
 ````julia
 plot_spins(sys)
 ````
-![](CoRh2O4-tutorial-34.png)
 
 ## Calculation of Neutron Scattering Responses
 
@@ -238,28 +198,12 @@ Calculate the instantaneous/equal-time structure factor.
 eqsf = instant_correlations(sys)
 ````
 
-````
-SampledCorrelations (6.252 MiB)
-[S(q) | 0 sample]
-Lattice: (10, 10, 10)×8
-6 correlations in Dipole mode:
-╔ ⬤ ⬤ ⬤ Sx
-║ ⋅ ⬤ ⬤ Sy
-╚ ⋅ ⋅ ⬤ Sz
-
-````
-
 If desired, add additional samples by decorrelating and then re-calculating the eqsf.
 
 ````julia
 nsamples   = 1
 ndecorr    = 1000
 @time sample_sf!(eqsf, sys, integrator; nsamples=nsamples, ndecorr=ndecorr);
-````
-
-````
-  0.947401 seconds (1.89 M allocations: 118.815 MiB, 5.40% gc time, 49.38% compilation time)
-
 ````
 
 Project onto a constant Q-Slice in momentum space.
@@ -286,7 +230,6 @@ heatmap(Qxpts, Qypts, iq;
     )
 )
 ````
-![](CoRh2O4-tutorial-44.png)
 
 ### Dynamical and energy-integrated two-point correlation functions
 
@@ -299,11 +242,6 @@ sc  = dynamical_correlations(sys; Δt=Δt0, nω=nω, ωmax=ωmax, process_trajec
 @time add_sample!(sc, sys) # Add a sample trajectory
 ````
 
-````
-  5.489808 seconds (14.33 M allocations: 291.526 MiB, 0.84% gc time, 0.02% compilation time)
-
-````
-
 If desired, add additional decorrelated samples.
 
 ````julia
@@ -312,32 +250,11 @@ ndecorr       = 1000
 @time sample_sf!(sc, sys, integrator; nsamples=nsamples, ndecorr=ndecorr);
 ````
 
-````
-Sampling SF:  27%|██████████▍                           |  ETA: 0:00:32[KSampling SF:  50%|██████████████████▉                   |  ETA: 0:00:24[KSampling SF:  69%|██████████████████████████▎           |  ETA: 0:00:16[KSampling SF:  85%|████████████████████████████████▍     |  ETA: 0:00:08[KSampling SF: 100%|██████████████████████████████████████| Time: 0:00:53[K
- 58.904193 seconds (143.58 M allocations: 2.866 GiB, 0.54% gc time, 0.24% compilation time)
-
-````
-
 Can use the Brillouin package for help on determining high symmetry points
 
 ````julia
 kp        = irrfbz_path(227,[[1,0,0], [0,1,0], [0,0,1]])
 kpc       = cartesianize(kp)
-````
-
-````
-KPath{3} (6 points, 2 paths, 8 points in paths):
- points: :U => [1.570796, 6.283185, 1.570796]
-         :W => [3.141593, 6.283185, 0.0]
-         :K => [4.712389, 4.712389, 0.0]
-         :Γ => [0.0, 0.0, 0.0]
-         :L => [3.141593, 3.141593, 3.141593]
-         :X => [0.0, 6.283185, 0.0]
-  paths: [:Γ, :X, :U]
-         [:K, :Γ, :L, :W, :X]
-  basis: [-6.283185, 6.283185, 6.283185]
-         [6.283185, -6.283185, 6.283185]
-         [6.283185, 6.283185, -6.283185]
 ````
 
 Project onto a constant QE-Slice in momentum-energy space.
@@ -385,7 +302,6 @@ heatmap(1:size(iqwc, 1), ωs, iqwc;
     )
 )
 ````
-![](CoRh2O4-tutorial-59.png)
 
 Projection into a powder-averaged neutron scattering intensity .
 
@@ -395,11 +311,6 @@ nQpts      = 100
 Qpow       = range(0, Qmax, nQpts)
 npoints    = 100
 pqw = powder_average(sc, Qpow, npoints, formula; η);
-````
-
-````
-Powder Averaging:  78%|█████████████████████████▊       |  ETA: 0:00:03[KPowder Averaging: 100%|█████████████████████████████████| Time: 0:00:12[K
-
 ````
 
 Plot resulting Ipow(|Q|,W).
@@ -414,7 +325,6 @@ heatmap(Qpow, ωs, pqw;
     colorrange = (0, 40.0)
 )
 ````
-![](CoRh2O4-tutorial-63.png)
 
 ### Calculation of temperature-dependent powder average spectrum
 
@@ -430,20 +340,6 @@ for kT in kTs
     formula = intensity_formula(sc, :perp; formfactors, kT)
     push!(pqw_res, powder_average(sc_loc, Qpow, npoints, formula; η))
 end
-````
-
-````
-┌ Warning: Assignment to `formula` in soft scope is ambiguous because a global variable by the same name exists: `formula` will be treated as a new local. Disambiguate by using `local formula` to suppress this warning or `global formula` to assign to the existing global variable.
-└ @ ~/Research/SunnyContributed/contributed-docs/build/CoRh2O4-tutorial.md:7
-Powder Averaging:  83%|███████████████████████████▍     |  ETA: 0:00:02[KPowder Averaging: 100%|█████████████████████████████████| Time: 0:00:12[K
-Powder Averaging:  83%|███████████████████████████▍     |  ETA: 0:00:02[KPowder Averaging: 100%|█████████████████████████████████| Time: 0:00:12[K
-Powder Averaging:  82%|███████████████████████████      |  ETA: 0:00:02[KPowder Averaging: 100%|█████████████████████████████████| Time: 0:00:12[K
-Powder Averaging:  83%|███████████████████████████▍     |  ETA: 0:00:02[KPowder Averaging: 100%|█████████████████████████████████| Time: 0:00:12[K
-Powder Averaging:  83%|███████████████████████████▍     |  ETA: 0:00:02[KPowder Averaging: 100%|█████████████████████████████████| Time: 0:00:12[K
-Powder Averaging:  78%|█████████████████████████▊       |  ETA: 0:00:03[KPowder Averaging: 100%|█████████████████████████████████| Time: 0:00:12[K
-Powder Averaging:  82%|███████████████████████████      |  ETA: 0:00:02[KPowder Averaging: 100%|█████████████████████████████████| Time: 0:00:13[K
-Powder Averaging:  86%|████████████████████████████▍    |  ETA: 0:00:02[KPowder Averaging: 100%|█████████████████████████████████| Time: 0:00:12[K
-
 ````
 
 Plot the resulting Ipow(|Q|,W) as a function of temperature,
@@ -463,5 +359,4 @@ for i in 1:8
 end
 fig
 ````
-![](CoRh2O4-tutorial-68.png)
 

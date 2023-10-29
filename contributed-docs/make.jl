@@ -1,5 +1,6 @@
 using Literate, Git, Dates
 
+draft = true
 root = dirname(@__FILE__)
 src_dir = joinpath(root, "src") 
 build_dir = joinpath(root, "build")
@@ -13,7 +14,7 @@ end
 
 # Build the notebooks
 map(docnames) do docname
-    Literate.markdown(joinpath(src_dir, docname), build_dir; execute=true, documenter=false, credit=false)
+    Literate.markdown(joinpath(src_dir, docname), build_dir; execute=!draft, documenter=false, credit=false)
 end
 
 # Sync with github
