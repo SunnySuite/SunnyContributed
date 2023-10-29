@@ -8,14 +8,11 @@
 # apply this knowledge to MgCr2O4 and ZnCr2O4, which are known to approximate
 # this model. Relevant publications include:
 # 
-# [1] P. H. Conlon and J. T. Chalker, Phys. Rev. Lett. 102, 237206 (2009)
-# (https://doi.org/10.1103/PhysRevLett.102.237206)
+# [1] [P. H. Conlon and J. T. Chalker, Phys. Rev. Lett. 102, 237206 (2009)](https://doi.org/10.1103/PhysRevLett.102.237206)
 # 
-# [2] P. H. Conlon and J. T. Chalker, Phys. Rev. B 81, 224413 (2010)
-# (https://doi.org/10.1103/PhysRevB.81.224413)
+# [2] [P. H. Conlon and J. T. Chalker, Phys. Rev. B 81, 224413 (2010)](https://doi.org/10.1103/PhysRevB.81.224413)
 # 
-# [3] X. Bai, J. A. M. Paddison, _et al._ Phys. Rev. Lett. 122, 097201 (2019)
-# (https://doi.org/10.1103/PhysRevLett.122.097201)
+# [3] [X. Bai, J. A. M. Paddison, _et al._ Phys. Rev. Lett. 122, 097201 (2019)](https://doi.org/10.1103/PhysRevLett.122.097201)
 #
 # ## Setting up Julia
 # To run the examples in the tutorial, you will need a working installation of
