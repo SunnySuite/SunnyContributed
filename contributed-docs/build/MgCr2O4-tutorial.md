@@ -69,11 +69,37 @@ types = ["B" for _ in positions]
 xtal_pyro   = Crystal(latvecs, positions; types) # We will call this crystal the Theoretical Pyrochlore
 ````
 
+````
+Crystal
+HM symbol 'F d -3 m' (227)
+Lattice params a=8.334, b=8.334, c=8.334, α=90°, β=90°, γ=90°
+Cell volume 578.9
+Type 'B', Wyckoff 16c (point group '.-3m'):
+   1. [7/8, 5/8, 3/8]
+   2. [5/8, 1/8, 5/8]
+   3. [7/8, 7/8, 1/8]
+   4. [5/8, 7/8, 3/8]
+   5. [7/8, 1/8, 7/8]
+   6. [5/8, 5/8, 1/8]
+   7. [7/8, 3/8, 5/8]
+   8. [5/8, 3/8, 7/8]
+   9. [3/8, 5/8, 7/8]
+   10. [1/8, 1/8, 1/8]
+   11. [3/8, 7/8, 5/8]
+   12. [1/8, 7/8, 7/8]
+   13. [3/8, 1/8, 3/8]
+   14. [1/8, 5/8, 5/8]
+   15. [3/8, 3/8, 1/8]
+   16. [1/8, 3/8, 3/8]
+
+````
+
 To examine the result interactively, we can call `view_crystal`.
 
 ````julia
 view_crystal(xtal_pyro, 3.2)
 ````
+![](MgCr2O4-tutorial-10.png)
 
 ### "Experimentalist" Method #1 (Incorrect)
 A real crystal is more complicated than this, however, and we will now
@@ -88,6 +114,20 @@ positions = [[0.1250, 0.1250, 0.1250],
              [0.2607, 0.2607, 0.2607]]
 types = ["Mg","Cr","O"]
 xtal_mgcro_1 = Crystal(latvecs, positions; types)
+````
+
+````
+Crystal
+HM symbol 'R 3 m' (160)
+Lattice params a=8.334, b=8.334, c=8.334, α=90°, β=90°, γ=90°
+Cell volume 578.9
+Type 'Mg', Wyckoff 3a (point group '3m'):
+   1. [1/8, 1/8, 1/8]
+Type 'Cr', Wyckoff 3a (point group '3m'):
+   2. [1/2, 1/2, 1/2]
+Type 'O', Wyckoff 3a (point group '3m'):
+   3. [0.2607, 0.2607, 0.2607]
+
 ````
 
 Sunny returned a valid crystal, but it did get right space group for MgCr2O4.
@@ -111,6 +151,73 @@ setting    = "2" # Space Group setting
 xtal_mgcro_2 = Crystal(latvecs, positions, spacegroup; types, setting)
 ````
 
+````
+Crystal
+HM symbol 'F d -3 m' (227)
+Lattice params a=8.334, b=8.334, c=8.334, α=90°, β=90°, γ=90°
+Cell volume 578.9
+Type 'Mg', Wyckoff 8b (point group '-43m'):
+   1. [1/8, 1/8, 1/8]
+   2. [5/8, 5/8, 1/8]
+   3. [7/8, 3/8, 3/8]
+   4. [3/8, 7/8, 3/8]
+   5. [5/8, 1/8, 5/8]
+   6. [1/8, 5/8, 5/8]
+   7. [3/8, 3/8, 7/8]
+   8. [7/8, 7/8, 7/8]
+Type 'Cr', Wyckoff 16c (point group '.-3m'):
+   9. [1/2, 0, 0]
+   10. [3/4, 1/4, 0]
+   11. [0, 1/2, 0]
+   12. [1/4, 3/4, 0]
+   13. [3/4, 0, 1/4]
+   14. [1/2, 1/4, 1/4]
+   15. [1/4, 1/2, 1/4]
+   16. [0, 3/4, 1/4]
+   17. [0, 0, 1/2]
+   18. [1/4, 1/4, 1/2]
+   19. [1/2, 1/2, 1/2]
+   20. [3/4, 3/4, 1/2]
+   21. [1/4, 0, 3/4]
+   22. [0, 1/4, 3/4]
+   23. [3/4, 1/2, 3/4]
+   24. [1/2, 3/4, 3/4]
+Type 'O', Wyckoff 32e (point group '.3m'):
+   25. [0.7393, 0.0107, 0.0107]
+   26. [0.5107, 0.2393, 0.0107]
+   27. [0.2393, 0.5107, 0.0107]
+   28. [0.0107, 0.7393, 0.0107]
+   29. [0.5107, 0.0107, 0.2393]
+   30. [0.7393, 0.2393, 0.2393]
+   31. [0.0107, 0.5107, 0.2393]
+   32. [0.2393, 0.7393, 0.2393]
+   33. [0.2607, 0.2607, 0.2607]
+   34. [0.4893, 0.4893, 0.2607]
+   35. [0.7607, 0.7607, 0.2607]
+   36. [0.9893, 0.9893, 0.2607]
+   37. [0.4893, 0.2607, 0.4893]
+   38. [0.2607, 0.4893, 0.4893]
+   39. [0.9893, 0.7607, 0.4893]
+   40. [0.7607, 0.9893, 0.4893]
+   41. [0.2393, 0.0107, 0.5107]
+   42. [0.0107, 0.2393, 0.5107]
+   43. [0.7393, 0.5107, 0.5107]
+   44. [0.5107, 0.7393, 0.5107]
+   45. [0.0107, 0.0107, 0.7393]
+   46. [0.2393, 0.2393, 0.7393]
+   47. [0.5107, 0.5107, 0.7393]
+   48. [0.7393, 0.7393, 0.7393]
+   49. [0.7607, 0.2607, 0.7607]
+   50. [0.9893, 0.4893, 0.7607]
+   51. [0.2607, 0.7607, 0.7607]
+   52. [0.4893, 0.9893, 0.7607]
+   53. [0.9893, 0.2607, 0.9893]
+   54. [0.7607, 0.4893, 0.9893]
+   55. [0.4893, 0.7607, 0.9893]
+   56. [0.2607, 0.9893, 0.9893]
+
+````
+
 This result is correct, but at this point we might as well import the CIF file
 directly, which we now proceed to do.
 
@@ -124,6 +231,73 @@ cif = pkgdir(Sunny, "examples", "longer_examples", "MgCr2O4_160953_2009.cif")
 xtal_mgcro_3 = Crystal(cif; symprec=0.001)
 ````
 
+````
+Crystal
+HM symbol 'F d -3 m' (227)
+Lattice params a=8.333, b=8.333, c=8.333, α=90°, β=90°, γ=90°
+Cell volume 578.6
+Type 'Mg1', Wyckoff 8b (point group '-43m'):
+   1. [1/8, 1/8, 1/8]
+   2. [5/8, 5/8, 1/8]
+   3. [7/8, 3/8, 3/8]
+   4. [3/8, 7/8, 3/8]
+   5. [5/8, 1/8, 5/8]
+   6. [1/8, 5/8, 5/8]
+   7. [3/8, 3/8, 7/8]
+   8. [7/8, 7/8, 7/8]
+Type 'Cr1', Wyckoff 16c (point group '.-3m'):
+   9. [1/2, 0, 0]
+   10. [3/4, 1/4, 0]
+   11. [0, 1/2, 0]
+   12. [1/4, 3/4, 0]
+   13. [3/4, 0, 1/4]
+   14. [1/2, 1/4, 1/4]
+   15. [1/4, 1/2, 1/4]
+   16. [0, 3/4, 1/4]
+   17. [0, 0, 1/2]
+   18. [1/4, 1/4, 1/2]
+   19. [1/2, 1/2, 1/2]
+   20. [3/4, 3/4, 1/2]
+   21. [1/4, 0, 3/4]
+   22. [0, 1/4, 3/4]
+   23. [3/4, 1/2, 3/4]
+   24. [1/2, 3/4, 3/4]
+Type 'O1', Wyckoff 32e (point group '.3m'):
+   25. [0.7388, 0.0112, 0.0112]
+   26. [0.5112, 0.2388, 0.0112]
+   27. [0.2388, 0.5112, 0.0112]
+   28. [0.0112, 0.7388, 0.0112]
+   29. [0.5112, 0.0112, 0.2388]
+   30. [0.7388, 0.2388, 0.2388]
+   31. [0.0112, 0.5112, 0.2388]
+   32. [0.2388, 0.7388, 0.2388]
+   33. [0.2612, 0.2612, 0.2612]
+   34. [0.4888, 0.4888, 0.2612]
+   35. [0.7612, 0.7612, 0.2612]
+   36. [0.9888, 0.9888, 0.2612]
+   37. [0.4888, 0.2612, 0.4888]
+   38. [0.2612, 0.4888, 0.4888]
+   39. [0.9888, 0.7612, 0.4888]
+   40. [0.7612, 0.9888, 0.4888]
+   41. [0.2388, 0.0112, 0.5112]
+   42. [0.0112, 0.2388, 0.5112]
+   43. [0.7388, 0.5112, 0.5112]
+   44. [0.5112, 0.7388, 0.5112]
+   45. [0.0112, 0.0112, 0.7388]
+   46. [0.2388, 0.2388, 0.7388]
+   47. [0.5112, 0.5112, 0.7388]
+   48. [0.7388, 0.7388, 0.7388]
+   49. [0.7612, 0.2612, 0.7612]
+   50. [0.9888, 0.4888, 0.7612]
+   51. [0.2612, 0.7612, 0.7612]
+   52. [0.4888, 0.9888, 0.7612]
+   53. [0.9888, 0.2612, 0.9888]
+   54. [0.7612, 0.4888, 0.9888]
+   55. [0.4888, 0.7612, 0.9888]
+   56. [0.2612, 0.9888, 0.9888]
+
+````
+
 Finally, we wish to restrict attention to the magnetic atoms in the unit cell
 while maintaining symmetry information for the full crystal, which is required
 to determine the correct exchange and g-factor anisotropies. This can be
@@ -131,6 +305,31 @@ achieved with the `subcrystal` function.
 
 ````julia
 xtal_mgcro = subcrystal(xtal_mgcro_2,"Cr")
+````
+
+````
+Crystal
+HM symbol 'F d -3 m' (227)
+Lattice params a=8.334, b=8.334, c=8.334, α=90°, β=90°, γ=90°
+Cell volume 578.9
+Type 'Cr', Wyckoff 16c (point group '.-3m'):
+   1. [1/2, 0, 0]
+   2. [3/4, 1/4, 0]
+   3. [0, 1/2, 0]
+   4. [1/4, 3/4, 0]
+   5. [3/4, 0, 1/4]
+   6. [1/2, 1/4, 1/4]
+   7. [1/4, 1/2, 1/4]
+   8. [0, 3/4, 1/4]
+   9. [0, 0, 1/2]
+   10. [1/4, 1/4, 1/2]
+   11. [1/2, 1/2, 1/2]
+   12. [3/4, 3/4, 1/2]
+   13. [1/4, 0, 3/4]
+   14. [0, 1/4, 3/4]
+   15. [3/4, 1/2, 3/4]
+   16. [1/2, 3/4, 3/4]
+
 ````
 
 ## Making a `System` and assigning interactions
@@ -158,10 +357,98 @@ distance. We'll look at both the "theorist's" pyrochlore lattice,
 print_symmetry_table(xtal_pyro, 5.9)
 ````
 
+````
+Atom 1
+Type 'B', position [7/8, 5/8, 3/8], multiplicity 16
+Allowed g-tensor: [ A B -B
+                    B A  B
+                   -B B  A]
+Allowed anisotropy in Stevens operators:
+    c₁*(𝒪[2,-2]+2𝒪[2,-1]-2𝒪[2,1]) +
+    c₂*(7𝒪[4,-3]+2𝒪[4,-2]-𝒪[4,-1]+𝒪[4,1]+7𝒪[4,3]) + c₃*(𝒪[4,0]+5𝒪[4,4]) +
+    c₄*(-11𝒪[6,-6]-8𝒪[6,-3]+𝒪[6,-2]-8𝒪[6,-1]+8𝒪[6,1]-8𝒪[6,3]) + c₅*(𝒪[6,0]-21𝒪[6,4]) + c₆*((9/5)𝒪[6,-6]+(24/5)𝒪[6,-5]+𝒪[6,-2]+(8/5)𝒪[6,-1]-(8/5)𝒪[6,1]-(24/5)𝒪[6,5])
+
+Sunny.Bond(1, 3, [0, 0, 0])
+Distance 2.94658466788246, coordination 6
+Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [7/8, 7/8, 1/8]
+Allowed exchange matrix:[ A -D D
+                          D  B C
+                         -D  C B]
+Allowed DM vector: [0 -D -D]
+
+Sunny.Bond(1, 2, [0, 0, 0])
+Distance 5.10363435357589, coordination 12
+Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [5/8, 1/8, 5/8]
+Allowed exchange matrix:[  A  C-E  D-F
+                         C+E    B -C+E
+                         D+F -C-E    A]
+Allowed DM vector: [E F -E]
+
+Sunny.Bond(2, 6, [0, 0, 0])
+Distance 5.89316933576492, coordination 6
+Connects 'B' at [5/8, 1/8, 5/8] to 'B' at [5/8, 5/8, 1/8]
+Allowed exchange matrix:[A D D
+                         D B C
+                         D C B]
+
+Sunny.Bond(1, 5, [0, 0, 0])
+Distance 5.89316933576492, coordination 6
+Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [7/8, 1/8, 7/8]
+Allowed exchange matrix:[ A D -D
+                          D B  C
+                         -D C  B]
+
+
+````
+
 and for the the MgCrO4 crystal,
 
 ````julia
 print_symmetry_table(xtal_mgcro, 6.0)
+````
+
+````
+Atom 1
+Type 'Cr', position [1/2, 0, 0], multiplicity 16
+Allowed g-tensor: [A B B
+                   B A B
+                   B B A]
+Allowed anisotropy in Stevens operators:
+    c₁*(𝒪[2,-2]+2𝒪[2,-1]+2𝒪[2,1]) +
+    c₂*(-7𝒪[4,-3]-2𝒪[4,-2]+𝒪[4,-1]+𝒪[4,1]+7𝒪[4,3]) + c₃*(𝒪[4,0]+5𝒪[4,4]) +
+    c₄*(-11𝒪[6,-6]-8𝒪[6,-3]+𝒪[6,-2]-8𝒪[6,-1]-8𝒪[6,1]+8𝒪[6,3]) + c₅*(𝒪[6,0]-21𝒪[6,4]) + c₆*((9/5)𝒪[6,-6]+(24/5)𝒪[6,-5]+𝒪[6,-2]+(8/5)𝒪[6,-1]+(8/5)𝒪[6,1]+(24/5)𝒪[6,5])
+
+Sunny.Bond(1, 2, [0, 0, 0])
+Distance 2.94658466788246, coordination 6
+Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [3/4, 1/4, 0]
+Allowed exchange matrix:[A C -D
+                         C A -D
+                         D D  B]
+Allowed DM vector: [-D D 0]
+
+Sunny.Bond(1, 7, [0, 0, 0])
+Distance 5.10363435357589, coordination 12
+Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [1/4, 1/2, 1/4]
+Allowed exchange matrix:[  A  C-E  D-F
+                         C+E    B -C+E
+                         D+F -C-E    A]
+Allowed DM vector: [E F -E]
+
+Sunny.Bond(1, 3, [0, 0, 0])
+Distance 5.89316933576492, coordination 6
+Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [0, 1/2, 0]
+Allowed exchange matrix:[A D C
+                         D A C
+                         C C B]
+
+Sunny.Bond(1, 3, [1, 0, 0])
+Distance 5.89316933576492, coordination 6
+Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [1, 1/2, 0]
+Allowed exchange matrix:[A D C
+                         D A C
+                         C C B]
+
+
 ````
 
 Note that the exchange anisotropies allowed on the the pyrochlore lattice are
@@ -173,6 +460,7 @@ know which bond is J3a and which is J3b, let's plot the structure.
 ````julia
 view_crystal(xtal_mgcro, 5.9)
 ````
+![](MgCr2O4-tutorial-29.png)
 
 The crystal viewer shows that the second interaction -- cyan color with
 distance of 5.89Å -- is in fact the one hopping through a chromium site,
@@ -242,12 +530,14 @@ systems after themalization. First the pyrochlore,
 ````julia
 plot_spins(sys_pyro)
 ````
+![](MgCr2O4-tutorial-41.png)
 
 and then the MgCr2O4,
 
 ````julia
 plot_spins(sys_mgcro)
 ````
+![](MgCr2O4-tutorial-43.png)
 
 ## Instantaneous Structure Factor
 Next we can examine the instantaneous structure factor.
@@ -299,6 +589,7 @@ hm = heatmap!(ax_mgcro, qvals, qvals, Sq_mgcro)
 Colorbar(fig[1,4], hm)
 fig
 ````
+![](MgCr2O4-tutorial-51.png)
 
 ## Dynamical Structure Factor
 We can also estimate the dynamical structure factor.
@@ -342,6 +633,7 @@ for (i, qb) in enumerate(qbs)
 end
 fig
 ````
+![](MgCr2O4-tutorial-57.png)
 
 And let's take a look at the same slices for MgCr2O4.
 
@@ -361,6 +653,7 @@ for (i, qb) in enumerate(qbs)
 end
 fig
 ````
+![](MgCr2O4-tutorial-59.png)
 
 ### Instantaneous structure factor from a dynamical structure factor
 
@@ -397,4 +690,5 @@ hm = heatmap!(ax_mgcro, qvals, qvals, Sq_mgcro)
 Colorbar(fig[1,4], hm)
 fig
 ````
+![](MgCr2O4-tutorial-64.png)
 

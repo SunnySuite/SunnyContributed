@@ -1,6 +1,6 @@
 using Literate, Git, Dates
 
-draft = true
+draft = false
 root = dirname(@__FILE__)
 src_dir = joinpath(root, "src") 
 build_dir = joinpath(root, "build")
