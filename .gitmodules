@@ -1,3 +1,6 @@
 [submodule "Sunny.jl"]
 	path = Sunny.jl
 	url = https://github.com/SunnySuite/Sunny.jl
+[submodule "FiniteTemperatureFeI2"]
+	path = FiniteTemperatureFeI2
+	url = https://github.com/ddahlbom/FiniteTemperatureFeI2
