@@ -232,3 +232,5 @@ function example_fei2()
   end
   display(four_panel_plot(Bzs,energies,dat,"χxx(B)"))
 end
+
+
