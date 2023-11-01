@@ -2,6 +2,7 @@
 # in real space. Run one of the example_* functions at the bottom to see it in action!
 # 
 # Works on Sunny main as of this writing! (Oct 27)
+
 #
 # The correctness of the visualization is not yet verified--see comments within--and also
 # currently only really shows the dipole sector.
@@ -10,6 +11,7 @@ using Sunny, GLMakie, Observables, LinearAlgebra
 
 # Steal these internal functions required for the eigenmode computation
 import Sunny: bogoliubov!, to_reshaped_rlu, swt_hamiltonian_SUN!, natoms
+
 
 function get_eigenmodes(swt,q; verbose = false)
     (; sys, data, observables) = swt
@@ -384,8 +386,6 @@ function example_fei2()
   interact_eigenmodes(swt, path, formula)
 end
 
-
-
 ### Support functions
 
 function plot_band_intensities(dispersion, intensity)
@@ -524,5 +524,4 @@ function fill_colors(c::AbstractArray, sz)
     return c
 end
 fill_colors(c, sz) = fill(c, sz)
-
 
