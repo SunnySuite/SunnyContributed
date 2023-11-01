@@ -1,7 +1,8 @@
 # # MgCr2O4 at Finite Temperature
 
-# **Author**: Martin Mourigal <br>
-# **Date**: September 9, 2022 (Updated by October 28, 2023 using Sunny 0.5.5)
+# **Author**: Martin Mourigal
+#
+# **Date**: September 9, 2022 (Updated by November 1, 2023 using Sunny 0.5.5)
 # 
 # In this tutorial, we will walk through an example in Sunny and calculate
 # the spin dynamical properties of the Heisenberg pyrochlore antiferromagnet and
