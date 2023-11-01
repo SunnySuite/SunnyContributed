@@ -5,16 +5,14 @@ root = dirname(@__FILE__)
 src_dir = joinpath(root, "src") 
 build_dir = joinpath(root, "build")
 
-# If no arguments given, rebuild all notebooks
-# docnames = if length(ARGS) == 0
-#     filter(name -> split(name, ".")[end] == "jl", readdir(src_dir))
-# else
-#     ARGS
-# end
-docnames = [
-    "renormalization_tutorial.jl",
-    "MgCr2O4-tutorial.jl",
-]
+docnames = if length(ARGS) == 0
+    [
+        "renormalization_tutorial.jl",
+        "MgCr2O4-tutorial.jl",
+    ]
+else
+    ARGS
+end
 
 # Build the notebooks
 map(docnames) do docname
