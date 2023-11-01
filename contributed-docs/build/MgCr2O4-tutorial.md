@@ -1,7 +1,8 @@
 # MgCr2O4 at Finite Temperature
 
-**Author**: Martin Mourigal <br>
-**Date**: September 9, 2022 (Updated by October 28, 2023 using Sunny 0.5.5)
+**Author**: Martin Mourigal
+
+**Date**: September 9, 2022 (Updated by November 1, 2023 using Sunny 0.5.5)
 
 In this tutorial, we will walk through an example in Sunny and calculate
 the spin dynamical properties of the Heisenberg pyrochlore antiferromagnet and
@@ -68,7 +69,7 @@ xtal_pyro   = Crystal(latvecs, positions; types) # We will call this crystal the
 
 ````
 Crystal
-HM symbol 'F d -3 m' (227)
+Spacegroup 'F d -3 m' (227)
 Lattice params a=8.334, b=8.334, c=8.334, α=90°, β=90°, γ=90°
 Cell volume 578.9
 Type 'B', Wyckoff 16c (point group '.-3m'):
@@ -115,7 +116,7 @@ xtal_mgcro_1 = Crystal(latvecs, positions; types)
 
 ````
 Crystal
-HM symbol 'R 3 m' (160)
+Spacegroup 'R 3 m' (160)
 Lattice params a=8.334, b=8.334, c=8.334, α=90°, β=90°, γ=90°
 Cell volume 578.9
 Type 'Mg', Wyckoff 3a (point group '3m'):
@@ -150,7 +151,7 @@ xtal_mgcro_2 = Crystal(latvecs, positions, spacegroup; types, setting)
 
 ````
 Crystal
-HM symbol 'F d -3 m' (227)
+Spacegroup 'F d -3 m' (227)
 Lattice params a=8.334, b=8.334, c=8.334, α=90°, β=90°, γ=90°
 Cell volume 578.9
 Type 'Mg', Wyckoff 8b (point group '-43m'):
@@ -224,13 +225,13 @@ To import a CIF file, simply give the path to `Crystal`. One may optionally
 specify a precision parameter to apply to the symmetry analysis.
 
 ````julia
-cif = pkgdir(Sunny, "examples", "longer_examples", "MgCr2O4_160953_2009.cif")
+cif = joinpath(@__DIR__, "..", "src", "MgCr2O4_160953_2009.cif")
 xtal_mgcro_3 = Crystal(cif; symprec=0.001)
 ````
 
 ````
 Crystal
-HM symbol 'F d -3 m' (227)
+Spacegroup 'F d -3 m' (227)
 Lattice params a=8.333, b=8.333, c=8.333, α=90°, β=90°, γ=90°
 Cell volume 578.6
 Type 'Mg1', Wyckoff 8b (point group '-43m'):
@@ -306,7 +307,7 @@ xtal_mgcro = subcrystal(xtal_mgcro_2,"Cr")
 
 ````
 Crystal
-HM symbol 'F d -3 m' (227)
+Spacegroup 'F d -3 m' (227)
 Lattice params a=8.334, b=8.334, c=8.334, α=90°, β=90°, γ=90°
 Cell volume 578.9
 Type 'Cr', Wyckoff 16c (point group '.-3m'):
@@ -366,7 +367,7 @@ Allowed anisotropy in Stevens operators:
     c₄*(-11𝒪[6,-6]-8𝒪[6,-3]+𝒪[6,-2]-8𝒪[6,-1]+8𝒪[6,1]-8𝒪[6,3]) + c₅*(𝒪[6,0]-21𝒪[6,4]) + c₆*((9/5)𝒪[6,-6]+(24/5)𝒪[6,-5]+𝒪[6,-2]+(8/5)𝒪[6,-1]-(8/5)𝒪[6,1]-(24/5)𝒪[6,5])
 
 Sunny.Bond(1, 3, [0, 0, 0])
-Distance 2.94658466788246, coordination 6
+Distance 2.9465846678825, coordination 6
 Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [7/8, 7/8, 1/8]
 Allowed exchange matrix:[ A -D D
                           D  B C
@@ -374,7 +375,7 @@ Allowed exchange matrix:[ A -D D
 Allowed DM vector: [0 -D -D]
 
 Sunny.Bond(1, 2, [0, 0, 0])
-Distance 5.10363435357589, coordination 12
+Distance 5.1036343535759, coordination 12
 Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [5/8, 1/8, 5/8]
 Allowed exchange matrix:[  A  C-E  D-F
                          C+E    B -C+E
@@ -382,14 +383,14 @@ Allowed exchange matrix:[  A  C-E  D-F
 Allowed DM vector: [E F -E]
 
 Sunny.Bond(2, 6, [0, 0, 0])
-Distance 5.89316933576492, coordination 6
+Distance 5.8931693357649, coordination 6
 Connects 'B' at [5/8, 1/8, 5/8] to 'B' at [5/8, 5/8, 1/8]
 Allowed exchange matrix:[A D D
                          D B C
                          D C B]
 
 Sunny.Bond(1, 5, [0, 0, 0])
-Distance 5.89316933576492, coordination 6
+Distance 5.8931693357649, coordination 6
 Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [7/8, 1/8, 7/8]
 Allowed exchange matrix:[ A D -D
                           D B  C
@@ -416,7 +417,7 @@ Allowed anisotropy in Stevens operators:
     c₄*(-11𝒪[6,-6]-8𝒪[6,-3]+𝒪[6,-2]-8𝒪[6,-1]-8𝒪[6,1]+8𝒪[6,3]) + c₅*(𝒪[6,0]-21𝒪[6,4]) + c₆*((9/5)𝒪[6,-6]+(24/5)𝒪[6,-5]+𝒪[6,-2]+(8/5)𝒪[6,-1]+(8/5)𝒪[6,1]+(24/5)𝒪[6,5])
 
 Sunny.Bond(1, 2, [0, 0, 0])
-Distance 2.94658466788246, coordination 6
+Distance 2.9465846678825, coordination 6
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [3/4, 1/4, 0]
 Allowed exchange matrix:[A C -D
                          C A -D
@@ -424,7 +425,7 @@ Allowed exchange matrix:[A C -D
 Allowed DM vector: [-D D 0]
 
 Sunny.Bond(1, 7, [0, 0, 0])
-Distance 5.10363435357589, coordination 12
+Distance 5.1036343535759, coordination 12
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [1/4, 1/2, 1/4]
 Allowed exchange matrix:[  A  C-E  D-F
                          C+E    B -C+E
@@ -432,14 +433,14 @@ Allowed exchange matrix:[  A  C-E  D-F
 Allowed DM vector: [E F -E]
 
 Sunny.Bond(1, 3, [0, 0, 0])
-Distance 5.89316933576492, coordination 6
+Distance 5.8931693357649, coordination 6
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [0, 1/2, 0]
 Allowed exchange matrix:[A D C
                          D A C
                          C C B]
 
 Sunny.Bond(1, 3, [1, 0, 0])
-Distance 5.89316933576492, coordination 6
+Distance 5.8931693357649, coordination 6
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [1, 1/2, 0]
 Allowed exchange matrix:[A D C
                          D A C
