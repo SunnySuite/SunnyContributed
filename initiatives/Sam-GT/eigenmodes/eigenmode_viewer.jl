@@ -1,7 +1,8 @@
 # This script is an experiment which visualizes individual spin wave oscillations
 # in real space. Run one of the example_* functions at the bottom to see it in action!
 # 
-# Requires Sunny.jl PR#174, so this won't work on main Sunny as of this writing (Oct 9)
+# Works on Sunny main as of this writing! (Oct 27)
+
 #
 # The correctness of the visualization is not yet verified--see comments within--and also
 # currently only really shows the dipole sector.
@@ -9,7 +10,8 @@
 using Sunny, GLMakie, Observables, LinearAlgebra
 
 # Steal these internal functions required for the eigenmode computation
-import Sunny: mk_bogoliubov!, to_reshaped_rlu, swt_hamiltonian_SUN!, natoms
+import Sunny: bogoliubov!, to_reshaped_rlu, swt_hamiltonian_SUN!, natoms
+
 
 function get_eigenmodes(swt,q; verbose = false)
     (; sys, data, observables) = swt
@@ -23,12 +25,11 @@ function get_eigenmodes(swt,q; verbose = false)
     Vmat = zeros(ComplexF64, 2*nmodes, 2*nmodes)
     disp = zeros(Float64, nmodes)
 
-    bogoliubov! = mk_bogoliubov!(nmodes)
 
     q_reshaped = to_reshaped_rlu(swt.sys, Sunny.Vec3(q))
 
     if sys.mode == :SUN
-        swt_hamiltonian_SUN!(swt, q_reshaped, Hmat)
+        swt_hamiltonian_SUN!(Hmat, swt, q_reshaped)
     elseif sys.mode == :dipole
         error("Dipole mode not supported")
     end
@@ -37,7 +38,7 @@ function get_eigenmodes(swt,q; verbose = false)
     #display(H0)
     #display(eigen(H0))
 
-    bogoliubov!(disp, Vmat, Hmat, swt.energy_tol, true)
+    disp = bogoliubov!(Vmat, Hmat)
 
     # Now, Vmat contains the information about the eigenmodes as columns.
     # The way this works is that the first [nmodes] columns describe the
@@ -59,7 +60,7 @@ function get_eigenmodes(swt,q; verbose = false)
     # There is one such (2:N) block for each atom in the magnetic unit cell
 
 
-    bases = swt.data.local_quantization_basis
+    bases = swt.data.local_unitary
 
     eigen_mode_displacements = zeros(ComplexF64,N,Nm,nmodes)
 
@@ -103,9 +104,9 @@ function get_eigenmodes(swt,q; verbose = false)
           eigen_mode_displacements[:,atom,eigen_mode] .+= this_displacement .* this_amplitude
 
           # This says that the basis vectors corresponding to the creation operators
-          # are the complex conjugates of the basis vectors corresponding to the deletion
+          # are the imaginary unit (1im) times the basis vectors corresponding to the deletion
           # operators. Is this true? Who knows...
-          this_conj_displacement = conj.(uncondensed_basis[:,boson_ix])
+          this_conj_displacement = 1im .* uncondensed_basis[:,boson_ix]
           this_conj_amplitude = creation_operators_on_this_atom[boson_ix]
           eigen_mode_displacements[:,atom,eigen_mode] .+= this_conj_displacement .* this_conj_amplitude
 
@@ -157,7 +158,7 @@ function plot_eigenmode(displacements, swt::SpinWaveTheory; kwargs...)
 end
 
 function plot_eigenmode!(ax, displacements, swt::SpinWaveTheory; t = nothing, kwargs...)
-  Sunny.Plotting.plot_spins!(ax,swt.sys;kwargs...)
+  plot_spin_data!(ax,swt.sys;color=:grey,arrowscale = 0.9,kwargs...)
 
   tweaked = Observable(zeros(Vec3f,size(swt.sys.dipoles)))
   coherents_scratch = copy(swt.sys.coherents)
@@ -167,19 +168,19 @@ function plot_eigenmode!(ax, displacements, swt::SpinWaveTheory; t = nothing, kw
   on(displacements,update = true) do disps
     notify(t)
   end
-
+  
   on(t) do time
     disps = displacements[]
     # Requires single-site swt system
     for i = 1:size(coherents_scratch,4)
-      coherents_scratch[i] = swt.sys.coherents[i] .+ cos(time) .* disps[:,i]
+      coherents_scratch[i] = swt.sys.coherents[i] .+ 0.5 .* exp(im * time) .* disps[:,i]
       tweaked[][i] = Sunny.expected_spin(coherents_scratch[i])
     end
     notify(tweaked)
   end
 
   # TODO: ghost spins are currently inaccurate, since they should pick up a phase factor
-  Sunny.Plotting.plot_spins!(ax,swt.sys;color = :blue,spin_data = tweaked,kwargs...)
+  plot_spin_data!(ax,swt.sys;color = :blue,spin_data = tweaked,kwargs...)
 end
 
 if !(:eigenmode_viewer_screen ∈ names(Main))
@@ -190,7 +191,7 @@ function interact_eigenmodes(swt::SpinWaveTheory, qs, formula; kwargs...)
   fig = Figure()
   ax = Axis(fig[1,1], title = "Click a mode! (Spacebar to animate)", xticklabelsvisible = false, xrectzoom = false, yrectzoom = false)
   dispersion, intensity = intensities_bands(swt, qs, formula)
-  Sunny.Plotting.plot_band_intensities!(ax, dispersion, intensity)
+  plot_band_intensities!(ax, dispersion, intensity)
 
   # The marker showing the user-selected oscillation
   marker_points = Observable(Point2f[Point2f(NaN,NaN)])
@@ -301,8 +302,8 @@ end
 
 function example_eigenmodes()
   sys = System(Sunny.cubic_crystal(), (1,2,1), [SpinInfo(1;S=1/2,g=1)], :SUN, units = Units.theory)
-  set_external_field!(sys,[0,0,0.5])
-  set_exchange!(sys,-1.,Bond(1,1,[0,1,0]))
+  set_external_field!(sys,[0,0,0.5]) # Field along Z
+  set_exchange!(sys,-1.,Bond(1,1,[0,1,0])) # Strong Ferromagnetic J
   randomize_spins!(sys)
   minimize_energy!(sys)
   minimize_energy!(sys)
@@ -310,6 +311,7 @@ function example_eigenmodes()
 
   swt = SpinWaveTheory(sys)
   qs = [[0,k,0] for k = range(0,1,length=20)]
+  get_eigenmodes(swt,qs[3]; verbose = true)
   formula = intensity_formula(swt,:perp, kernel = delta_function_kernel)
   interact_eigenmodes(swt, qs, formula)
 end
@@ -383,3 +385,143 @@ function example_fei2()
   formula = intensity_formula(swt,:perp, kernel = delta_function_kernel)
   interact_eigenmodes(swt, path, formula)
 end
+
+### Support functions
+
+function plot_band_intensities(dispersion, intensity)
+    f = Makie.Figure()
+    ax = Makie.Axis(f[1,1]; xlabel = "Momentum", ylabel = "Energy (meV)", xticklabelsvisible = false)
+    plot_band_intensities!(ax,dispersion,intensity)
+    f
+end
+
+function plot_band_intensities!(ax, dispersion, intensity)
+    Makie.ylims!(ax, min(0.0,minimum(dispersion)), maximum(dispersion))
+    Makie.xlims!(ax, 1, size(dispersion, 1))
+    colorrange = extrema(intensity)
+    for i in axes(dispersion)[2]
+        Makie.lines!(ax, 1:length(dispersion[:,i]), dispersion[:,i]; color=intensity[:,i], colorrange)
+    end
+    nothing
+end
+
+function plot_spin_data(sys::System; resolution=(768, 512), show_axis=false, kwargs...)
+    fig = Makie.Figure(; resolution)
+    ax = Makie.LScene(fig[1, 1]; show_axis)
+    plot_spin_data!(ax, sys; kwargs...)
+    return fig
+end
+
+function plot_spin_data!(ax, sys::System; arrowscale=1.0, stemcolor=:lightgray, color=:red, show_cell=true,
+                     orthographic=false, ghost_radius=0, rescale=1.0, dims=3, spin_data = Makie.Observable(sys.dipoles))
+    if dims == 2
+        sys.latsize[3] == 1 || error("System not two-dimensional in (a₁, a₂)")
+    elseif dims == 1
+        sys.latsize[[2,3]] == [1,1] || error("System not one-dimensional in (a₁)")
+    end
+
+    supervecs = sys.crystal.latvecs * diagm(Vec3(sys.latsize))
+
+    ### Plot spins ###
+
+    # Show bounding box of magnetic supercell in gray (this needs to come first
+    # to set a scale for the scene in case there is only one atom).
+    supervecs = sys.crystal.latvecs * diagm(Vec3(sys.latsize))
+    Makie.linesegments!(ax, Sunny.Plotting.cell_wireframe(supervecs, dims); color=:gray, linewidth=rescale*1.5)
+
+    # Bounding box of original crystal unit cell in teal
+    if show_cell
+        Makie.linesegments!(ax, Sunny.Plotting.cell_wireframe(Sunny.orig_crystal(sys).latvecs, dims); color=:teal, linewidth=rescale*1.5)
+    end
+
+    # Infer characteristic length scale between sites
+    ℓ0 = Sunny.Plotting.characteristic_length_between_atoms(Sunny.orig_crystal(sys))
+
+    # Quantum spin-S, averaged over all sites. Will be used to normalize
+    # dipoles.
+    S0 = (sum(sys.Ns)/length(sys.Ns) - 1) / 2
+
+    # Parameters defining arrow shape
+    a0 = arrowscale * ℓ0
+    arrowsize = 0.4a0
+    linewidth = 0.12a0
+    lengthscale = 0.6a0
+    markersize = 0.8linewidth
+    arrow_fractional_shift = 0.6
+   
+    # Make sure colors are indexable by site
+    color0 = fill_colors(color, size(sys.dipoles))
+
+    # Find all sites within max_dist of the system center
+    rs = [supervecs \ global_position(sys, site) for site in eachsite(sys)]
+    if dims == 3
+        r0 = [0.5, 0.5, 0.5]
+    elseif dims == 2
+        r0 = [0.5, 0.5, 0]
+    end
+    images = Sunny.Plotting.all_images_within_distance(supervecs, rs, [r0]; max_dist=ghost_radius, include_zeros=true)
+
+    # Require separate drawing calls with `transparency=true` for ghost sites
+    for (isghost, alpha) in ((false, 1.0), (true, 0.08))
+        pts = Makie.Point3f0[]
+        vecs = Makie.Observable(Makie.Vec3f0[])
+        arrowcolor = Tuple{eltype(color0), Float64}[]
+        for site in eachindex(images)
+            vec = (lengthscale / S0) * sys.dipoles[site]
+            # Loop over all periodic images of site within radius
+            for n in images[site]
+                # If drawing ghosts, require !iszero(n), and vice versa
+                iszero(n) == isghost && continue
+                pt = supervecs * (rs[site] + n)
+                push!(pts, Makie.Point3f0(pt))
+                push!(vecs[], Makie.Vec3f0(vec))
+                push!(arrowcolor, (color0[site], alpha))
+            end
+        end
+
+        Makie.on(spin_data, update = true) do dipoles
+            ix = 1
+            for site in eachindex(images)
+                vec = (lengthscale / S0) * dipoles[site]
+                for n in images[site]
+                    iszero(n) == isghost && continue
+                    vecs[][ix] = Makie.Vec3f0(vec)
+                    ix += 1
+                end
+            end
+            notify(vecs)
+        end
+
+        shifted_pts = map(vs -> pts - arrow_fractional_shift * vs, vecs)
+
+        linecolor = @something (stemcolor, alpha) arrowcolor
+        Makie.arrows!(ax, shifted_pts, vecs; arrowsize, linewidth, linecolor, arrowcolor, transparency=isghost)
+
+        # Small sphere inside arrow to mark atom position
+        Makie.meshscatter!(ax, pts; markersize, color=linecolor, transparency=isghost)
+    end
+
+    if show_cell
+        # Labels for lattice vectors. This needs to come last for
+        # `overdraw=true` to work.
+        pos = [(3/4)*Makie.Point3f0(p) for p in eachcol(Sunny.orig_crystal(sys).latvecs)[1:dims]]
+        text = [Makie.rich("a", Makie.subscript(repr(i))) for i in 1:dims]
+        Makie.text!(ax, pos; text, color=:black, fontsize=rescale*20, font=:bold, glowwidth=4.0,
+                    glowcolor=(:white, 0.6), align=(:center, :center), overdraw=true)
+    end
+
+    Sunny.Plotting.orient_camera!(ax, supervecs; ghost_radius, orthographic, dims)
+
+    return ax
+end
+
+
+function fill_colors(c::AbstractArray, sz)
+    size(c) == sz || error("Colors array must have size $sz.")
+    if eltype(c) <: Number
+        c = Sunny.Plotting.numbers_to_colors(c)
+    end
+    return c
+end
+fill_colors(c, sz) = fill(c, sz)
+
