@@ -1,4 +1,4 @@
-# # Maintaining a quantum-to-classical correspondence at eleveated temperatures 
+# # Enforcing the quantum sum rule with moment renormalization 
 #
 # One goal of the Sunny project is to expand the scope of classical simulations
 # to encompass a greater number of quantum effects. The extension of the
