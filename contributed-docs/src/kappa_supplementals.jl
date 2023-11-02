@@ -76,14 +76,3 @@ function FeI2_sys_and_cryst(dims=(4,4,4); gs=1, seed=nothing)
     sys, cryst = FeI2_magnetic_unit_cell(; gs, seed)
     resize_supercell(sys, dims), cryst
 end
-
-
-################################################################################
-# Sum rule utilities
-################################################################################
-function set_spin_rescaling!(sys::System{N}, κ) where N
-    sys.κs .= κ
-    for site in eachsite(sys)
-        set_coherent!(sys, sys.coherents[site], site)
-    end
-end

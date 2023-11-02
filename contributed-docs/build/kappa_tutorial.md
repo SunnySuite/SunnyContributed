@@ -1,4 +1,4 @@
-# Enforcing the quantum sum rule with moment renormalization 
+# Enforcing the quantum sum rule with moment renormalization
 
 One goal of the Sunny project is to expand the scope of classical simulations
 to encompass a greater number of quantum effects. The extension of the
@@ -7,23 +7,31 @@ cornerstone of this approach [1], but Sunny includes a number of other
 "classical-to-quantum" corrections. For example, in the zero-temperature
 limit, there is a well-known correspondence between Linear Spin Wave Theory
 (LSWT) and the quantization of the normal modes of the linearized LL
-equations. This allows LSWT to be recovered from an estimate of $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$ that
-has been calculated classically. This is achieved by applying a
-classical-to-quantum correspondence factor to the
-classical $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$ as follows,
+equations. This allows LSWT to be recovered from an estimate of
+$\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$ that has been calculated
+classically. This is achieved by applying a classical-to-quantum
+correspondence factor to the classical $\mathcal{S}_{\mathrm{cl}}(\mathbf{q},
+\omega)$ as follows,
 
 ```math
-\mathcal{S}_{\rm Q}(\mathbf{q}, \omega)=\frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}}}(\mathbf{q}, \omega),
+\mathcal{S}_{\rm Q}(\mathbf{q}, \omega)=\frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega),
 ```
 
 Sunny automatically applies this correction when you provide an
-`intensity_formula` with a temperature.
+`intensity_formula` with a temperature, as will be shown below.
 
-One consequence of this of this is that the "corrected" $\mathcal{S}_{\rm cl}(\mathbf{q}, \omega)$
-satisfies the quantum sum rule:
+Since the quantum structure factor, $\mathcal{S}_{\rm Q}(\mathbf{q}, \omega)$,
+satisifies a familiar "zeroth-order" sum rule,
 
 ```math
 \int\int d\mathbf{q}d\omega\mathcal{S}_{\rm Q}(\mathbf{q}, \omega) = N_S S(S+1)
+```
+
+a consequence of this of the correspondence is that the "corrected"
+$\mathcal{S}_{\rm cl}(\mathbf{q}, \omega)$ also satisfies the quantum sum rule:
+
+```math
+\int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega) = N_S S(S+1)
 ```
 where $N_S$ is the number of sites.
 
@@ -35,9 +43,9 @@ correction factor,
 \frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\rm B}(\omega/T) \right],
 ```
 approaches unity for all $\omega$ whenever $T$ is large. In particular, this
-means that the corrected classical $\mathcal{S}_{\rm cl}(\mathbf{q}, \omega)$ will no longer satisify the
-quantum sum rule at elevated temperatures. It will instead approach the
-"classical sum rule":
+means that the corrected classical $\mathcal{S}_{\rm cl}(\mathbf{q}, \omega)$
+will no longer satisify the quantum sum rule at elevated temperatures. It will
+instead approach the "classical sum rule":
 ```math
 \int\int d\mathbf{q}d\omega\mathcal{S}_{\rm cl}(\mathbf{q}, \omega) = N_S S^2
 
@@ -46,7 +54,7 @@ quantum sum rule at elevated temperatures. It will instead approach the
 A simple approach to maintaining a classical-to-quantum correspondence at
 elevated temperatures is to renormalize the classical magnetic moments in a
 temperature-dependent fashion to ensure satisfaction of the quantum sum rule
-[2]. A Sunny makes it straightforward to apply such a renormalization, as will
+[2]. Sunny makes it straightforward to apply such a renormalization, as will
 be demonstrated below.
 
 ## Evaluating spectral sums in Sunny
@@ -140,7 +148,7 @@ total_spectral_weight(sc; kT=Inf) / prod(sys.latsize)
 ````
 
 ````
-1.3333333333333335
+1.3333333333333337
 ````
 
 The result is 4/3, which is the expected "classical" sum rule, which can be
@@ -157,7 +165,7 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 ````
 
 ````
-5.345455394767055
+5.345455394762397
 ````
 
 This result is in fact very close to 16/3. So, at low temperatures,
@@ -195,7 +203,7 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 ````
 
 ````
-2.9203883242717708
+2.9003231784920787
 ````
 
 The result is something close to 3, which certainly does not satisfy the
@@ -243,7 +251,7 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 ````
 
 ````
-5.081263852189107
+5.16048201770543
 ````
 
 The result is something slightly greater than 5, substantially closer to the
