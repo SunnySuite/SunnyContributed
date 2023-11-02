@@ -7,11 +7,12 @@ cornerstone of this approach [1], but Sunny includes a number of other
 "classical-to-quantum" corrections. For example, in the zero-temperature
 limit, there is a well-known correspondence between Linear Spin Wave Theory
 (LSWT) and the quantization of the normal modes of the linearized LL
-equations. This allows LSWT to be recovered from an estimate of
-$\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$ that has been calculated
-classically. This is achieved by applying a classical-to-quantum
-correspondence factor to the classical $\mathcal{S}_{\mathrm{cl}}(\mathbf{q},
-\omega)$ as follows,
+equations. This allows the dynamical spin structure factor (DSSF) that is
+calculated using LSWT, $\mathcal{S}_{\rm Q}(\mathbf{q}, \omega)$, to be
+recovered from a DSSF that has been calculated classically,
+$\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$. This is achieved by applying
+a classical-to-quantum correspondence factor to
+$\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$ as follows,
 
 ```math
 \mathcal{S}_{\rm Q}(\mathbf{q}, \omega)=\frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega),
@@ -20,20 +21,18 @@ correspondence factor to the classical $\mathcal{S}_{\mathrm{cl}}(\mathbf{q},
 Sunny automatically applies this correction when you provide an
 `intensity_formula` with a temperature, as will be shown below.
 
-Since the quantum structure factor, $\mathcal{S}_{\rm Q}(\mathbf{q}, \omega)$,
-satisifies a familiar "zeroth-order" sum rule,
+The quantum structure factor, $\mathcal{S}_{\rm Q}(\mathbf{q}, \omega)$,
+satisifies a familiar "zeroth-moment" sum rule,
 
 ```math
-\int\int d\mathbf{q}d\omega\mathcal{S}_{\rm Q}(\mathbf{q}, \omega) = N_S S(S+1)
+\int\int d\mathbf{q}d\omega\mathcal{S}_{\rm Q}(\mathbf{q}, \omega) = N_S S(S+1),
 ```
-
-a consequence of this of the correspondence is that the "corrected"
-$\mathcal{S}_{\rm cl}(\mathbf{q}, \omega)$ also satisfies the quantum sum rule:
+where $N_S$ is the number of sites. An immediate consequence of the correspondence
+is that the "corrected" classical structure factor satisfies the same sum rule:
 
 ```math
 \int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega) = N_S S(S+1)
 ```
-where $N_S$ is the number of sites.
 
 However, this correspondence depends on a harmonic oscillator approximation
 and hence only applies near $T=0$. This is reflected in the fact that the
@@ -42,12 +41,12 @@ correction factor,
 ```math
 \frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\rm B}(\omega/T) \right],
 ```
-approaches unity for all $\omega$ whenever $T$ is large. In particular, this
+approaches unity for all $\omega$ whenever $T$ grows large. In particular, this
 means that the corrected classical $\mathcal{S}_{\rm cl}(\mathbf{q}, \omega)$
 will no longer satisify the quantum sum rule at elevated temperatures. It will
 instead approach the "classical sum rule":
 ```math
-\int\int d\mathbf{q}d\omega\mathcal{S}_{\rm cl}(\mathbf{q}, \omega) = N_S S^2
+\lim_{T\rightarrow\infty}\int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega) = N_S S^2
 
 ```
 
