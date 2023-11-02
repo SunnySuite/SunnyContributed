@@ -264,11 +264,11 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 ````
 
 The result is something slightly greater than 5, substantially closer to the
-expected quantum sum rule. We can now adjust ``\kappa`` and iterate
+expected quantum sum rule. We can now adjust $\kappa$ and iterate
 until we reach a value sufficiently close to 16/3.  In general, this should
 be done while collecting substantially more statistics.
 
-Note that ``κ(T)`` needs to be determined empirically for each model.
+Note that $\kappa (T)$ needs to be determined empirically for each model.
 A detailed example, demonstrating the calculations used in [3],
 is available [here](https://github.com/SunnySuite/2023-Dahlbom-Quantum_to_classical_crossover).
 
