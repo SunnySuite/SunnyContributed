@@ -46,7 +46,7 @@ this means that the corrected classical $\mathcal{S}_{\mathrm{cl}}(\mathbf{q},
 \omega)$ will no longer satisify the quantum sum rule at elevated
 temperatures. It will instead approach the "classical sum rule":
 ```math
-\lim_{T\rightarrow\infty}\int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega) = N_S S^2
+\lim_{T\rightarrow\infty}\int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega) = N_S S^2
 
 ```
 
