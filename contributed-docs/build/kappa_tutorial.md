@@ -67,7 +67,7 @@ include(joinpath(@__DIR__, "..", "src", "kappa_supplementals.jl"))
 
 dims = (8, 8, 4)
 seed = 101
-sys, cryst = FeI2_sys_and_cryst(dims; seed); # This function is available in the `kappa_supplement.jl`
+sys, cryst = FeI2_sys_and_cryst(dims; seed);
 ````
 
 We will next estimate $\mathcal{S}_{\rm cl}(\mathbf{q}, \omega)$ using classical dynamics. For more details on
@@ -168,11 +168,12 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 5.345455394762397
 ````
 
-This result is in fact very close to 16/3. So, at low temperatures,
-application of the classical-to-quantum correspondence factor results in
-satisfaction of the quantum sum rule as anticipated. This will not hold,
-however, at higher temperatures. Let's repeat the above experiment choosing a
-temperature above $T_N=3.05$.
+This is in fact very close to 16/3. So, at low temperatures,
+application of the classical-to-quantum correspondence factor yields results that
+satisfy the quantum sum rule.
+
+This will not hold, however, at higher temperatures. Let's repeat the above
+experiment choosing a temperature above $T_N=3.05$.
 
 ````julia
 sys, cryst = FeI2_sys_and_cryst(dims; seed)
@@ -194,9 +195,9 @@ for _ in 1:nsamples
 end
 ````
 
-Evaluating the sum without the classical-to-quantum correction factor
-will again result in 4/3, as you can easily verify. Let's examine
-the result with this correction:
+Evaluating the sum without the classical-to-quantum correction factor will
+again give 4/3, as you can easily verify. Let's examine the result with
+the correction:
 
 ````julia
 total_spectral_weight(sc; kT) / prod(sys.latsize)
@@ -206,16 +207,16 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 2.9003231784920787
 ````
 
-The result is something close to 3, which certainly does not satisfy the
-quantum sum rule.
+While this is larger than the classical value of 4/3, it is still
+substantially short of the quantum value of 16/3.
 
 ## Implementing moment renormalization
 
-We can attempt to enforce satisfaction of the quantum sum rule by simply
-renormalizing the magnetic moments by an appropriate factor. In Sunny,
-this can be achieved by calling `set_spin_rescaling!(sys, κ)`,
-where κ is the desired renormalization. Let's repeat the calculation
-above one more time at the same temperature, this time setting $κ=1.25$.
+One way to enforce the quantum sum rule is by simply renormalizing the
+magnetic moments by an appropriate factor. In Sunny, this can be achieved by
+calling `set_spin_rescaling!(sys, κ)`, where κ is the desired renormalization.
+Let's repeat the calculation above one more time at the same temperature, this
+time setting $κ=1.25$.
 
 ````julia
 sys, cryst = FeI2_sys_and_cryst(dims; seed)
@@ -244,7 +245,7 @@ for _ in 1:nsamples
 end
 ````
 
-Finally, we evaluate the sume
+Finally, we evaluate the sum:
 
 ````julia
 total_spectral_weight(sc; kT) / prod(sys.latsize)
@@ -257,7 +258,7 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 The result is something slightly greater than 5, substantially closer to the
 expected quantum sum rule.
 
-In practice, ``κ(kT)`` needs to be determined empirically for each model. For
+In practice, ``κ(T)`` needs to be determined empirically for each model. For
 a detailed example of how this may be done in practice, see the sample code
 [here](https://github.com/SunnySuite/2023-Dahlbom-Quantum_to_classical_crossover),
 which gives a complete account of the calculations used in [2].
