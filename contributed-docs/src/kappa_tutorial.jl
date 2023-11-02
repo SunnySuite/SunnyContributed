@@ -21,31 +21,30 @@
 # Sunny automatically applies this correction when you provide an
 # `intensity_formula` with a temperature, as will be shown below.
 #
-# The quantum structure factor, $\mathcal{S}_{\rm Q}(\mathbf{q}, \omega)$,
-# satisifies a familiar "zeroth-moment" sum rule,
+# The quantum structure factor satisifies a familiar "zeroth-moment" sum rule,
 #
 # ```math
 # \int\int d\mathbf{q}d\omega\mathcal{S}_{\rm Q}(\mathbf{q}, \omega) = N_S S(S+1),
 # ```
-# where $N_S$ is the number of sites. An immediate consequence of the correspondence
-# is that the "corrected" classical structure factor satisfies the same sum rule:
+# where $N_S$ is the number of sites. An immediate consequence of the
+# correspondence is that the "corrected" classical structure factor satisfies
+# the same sum rule:
 #
 # ```math
 # \int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega) = N_S S(S+1)
 # ```
 #
-#
-# Note, however, that the correspondence depends on a harmonic oscillator approximation
-# and only applies near $T=0$. This is reflected in the fact that the
-# correction factor,
+# Note, however, that this correspondence depends on a harmonic oscillator
+# approximation and only applies near $T=0$. This is reflected in the fact that
+# the correction factor,
 #
 # ```math
 # \frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\rm B}(\omega/T) \right],
 # ```
-# approaches unity for all $\omega$ whenever $T$ grows large. In particular, this
-# means that the corrected classical $\mathcal{S}_{\rm cl}(\mathbf{q}, \omega)$
-# will no longer satisify the quantum sum rule at elevated temperatures. It will
-# instead approach the "classical sum rule":
+# approaches unity for all $\omega$ whenever $T$ grows large. In particular,
+# this means that the corrected classical $\mathcal{S}_{\rm cl}(\mathbf{q},
+# \omega)$ will no longer satisify the quantum sum rule at elevated
+# temperatures. It will instead approach the "classical sum rule":
 # ```math
 # \lim_{T\rightarrow\infty}\int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega) = N_S S^2
 # 
