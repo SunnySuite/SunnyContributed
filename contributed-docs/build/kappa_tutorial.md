@@ -116,7 +116,7 @@ end
 
 for _ in 1:nsamples
     # Decorrelate sample
-    for _ in 1:2000
+    for _ in 1:2_000
         step!(sys, langevin)
     end
     add_sample!(sc, sys)
