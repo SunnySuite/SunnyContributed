@@ -56,7 +56,7 @@
 # the quantum sum rule is satisfied. The appropriate renormalization factor can
 # be determinied analytically in the infinite temperature limit [2]. For an
 # arbitrary temperature, however, it must be determined empirically [3]. While
-# determining an appopriate rescaling factor can be computationally expensive,
+# determining an appropriate rescaling factor can be computationally expensive,
 # Sunny makes it straightforward to evaluate spectral sums and apply moment
 # renormalization, as shown below. One approach to determining the rescaling
 # factors themselves is demonstrated in the sample code 
@@ -219,7 +219,7 @@ for _ in 1:nsamples
     ## Renormalize magnetic moments before collecting a time-evolved sample.
     set_spin_rescaling!(sys, κ)
 
-    ## Generate a trajectory and calculate correlations .
+    ## Generate a trajectory and calculate correlations.
     add_sample!(sc, sys)
 
     ## Turn off κ renormalization before generating a new equilibrium sample.
