@@ -15,39 +15,38 @@ a classical-to-quantum correspondence factor to
 $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$ as follows,
 
 ```math
-\mathcal{S}_{\rm Q}(\mathbf{q}, \omega)=\frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega),
+\mathcal{S}_{\mathrm{Q}}(\mathbf{q}, \omega)=\frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega),
 ```
 
 Sunny automatically applies this correction when you provide an
 `intensity_formula` with a temperature, as will be shown below.
 
-The quantum structure factor, $\mathcal{S}_{\rm Q}(\mathbf{q}, \omega)$,
-satisifies a familiar "zeroth-moment" sum rule,
+The quantum structure factor satisifies a familiar "zeroth-moment" sum rule,
 
 ```math
-\int\int d\mathbf{q}d\omega\mathcal{S}_{\rm Q}(\mathbf{q}, \omega) = N_S S(S+1),
+\int\int d\mathbf{q}d\omega\mathcal{S}_{\mathrm{Q}}(\mathbf{q}, \omega) = N_S S(S+1),
 ```
-where $N_S$ is the number of sites. An immediate consequence of the correspondence
-is that the "corrected" classical structure factor satisfies the same sum rule:
+where $N_S$ is the number of sites. An immediate consequence of the
+correspondence is that the "corrected" classical structure factor satisfies
+the same sum rule:
 
 ```math
-\int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega) = N_S S(S+1)
+\int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega) = N_S S(S+1)
 ```
 
-
-Note, however, that the correspondence depends on a harmonic oscillator approximation
-and only applies near $T=0$. This is reflected in the fact that the
-correction factor,
+Note, however, that this correspondence depends on a harmonic oscillator
+approximation and only applies near $T=0$. This is reflected in the fact that
+the correction factor,
 
 ```math
-\frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\rm B}(\omega/T) \right],
+\frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right],
 ```
-approaches unity for all $\omega$ whenever $T$ grows large. In particular, this
-means that the corrected classical $\mathcal{S}_{\rm cl}(\mathbf{q}, \omega)$
-will no longer satisify the quantum sum rule at elevated temperatures. It will
-instead approach the "classical sum rule":
+approaches unity for all $\omega$ whenever $T$ grows large. In particular,
+this means that the corrected classical $\mathcal{S}_{\mathrm{cl}}(\mathbf{q},
+\omega)$ will no longer satisify the quantum sum rule at elevated
+temperatures. It will instead approach the "classical sum rule":
 ```math
-\lim_{T\rightarrow\infty}\int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega) = N_S S^2
+\lim_{T\rightarrow\infty}\int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega) = N_S S^2
 
 ```
 
@@ -70,7 +69,7 @@ seed = 101
 sys, cryst = FeI2_sys_and_cryst(dims; seed);
 ````
 
-We will next estimate $\mathcal{S}_{\rm cl}(\mathbf{q}, \omega)$ using classical dynamics. For more details on
+We will next estimate $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$ using classical dynamics. For more details on
 setting up such a calculation, see the tutorials in the Sunny documentation.
 
 ````julia
@@ -117,7 +116,7 @@ for _ in 1:nsamples
 end
 ````
 
-`sc` now contains an estimate of $\mathcal{S}_{\rm cl}(\mathbf{q}, \omega)$. We next wish to evaluate
+`sc` now contains an estimate of $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$. We next wish to evaluate
 the total spectral weight. We are working on a finite lattice and using discretized
 dynamics, so the integral will reduce to a sum. Since we'll be evaluating this
 sum a lot, we'll define a function.
