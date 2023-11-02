@@ -34,8 +34,9 @@ is that the "corrected" classical structure factor satisfies the same sum rule:
 \int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega) = N_S S(S+1)
 ```
 
-However, this correspondence depends on a harmonic oscillator approximation
-and hence only applies near $T=0$. This is reflected in the fact that the
+
+Note, however, that the correspondence depends on a harmonic oscillator approximation
+and only applies near $T=0$. This is reflected in the fact that the
 correction factor,
 
 ```math

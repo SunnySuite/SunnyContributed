@@ -34,8 +34,9 @@
 # \int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\rm B} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega) = N_S S(S+1)
 # ```
 #
-# However, this correspondence depends on a harmonic oscillator approximation
-# and hence only applies near $T=0$. This is reflected in the fact that the
+#
+# Note, however, that the correspondence depends on a harmonic oscillator approximation
+# and only applies near $T=0$. This is reflected in the fact that the
 # correction factor,
 #
 # ```math
@@ -65,7 +66,7 @@ include(joinpath(@__DIR__, "..", "src", "kappa_supplementals.jl"))
 
 dims = (8, 8, 4)
 seed = 101
-sys, cryst = FeI2_sys_and_cryst(dims; seed); # This function is available in the `kappa_supplement.jl`
+sys, cryst = FeI2_sys_and_cryst(dims; seed); 
 
 # We will next estimate $\mathcal{S}_{\rm cl}(\mathbf{q}, \omega)$ using classical dynamics. For more details on
 # setting up such a calculation, see the tutorials in the Sunny documentation.
