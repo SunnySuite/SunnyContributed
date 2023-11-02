@@ -21,7 +21,7 @@
 # `intensity_formula` with a temperature. This will be demonstrated in the code
 # example below. 
 #
-# The quantum structure factor satisifies a familiar "zeroth-moment" sum rule,
+# The quantum structure factor satisfies a familiar "zeroth-moment" sum rule,
 #
 # ```math
 # \int\int d\mathbf{q}d\omega\mathcal{S}_{\mathrm{Q}}(\mathbf{q}, \omega) = N_S S(S+1),
@@ -43,7 +43,7 @@
 # ```
 # approaches unity for all $\omega$ whenever $T$ grows large. In particular,
 # this means that the corrected classical $\mathcal{S}_{\mathrm{cl}}(\mathbf{q},
-# \omega)$ will no longer satisify the quantum sum rule at elevated
+# \omega)$ will no longer satisfy the quantum sum rule at elevated
 # temperatures. It will instead approach the "classical sum rule":
 # ```math
 # \lim_{T\rightarrow\infty}\int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega) = N_S S^2
@@ -53,7 +53,7 @@
 #
 # A simple approach to maintaining a classical-to-quantum correspondence at
 # elevated temperatures is to renormalize the classical magnetic moments so that
-# the quantum sum rule is satisified. The appropriate renormalization factor can
+# the quantum sum rule is satisfied. The appropriate renormalization factor can
 # be determinied analytically in the infinite temperature limit [2]. For an
 # arbitrary temperature, however, it must be determined empirically [3]. While
 # determining an appopriate rescaling factor can be computationally expensive,
