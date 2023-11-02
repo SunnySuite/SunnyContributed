@@ -8,7 +8,7 @@
 # limit, there is a well-known correspondence between Linear Spin Wave Theory
 # (LSWT) and the quantization of the normal modes of the linearized LL
 # equations. This allows the dynamical spin structure factor (DSSF) that is
-# calculated using LSWT, $\mathcal{S}_{\rm Q}(\mathbf{q}, \omega)$, to be
+# calculated using LSWT, $\mathcal{S}_{\mathrm{Q}}(\mathbf{q}, \omega)$, to be
 # recovered from a DSSF that has been calculated classically,
 # $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$. This is achieved by applying
 # a classical-to-quantum correspondence factor to
