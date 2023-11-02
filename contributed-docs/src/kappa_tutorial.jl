@@ -8,14 +8,14 @@
 # limit, there is a well-known correspondence between Linear Spin Wave Theory
 # (LSWT) and the quantization of the normal modes of the linearized LL
 # equations. This allows the dynamical spin structure factor (DSSF) that is
-# calculated using LSWT, $\mathcal{S}_{\mathrm{Q}}(\mathbf{q}, \omega)$ , to be
+# calculated using LSWT, $\mathcal{S}_{\mathrm{Q}}(\mathbf{q}, \omega)$, to be
 # recovered from a DSSF that has been calculated classically,
-# $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$ . This is achieved by applying
+# $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$. This is achieved by applying
 # a classical-to-quantum correspondence factor to
 # $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$ as follows,
 #
 # ```math
-# \mathcal{S}_{\mathrm{Q}}(\mathbf{q}, \omega)=\frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega),   
+# \mathcal{S}_{\mathrm{Q}}(\mathbf{q}, \omega)=\frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega),   
 # ```
 #
 # Sunny automatically applies this correction when you provide an
@@ -31,7 +31,7 @@
 # the same sum rule:
 #
 # ```math
-# \int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}(\mathbf{q}, \omega) = N_S S(S+1)
+# \int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega) = N_S S(S+1)
 # ```
 #
 # Note, however, that this correspondence depends on a harmonic oscillator
