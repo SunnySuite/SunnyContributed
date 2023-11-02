@@ -1,9 +1,7 @@
 # Enforcing the quantum sum rule with moment renormalization
 
 One goal of the Sunny project is to extend classical techniques to incorporate
-a greater number of quantum effects.
-
-The generalization of the Landau-Lifshitz
+a greater number of quantum effects. The generalization of the Landau-Lifshitz
 (LL) equations from SU(2) to SU($N$) coherent states is the cornerstone of
 this approach [1], but Sunny includes a number of other "classical-to-quantum"
 corrections. For example, in the zero-temperature limit, there is a well-known
@@ -266,12 +264,13 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 ````
 
 The result is something slightly greater than 5, substantially closer to the
-expected quantum sum rule.
+expected quantum sum rule. We can now adjust ``\kappa`` and iterate
+until we reach a value sufficiently close to 16/3.  In general, this should
+be done while collecting substantially more statistics.
 
-In practice, ``κ(T)`` needs to be determined empirically for each model. For
-a detailed example of how this may be done in practice, see the sample code
-[here](https://github.com/SunnySuite/2023-Dahlbom-Quantum_to_classical_crossover),
-which gives a complete account of the calculations used in [2].
+Note that ``κ(T)`` needs to be determined empirically for each model.
+A detailed example, demonstrating the calculations used in [3],
+is available [here](https://github.com/SunnySuite/2023-Dahlbom-Quantum_to_classical_crossover).
 
 ## References
 [1] - [H. Zhang, C. D. Batista, "Classical spin dynamics based on SU(N) coherent states," PRB (2021)](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.104.104409)
