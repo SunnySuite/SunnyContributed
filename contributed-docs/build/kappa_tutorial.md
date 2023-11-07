@@ -42,8 +42,8 @@ the correction factor,
 \frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right],
 ```
 approaches unity for all $\omega$ whenever $T$ grows large. In particular,
-this means that the corrected classical $\mathcal{S}_{\mathrm{cl}}(\mathbf{q},
-\omega)$ will no longer satisfy the quantum sum rule at elevated
+this means that the corrected classical $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$
+will no longer satisfy the quantum sum rule at elevated
 temperatures. It will instead approach the "classical sum rule":
 ```math
 \lim_{T\rightarrow\infty}\int\int d\mathbf{q}d\omega \frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega) = N_S S^2
@@ -52,7 +52,7 @@ temperatures. It will instead approach the "classical sum rule":
 
 A simple approach to maintaining a classical-to-quantum correspondence at
 elevated temperatures is to renormalize the classical magnetic moments so that
-the quantum sum rule is satisfied. The appropriate renormalization factor can
+the quantum sum rule is satisfied. The renormalization factor can
 be determinied analytically in the infinite temperature limit [2]. For an
 arbitrary temperature, however, it must be determined empirically [3]. While
 determining an appropriate rescaling factor can be computationally expensive,
@@ -155,7 +155,7 @@ total_spectral_weight(sc; kT=Inf) / prod(sys.latsize)
 ````
 
 ````
-1.3333333333333335
+1.3333333333333337
 ````
 
 The result is 4/3, which is the expected "classical" sum rule. This reference can be
@@ -173,7 +173,7 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 ````
 
 ````
-5.345455394767055
+5.345455394762397
 ````
 
 This is in fact very close to 16/3. So, at low temperatures, application of
@@ -212,7 +212,7 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 ````
 
 ````
-2.9203883242717708
+2.9003231784920787
 ````
 
 While this is larger than the classical value of 4/3, it is still
@@ -221,9 +221,9 @@ substantially short of the quantum value of 16/3.
 ## Implementing moment renormalization
 
 One way to enforce the quantum sum rule is by simply renormalizing the
-magnetic moments by an appropriate factor. In Sunny, this can be achieved by
+magnetic moments. In Sunny, this can be achieved by
 calling `set_spin_rescaling!(sys, κ)`, where κ is the desired renormalization.
-Let's repeat the calculation above one more time at the same temperature, this
+Let's repeat the calculation above at the same temperature, this
 time setting $κ=1.25$.
 
 ````julia
@@ -260,7 +260,7 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 ````
 
 ````
-5.081263852189107
+5.16048201770543
 ````
 
 The result is something slightly greater than 5, substantially closer to the
