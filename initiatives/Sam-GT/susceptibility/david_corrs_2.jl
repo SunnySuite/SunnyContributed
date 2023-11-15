@@ -121,7 +121,7 @@ begin
     println(out)
 
     Δt = 0.025
-    kT = 0.2
+    kT = 0.02
     λ = 0.1
     langevin = Langevin(Δt; kT, λ)
 

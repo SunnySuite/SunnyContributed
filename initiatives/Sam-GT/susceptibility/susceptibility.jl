@@ -9,7 +9,7 @@
 #   Pkg.add(PackageSpec(url="https://github.com/luchr/ComplexPortraits.jl", rev="master"))
 #
 using ComplexPortraits
-using Sunny, GLMakie, StaticArrays
+using Sunny, GLMakie, StaticArrays, LinearAlgebra
 
 # Steal this internal type
 import Sunny: BandStructure
@@ -76,6 +76,10 @@ end
 function intensities_spectral_function(swt::SpinWaveTheory, ks, ωvals, formula; susceptibility = true, decay = 0.1, part = identity)
     if !isnothing(formula.kernel)
         error("intensities_correlator_spectral_function: Can't compute spectral function if a broadening kernel is applied.\nTry intensity_formula(...; kernel = delta_function_kernel)")
+    end
+
+    if susceptibility && any(norm.(ks) .> 0)
+        println("Warning, operating at q nonzero, but in this case Aq is not Aq† (it's A-q†) so result may be incorrect.")
     end
 
     # Get the type parameter from the BandStructure
@@ -210,13 +214,14 @@ function example_fei2()
   density = 50
   path, xticks = reciprocal_space_path(cryst, q_points, density);
 
-  formula = intensity_formula(swt, [(:Sx,:Sy)], kernel = delta_function_kernel) do k,ω,S
+  formula = intensity_formula(swt, [(:Sx,:Sy)], kernel = delta_function_kernel, return_type = ComplexF64) do k,ω,S
     S[1]
   end
   energies = range(-8,8,length = 400)
 
-  data = intensities_spectral_function(swt, path, energies, formula, decay = 0.2, susceptibility = true)
-  display(four_panel_plot(1:length(path),energies,data,"χxy"))
+  #data = intensities_spectral_function(swt, path, energies, formula, decay = 0.2, susceptibility = true)
+  #display(four_panel_plot(1:length(path),energies,data,"χxy"))
+
 
   Bzs = range(0,20,length = 300)
   dat = zeros(ComplexF64,length(Bzs),length(energies))
@@ -225,10 +230,17 @@ function example_fei2()
     randomize_spins!(sys_min)
     minimize_energy!(sys_min)
     swt = SpinWaveTheory(sys_min)
-    formula = intensity_formula(swt, [(:Sx,:Sx),(:Sx,:Sy)], kernel = delta_function_kernel) do k,ω,S
+    formula = intensity_formula(swt, [(:Sx,:Sx),(:Sx,:Sy)], kernel = delta_function_kernel, return_type = ComplexF64) do k,ω,S
       S[1]
     end
     dat[i,:] = intensities_spectral_function(swt, [[0.,0,0]], energies, formula, decay = 0.2, susceptibility = true)
   end
   display(four_panel_plot(Bzs,energies,dat,"χxx(B)"))
 end
+  
+# Extra support instance
+function Sunny.intensity_formula(f::Function,s,required_correlations; kwargs...)
+    corr_ix = Sunny.lookup_correlations(s.observables,required_correlations)
+    intensity_formula(f,s,corr_ix;kwargs...)
+end
+
