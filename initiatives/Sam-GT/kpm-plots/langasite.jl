@@ -3,19 +3,40 @@ using Sunny, Test, GLMakie
 a = b = 8.539
 c = 5.2414
 latvecs = lattice_vectors(a, b, c, 90, 90, 120)
-crystal = Crystal(latvecs, [[0.24964,0,0.5]], 150)
+
+types = ["Fe","Nb","Ba","Si","O","O","O"]
+positions = [[0.24964,0,0.5],[0,0,0],[0.56598,0,0],[2/3,1/3,0.5220],[2/3,1/3,0.2162],[0.5259,0.7024,0.3536],[0.7840,0.9002,0.7760]]
+langasite = Crystal(latvecs, positions, 150; types)
+crystal = subcrystal(langasite, "Fe")
+#crystal = Crystal(latvecs, [[0.24964,0,0.5]], 150)
 latsize = (1,1,7)
 sys = System(crystal, latsize, [SpinInfo(1; S=5/2, g=2)], :dipole; seed=5)
 set_exchange!(sys, 0.85,  Bond(3, 2, [1,1,0]))   # J1
 set_exchange!(sys, 0.24,  Bond(1, 3, [0,0,0]))   # J2
-set_exchange!(sys, 0.053, Bond(2, 3, [-1,-1,1])) # J3
 set_exchange!(sys, 0.017, Bond(1, 1, [0,0,1]))   # J4
-set_exchange!(sys, 0.24,  Bond(3, 2, [1,1,1]))   # J5
+
+ϵD = +1
+ϵH = +1
+ϵT = ϵD * ϵH
+
+if ϵT == -1
+    set_exchange!(sys, 0.053, Bond(2, 3, [-1,-1,1]))
+    set_exchange!(sys, 0.24, Bond(3, 2, [1,1,1]))
+elseif ϵT == 1
+    set_exchange!(sys, 0.24, Bond(2, 3, [-1,-1,1]))
+    set_exchange!(sys, 0.053, Bond(3, 2, [1,1,1]))
+end
 
 for i in 1:3
     θ = -2π*(i-1)/3
     set_spiral_order_on_sublattice!(sys, i; q=[0,0,1/7], axis=[0,0,1], S0=[cos(θ),sin(θ),0])
 end
+
+randomize_spins!(sys)
+minimize_energy!(sys)
+minimize_energy!(sys)
+minimize_energy!(sys)
+minimize_energy!(sys)
 
 swt = SpinWaveTheory(sys)
 formula_delta_perp = intensity_formula(swt, :perp; kernel=Sunny.delta_function_kernel)
@@ -38,7 +59,7 @@ dipole_factor = Sunny.DipoleFactor(swt.observables)
 formula = intensity_formula(swt, Sunny.required_correlations(dipole_factor); kernel=lorentzian(lorentz_width)) do k,ω,corrs
   Sunny.contract(corrs,k,dipole_factor) .* sign(ω) .* (1 .+ 1 ./ (exp.(ω ./ kT) .- 1))
 end
-q = [0.,0.1,0.7]
+#q = [0.,0.01,0.0]
 lswt_intensities = intensities_broadened(swt,[q],ωvals,formula)
 f = Figure(); ax = Axis(f[1,1]);
 
@@ -56,7 +77,7 @@ ylims!(ax,-1,4)
 for k = 1:3
   P = [300,1000,3000][k]
   broadening = (ω,xγ,σ) -> lorentzian(xγ-ω,lorentz_width)
-  kpm_formula = Sunny.intensity_formula_kpm(swt,:perp;P,σ,kT,broadening, kernel = nothing, regularization_style = :none)
+  kpm_formula = Sunny.intensity_formula_kpm(swt,:perp;P,σ,kT,broadening, kernel = nothing, regularization_style = :susceptibility)
   kpmis = intensities_broadened(swt,[q],ωvals,kpm_formula)
   scatter!(ax,ωvals,kpmis[:],color = [:red,:green,:blue][k],marker = 'o')
 end
