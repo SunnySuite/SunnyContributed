@@ -1,3 +1,4 @@
+
 using Sunny, GLMakie, LinearAlgebra, FFTW
 
 # Model
@@ -37,6 +38,7 @@ end
 
 density = 40
 path, xticks = reciprocal_space_path(crystal, [[0.0,0.0,0.0],[0.0, 0.5, 0.0], [0.5, 0.5, 0.0], [1.0, 0.5, 0.0]], density)
+
 formula = intensity_formula(sc, :trace)
 data = intensities_interpolated(sc, path, formula; interpolation=:round)
 
@@ -45,6 +47,7 @@ data_full = intensities_interpolated(sc, path, formula_full; interpolation=:roun
 
 fig = Figure()
 ax1 = Axis(fig[1,1]; title="No clipping (log)", xticks)
+
 ax2 = Axis(fig[1,2]; title="Yes clipping", xticks)
 heatmap!(ax1, 1:size(data, 1), available_energies(sc), log10.(abs.(data)))
 heatmap!(ax2, 1:size(data, 1), available_energies(sc), data; colorrange=(0,0.1))

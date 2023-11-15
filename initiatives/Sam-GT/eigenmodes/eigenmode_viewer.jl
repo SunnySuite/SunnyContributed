@@ -22,6 +22,7 @@ function get_eigenmodes(swt,q; verbose = false)
     Hmat = zeros(ComplexF64, 2*nmodes, 2*nmodes)
     Vmat = zeros(ComplexF64, 2*nmodes, 2*nmodes)
 
+
     q_reshaped = to_reshaped_rlu(swt.sys, Sunny.Vec3(q))
 
     if sys.mode == :SUN
@@ -62,6 +63,7 @@ function get_eigenmodes(swt,q; verbose = false)
 
     # Only loops over the boson deletion operators
     for eigen_mode = 1:(2nmodes) # NEW: and creation
+
       # Describes the operator by its coefficients in the linear
       # combination ∑ᵢ λᵢaᵢ where aᵢ runs over both the deletion and
       # creation operators for the *original* non-bogoliubov bosons
@@ -403,6 +405,6 @@ function example_fei2()
   interact_eigenmodes(swt, path, formula)
 end
 
-
 include("support.jl")
+
 

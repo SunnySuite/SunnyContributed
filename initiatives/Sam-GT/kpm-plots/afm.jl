@@ -17,6 +17,7 @@ minimize_energy!(sys)
 swt = SpinWaveTheory(sys)
 formula_delta_perp = intensity_formula(swt, :perp; kernel=Sunny.delta_function_kernel)
 formula = intensity_formula(swt, :full; kernel=Sunny.delta_function_kernel)
+
 q = [0.44,0.,0.]
 disp, intensities = intensities_bands(swt, [q], formula)
 
@@ -74,7 +75,6 @@ for k = 1:3
   kpmis = intensities_broadened(swt,[q],ωvals,kpm_formula)
   scatter!(ax,ωvals,kpmis[:],color = [:red,:green,:blue][k],marker = '+')
 end
-
 
 lines!(ax,ωvals,lswt_intensities[:], color = :black)
 

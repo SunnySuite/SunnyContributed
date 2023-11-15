@@ -13,6 +13,7 @@ latsize = (1,1,7)
 sys = System(crystal, latsize, [SpinInfo(1; S=5/2, g=2)], :dipole; seed=5)
 set_exchange!(sys, 0.85,  Bond(3, 2, [1,1,0]))   # J1
 set_exchange!(sys, 0.24,  Bond(1, 3, [0,0,0]))   # J2
+
 set_exchange!(sys, 0.017, Bond(1, 1, [0,0,1]))   # J4
 
 ϵD = +1

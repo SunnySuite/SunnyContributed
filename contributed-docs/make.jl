@@ -1,19 +1,22 @@
 using Literate, Git, Dates
 
+draft = false
 root = dirname(@__FILE__)
 src_dir = joinpath(root, "src") 
 build_dir = joinpath(root, "build")
 
-# If no arguments given, rebuild all notebooks
 docnames = if length(ARGS) == 0
-    filter(name -> split(name, ".")[end] == "jl", readdir(src_dir))
+    [
+        "renormalization_tutorial.jl",
+        "MgCr2O4-tutorial.jl",
+    ]
 else
     ARGS
 end
 
 # Build the notebooks
 map(docnames) do docname
-    Literate.markdown(joinpath(src_dir, docname), build_dir; execute=true, documenter=false, credit=false)
+    Literate.markdown(joinpath(src_dir, docname), build_dir; execute=!draft, documenter=false, credit=false)
 end
 
 # Sync with github

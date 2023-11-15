@@ -222,6 +222,7 @@ function example_fei2()
   #data = intensities_spectral_function(swt, path, energies, formula, decay = 0.2, susceptibility = true)
   #display(four_panel_plot(1:length(path),energies,data,"χxy"))
 
+
   Bzs = range(0,20,length = 300)
   dat = zeros(ComplexF64,length(Bzs),length(energies))
   for (i,Bz) in enumerate(Bzs)
@@ -236,11 +237,10 @@ function example_fei2()
   end
   display(four_panel_plot(Bzs,energies,dat,"χxx(B)"))
 end
-
+  
 # Extra support instance
 function Sunny.intensity_formula(f::Function,s,required_correlations; kwargs...)
     corr_ix = Sunny.lookup_correlations(s.observables,required_correlations)
     intensity_formula(f,s,corr_ix;kwargs...)
 end
-
 
