@@ -63,7 +63,13 @@ function view_correlations(sc)
       corr_data[n][] .= dat
       notify(corr_data[n])
     end
-    title[] = "Correlation $(cnames[c]) vs Time, Δ = $(st)"
+    # First neighbor data
+    dat = real_sc_data[c,1,1,mod1(1 + st[1],ls[1]),mod1(1 + st[2],ls[2]),mod1(1 + st[3],ls[3]),:]
+    positive_time_dat = dat[1:(time_2T÷2)]
+    dt = sc.Δt
+    power = sum(positive_time_dat .* positive_time_dat .* dt)
+    tau = power ./ (positive_time_dat[1] * positive_time_dat[1])
+    title[] = "Correlation $(cnames[c]) vs Time, Δ = $(st), τ = $(Sunny.number_to_simple_string(tau,digits=4)), power = $(Sunny.number_to_simple_string(power,digits=4))"
   end
 
   on(real_step_listener,n_step)
@@ -114,9 +120,18 @@ function view_correlations(sc)
   display(n_colors)
   obs_names = [string.(onames[i]) for i = 1:length(onames)]
 
+  # [q]uit
+  # [c]orrelation selection
+  # [s]tep size, e.g. select t in <a(t) b(0)>
+  # [f]ourier transform
   while true
     print("> ")
-    r = readline()
+    #try
+      r = readline()
+    #catch e
+      #println("Error:")
+      #println(e)
+    #end
 
     if r == ""
       continue
@@ -216,13 +231,54 @@ function view_correlations(sc)
   end
 end
 
+function oscillatory_sc()
+  latvecs = lattice_vectors(1, 1, 1, 90, 90, 90)
+  cryst = Crystal(latvecs, [[0,0,0]])
+
+  units = Sunny.Units.theory
+  seed = 101
+  sys = System(cryst, (1, 1, 1), [SpinInfo(1, S=1, g=1)], :dipole; units, seed)
+
+  ## Model parameter
+  h = 1.0
+
+  ## External field
+  set_external_field!(sys, h*[0,0,1])
+
+  ##
+  randomize_spins!(sys)
+  minimize_energy!(sys)
+  out = minimize_energy!(sys)
+  #println(out)
+
+  Δt = 0.0025
+  kT = 0.02
+  λ = 0.1
+  langevin = Langevin(Δt; kT, λ)
+
+  for _ in 1:10_000
+      step!(sys, langevin)
+  end
+
+  sc = dynamical_correlations(sys; Δt=2Δt, nω=200, ωmax=5.0)
+
+  nsamples = 50
+  for _ in 1:nsamples
+      for _ in 1:1_000
+          step!(sys, langevin)
+      end
+      @time add_sample!(sc, sys; alg = :no_window)
+  end
+  sc, sys
+end
+
 function example_sc()
   latvecs = lattice_vectors(1, 1, 1.2, 90, 90, 90)
   cryst = Crystal(latvecs, [[0,0,0]])
 
   units = Sunny.Units.theory
   seed = 101
-  sys_rcs = System(cryst, (10, 10, 1), [SpinInfo(1, S=1, g=1)], :dipole; units, seed)
+  sys_rcs = System(cryst, (20, 20, 1), [SpinInfo(1, S=1, g=1)], :dipole; units, seed)
 
   ## Model parameter
   J = 1.0
@@ -257,7 +313,7 @@ function example_sc()
   scgs = dynamical_correlations(sys_rcs; Δt=2Δt, nω=100, ωmax=5.0)
 
   nsamples = 50
-  @profview for _ in 1:nsamples
+  for _ in 1:nsamples
       for _ in 1:1_000
           step!(sys_rcs, langevin)
       end

@@ -11,7 +11,7 @@ function f_target_2d(v)
 end
 
 function plot_2d()
-  cent, cov = thermal_basin(f_target_2d,[0.,8],10.0)
+  cent, cov = thermal_basin(f_target_2d,[0.,8],10.0;j_max = 20)
   λ, V = eigen(cov)
   display(eigen(cov))
   xs = range(-100,100;length = 30)
@@ -67,32 +67,52 @@ end
 
 
 
-function thermal_basin(f,x0,kT; j_max = 2000)
+function thermal_basin(f,x0,kT; j_max = 2000, noise_scale = 1.0)
   x = copy(x0)
-  cov = zeros(Float64,length(x),length(x))
-  cent = zeros(Float64,length(x))
-  j_incl = 0
+
+  # Statistics we want of the probability distribution
+  cov = zeros(Float64,length(x),length(x)) # Covariance
+  cent = zeros(Float64,length(x)) # Mean
+
+  j_incl = 0 # Number of accepted steps
   for j = 1:j_max
-    dx = randn(Float64,size(x0))
+
+    # Proposed step
+    # (random walk with axis-aligned ellipsoid covariance)
+    dx = noise_scale .* randn(Float64,size(x0))
+
+    # Metropolis acceptance probability
     x .= x0 + dx
     f0 = f(x0)
     fx = f(x)
-    #println("f(x) = $fx, f(0) = $f0")
     accept_prob = min(1,exp(-(fx-f0)/kT))
+
     if rand() < accept_prob
       # Accept
       j_incl = j_incl + 1
+      # Update statistics
       cent .= cent .+ (x .- cent) ./ j_incl
       cov .= cov .+ ((x * x') .- cov) ./ j_incl
+      # Make step
       x0 .= x
     end
   end
-  println("Sucess rate = $(j_incl / j_max)")
+  println("Success rate = $(j_incl / j_max)")
+  # ⟨x⟩, ⟨x^2⟩ - ⟨x⟩^2
   cent, (cov .- (cent * cent'))
 end
 
-
-
-
-
-
+function log_sweep(x0,v,f;count = 30, dlog = 0.2, verbose = true)
+  sc = zeros(Float64,count)
+  vals = zeros(Float64,count)
+  for j = 1:count
+    sc[j] = 10^(j * dlog)
+    x = x0 .+ sc[j] * v
+    vals[j] = f(x)
+  end
+  if verbose
+    #display(plot(sc,vals, axis =(;xscale = log10)))
+    display(plot(sc,vals))
+  end
+  sc, vals
+end

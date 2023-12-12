@@ -83,9 +83,9 @@ function walk_online!(oc)
 
     # This performs the spatial correlation, in spatial fourier space
     pls = prod(oc.sys.latsize)
-    window_func = cos.(range(0,π,length = nt)).^2 ./ pls
+    #window_func = cos.(range(0,π,length = nt)).^2 ./ pls
     @inbounds for t = 1:nt, l = CartesianIndices(now_b_value)
-      corr_buf[t,l] = then_a_values[t,l] * conj(now_b_value[l]) * window_func[t]
+      corr_buf[t,l] = then_a_values[t,l] * conj(now_b_value[l]) / pls #* window_func[t]
     end
 
 
@@ -93,7 +93,7 @@ function walk_online!(oc)
     databuf = view(oc.data,:,:,:,:,i,j,c)
     for k in eachindex(databuf)
       diff = corr_buf[k] - databuf[k]
-      databuf[k] += diff / oc.nsamples
+      databuf[k] += diff / nt #oc.nsamples
     end
   end
 
@@ -209,6 +209,7 @@ function streaming_fei2()
   @time for _ in 1:10_000
     step!(sys_large, langevin)
   end
+  thermal_langevin = copy(langevin)
 
   #=
   seed = 101
@@ -227,15 +228,21 @@ function streaming_fei2()
 
   nt = 120
   langevin.Δt = 0.05/D
-  langevin.kT = 0 * 0.2
-  langevin.λ = 0.1
+  langevin.kT = 0.5
+  langevin.λ = 0.2
   oc = mk_oc(sys_large; measperiod = 12,nt, integrator = langevin, observables = nothing, correlations = nothing)
   dw = 2π / (oc.integrator.Δt * oc.measperiod * nt)
   ωmax = dw * nt / 2
   sc = dynamical_correlations(sys_large; Δt=langevin.Δt, nω=(nt-1)÷2, ωmax)
-  add_sample!(sc,sys_large;alg = :window)
-  add_sample!(sc,sys_large;alg = :window)
-  add_sample!(sc,sys_large;alg = :window)
+  add_sample!(sc,sys_large;alg = :no_window)
+  for _ in 1:1000
+    step!(sys_large, thermal_langevin)
+  end
+  add_sample!(sc,sys_large;alg = :no_window)
+  for _ in 1:1000
+    step!(sys_large, thermal_langevin)
+  end
+  add_sample!(sc,sys_large;alg = :no_window)
   display(sc)
 
   points = [[0,   0, 0],  # List of wave vectors that define a path
@@ -261,7 +268,7 @@ function streaming_fei2()
   ax = Axis(f[1,1],ylabel = "meV",xticklabelrotation=π/8,xticklabelsize=12;xticks)
   dw = 2π / (oc.integrator.Δt * oc.measperiod * nt)
   display(dw)
-  heatmap!(ax,1:length(path),dw * fftshift(fftfreq(nt,nt)),map(x -> log10.(abs.(x)),hmdat))
+  heatmap!(ax,1:length(path),dw * fftshift(fftfreq(nt,nt)),map(x -> (abs.(x)),hmdat))
 
   is_interpolated = intensities_interpolated(sc, path, new_formula_sc;interpolation = :round);
   ax2 = Axis(f[2,1],ylabel = "meV",xticklabelrotation=π/8,xticklabelsize=12;xticks)

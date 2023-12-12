@@ -3,8 +3,8 @@ using GLMakie, FFTW, LinearAlgebra
 
 N = 100
 ts = range(0,1,length=N)
-As = exp.(-(ts .- 0.15).^2 ./ (2 * 0.05^2))
-Bs = exp.(-(ts .- 0.35).^2 ./ (2 * 0.1^2))
+As = 1.5 * exp.(-(ts .- 0.35).^2 ./ (2 * 0.25^2))
+Bs = exp.(-(ts .- 0.75).^2 ./ (2 * 0.02^2))
 
 
 As_extended = zeros(2N)
@@ -58,4 +58,54 @@ factor = rescale_correlations!(C3)
 ax4 = Axis(f[2,2])
 lines!(ax4,C3)
 
+f
+
+function mk_corr(As,Bs;rescale = true)
+  N = length(As)
+  As_extended = zeros(2N)
+  Bs_extended = zeros(2N)
+
+  As_extended[1:N] = As
+  Bs_extended[1:N] = Bs
+
+  C1 = real(cross_correlation(As_extended, As_extended))
+  rescale && rescale_correlations!(C1)
+  C1
+end
+
+As .+= Bs
+
+f = Figure()
+ax1 = Axis(f[1,1];title = "rescale")
+mn = 0 .* mk_corr(As,As)
+mn_actual = 0 .* mk_corr(As,As)
+for j = 1:N
+  Axact = circshift(As,j)
+  cor = mk_corr(Axact,Axact)
+  mn_actual .+= (cor .- mn_actual) ./ j
+end
+for j = 1:1000
+  Ax = circshift(As,rand(1:N))
+  cor = mk_corr(Ax,Ax)
+  mn .+= (cor .- mn) ./ j
+  lines!(ax1,cor)
+end
+plot!(ax1,mn,color = :black)
+#actual = real.(cross_correlation(As,As)) ./ 2 # why?
+#actual_x = [(1:(N÷2)); N .+ ((N÷2+1):N)]
+#rescale_correlations!(actual)
+#plot!(ax1,actual_x,actual,color = :red)
+scatter!(ax1,mn_actual,color = :blue,marker = 'x')
+
+ax2 = Axis(f[2,1],title = "no rescale")
+mn = 0 .* mk_corr(As,As)
+for j = 1:1000
+  Ax = circshift(As,rand(1:N))
+  cor = mk_corr(Ax,Ax;rescale=false) ./ 100
+  mn .+= (cor .- mn) ./ j
+  lines!(ax2,cor)
+end
+plot!(ax2,mn,color = :black)
+#plot!(ax2,actual_x,real.(cross_correlation(As,As)),color = :red)
+scatter!(ax2,mn_actual,color = :blue,marker = 'x')
 f
