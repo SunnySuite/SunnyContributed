@@ -5,14 +5,20 @@ function load_data()
   # Load experiment data (so we have histogram_parameters)
   data_folder = "C:\\Users\\Sam\\Dropbox (GaTech)\\Sam-Research\\Projects\\LaSrCrO4\\Data\\sliced"
   fn = joinpath(data_folder,"normData_LaSrCrO4_120meV_5K_no_symmetrize_skew.nxs")
+  #fn = joinpath(data_folder,"normData_LaSrCrO4_120meV_5K_symmetrize_skew.nxs")
   histogram_parameters, data = load_nxs(fn)
 end
 
-function chunk_params(params_orig,data_orig;chunking = (1,1,1,1))
+function chunk_params(params_orig,data_orig;chunking = (1,1,1,1), nan = true)
   params = copy(params_orig)
   data = zeros(Float64,size(data_orig).÷chunking)
-  data_nonan = copy(data_orig)
-  data_nonan[isnan.(data_orig)] .= 0.
+  data_nonan = if nan
+    data_orig
+  else
+    data_nonan = copy(data_orig)
+    data_nonan[isnan.(data_orig)] .= 0.
+    data_nonan
+  end
   for i = 1:4
     params.binwidth[i] *= chunking[i]
     for ci = CartesianIndices(size(data))
@@ -31,8 +37,14 @@ function approximate_bintegrate(ax,desire_start,desire_end,params,data;restrict 
   dx = params.binwidth[ax]
   x1 = (desire_start - x0)/dx
   x2 = (desire_end - x0)/dx
+
   x1 = max(0,x1)
   x2 = min(params.numbins[ax],x2)
+
+  # Edge case
+  x2 = max(1,x2)
+  x1 = min(params.numbins[ax]-1,x1)
+
   x1 = round(Int64,x1)
   x2 = round(Int64,x2)
   bes = Sunny.axes_binedges(params)[ax]
@@ -68,7 +80,7 @@ function approximate_bintegrate(ax,desire_start,desire_end,params,data;restrict 
   new_params = copy(params)
   new_params.binstart[ax] = bes[x1+1]
   new_params.binend[ax] = bes[x2+1]
-  new_params.binwidth[ax] = (restrict ? 1 : (x2 - x1)) * params.binwidth[ax]
+  new_params.binwidth[ax] = (restrict ? 1 : (0.1 + x2 - x1)) * params.binwidth[ax]
   new_params, new_data
 end
 
@@ -76,19 +88,109 @@ figure_chunking = (1,5,1,142)
 
 function show_figure2b(params,data;elastic = false, chunking = (1,1,1,1))
   params, data = approximate_bintegrate(2,-0.1,0.12,params,data)
-  params, data = approximate_bintegrate(4,elastic ? -Inf : 8,Inf,params,data,nan=false)
+  params, data = approximate_bintegrate(4,elastic ? -Inf : 15,Inf,params,data,nan=false)
   params, data = chunk_params(params,data;chunking)
   bcs = axes_bincenters(params)
   #display(data[:,1,:,1])
   #display(params)
-  heatmap(bcs[1],bcs[3],log10.(abs.(data[:,1,:,1])),colormap = :jet1,axis = (xlabel = "[H,H,0]",ylabel="[0,0,L]"))
+  f = Figure(); ax = Axis(f[1,1],xlabel = "[H,H,0]",ylabel="[0,0,L]")
+  hm = heatmap!(ax,bcs[1],bcs[3],log10.(abs.(data[:,1,:,1])),colormap = :jet1)
+  Colorbar(f[1,2],hm)
   #heatmap(bcs[1],bcs[3],(data[:,1,:,1]),colormap = :jet1)
+  f
 end
 
+function show_afm_curve(params,data;elastic = false)
+  params, data = approximate_bintegrate(2,-0.1,0.12,params,data)
+  params, data = approximate_bintegrate(4,elastic ? -Inf : 8,Inf,params,data,restrict = true)
+  params, data = approximate_bintegrate(3,-8,8,params,data)
+  #params, data = chunk_params(params,data;chunking=(2,1,1,2))
+  display(params)
+  bcs = axes_bincenters(params)
+  f = Figure(); ax = Axis(f[1,1],xlabel = "[H,H,0]",ylabel="meV")
+  #hm = heatmap!(ax,bcs[1],bcs[4],log10.(abs.(data[:,1,1,:])),colormap = :jet1)
+  hm = heatmap!(ax,bcs[1],bcs[4],data[:,1,1,:],colormap = :jet1)
+  Colorbar(f[1,2],hm)
+  f
+end
+
+function record_L_int_range_sweep(params,data)
+  function for_range(dL)
+    params1, data1 = approximate_bintegrate(2,-0.1,0.12,params,data)
+    elastic = false
+    params1, data1 = approximate_bintegrate(4,elastic ? -Inf : 8,Inf,params1,data1,restrict = true)
+    #params1, data1 = approximate_bintegrate(3,-dL,dL,params1,data1)
+    params1, data1 = approximate_bintegrate(3,dL,dL+0.4,params1,data1)
+    params1, data1
+  end
+  p, d = for_range(8)
+  display(p)
+  bcs = axes_bincenters(p)
+  dat = Observable(d[:,1,1,:])
+  f = Figure()
+  ax = Axis(f[1,1],xlabel = "[H,H,0]",ylabel = "meV")
+  dat_nonan = copy(dat[])
+  dat_nonan[isnan.(dat_nonan)] .= 0
+  hm = heatmap!(ax,bcs[1],bcs[4],dat,colormap = :jet1,colorrange = extrema(dat_nonan[:]))
+  Colorbar(f[1,2],hm)
+  #record(f,"test.mp4") do io
+  display(f)
+    @async begin
+      for dL = range(0.01,8,step = 0.1)
+      p, d = for_range(dL)
+      dat[] .= d[:,1,1,:]
+      notify(dat)
+      #recordframe!(io)
+      sleep(0.1)
+    end
+  end
+  #end
+end
+
+function show_line!(ax,params,data)
+  params, data = approximate_bintegrate(2,-0.1,0.12,params,data)
+  elastic = false
+  params, data = approximate_bintegrate(4,elastic ? -Inf : 15,Inf,params,data,nan=false)
+  params, data = approximate_bintegrate(3,1.0,1.4,params,data)
+  bcs = axes_bincenters(params)
+  lines!(ax,bcs[1],data[:,1,1,1])
+  nothing
+end
+
+function show_lineshape!(ax,params,data)
+  #params, data = approximate_bintegrate(1,1.2,1.6,params,data)
+  params, data = approximate_bintegrate(1,0.7,1.1,params,data)
+  params, data = approximate_bintegrate(2,-0.1,0.12,params,data)
+  #params, data = approximate_bintegrate(3,3.9,4.0,params,data)
+  params, data = approximate_bintegrate(3,0.9,1.0,params,data)
+  elastic = false
+  params, data = approximate_bintegrate(4,elastic ? -Inf : 15,Inf,params,data,restrict = true)
+  display(params)
+  bcs = axes_bincenters(params)
+  lines!(ax,bcs[4],data[1,1,1,:])
+  nothing
+end
+
+function show_disp(params,data)
+  params, data = approximate_bintegrate(1,0.49,0.51,params,data)
+  #params, data = approximate_bintegrate(1,0.7,1.3,params,data)
+  params, data = approximate_bintegrate(2,-0.1,0.12,params,data)
+  elastic = false
+  params, data = approximate_bintegrate(4,elastic ? -Inf : 15,Inf,params,data,restrict = true)
+  bcs = axes_bincenters(params)
+  f = Figure(); ax = Axis(f[1,1],xlabel = "[0,0,L]",ylabel="meV")
+  #hm = heatmap!(ax,bcs[3],bcs[4],log10.(abs.(data[1,1,:,:])),colormap = :jet1)
+  hm = heatmap!(ax,bcs[3],bcs[4],data[1,1,:,:],colormap = :jet1)
+  Colorbar(f[1,2],hm)
+  f
+end
+
+
 function reduce_hist(params,data)
-  params, data = approximate_bintegrate(1,0,2.3,params,data;restrict=true)
+  params, data = approximate_bintegrate(1,0,1.0,params,data;restrict=true)
   params, data = approximate_bintegrate(2,-0.1,0.1,params,data)
-  params, data = approximate_bintegrate(3,0,4.,params,data;restrict=true)
+  params, data = approximate_bintegrate(3,0,5.,params,data;restrict=true)
+  params, data = chunk_params(params,data;chunking = (2,1,1,1))
   params, data
 end
 
@@ -126,7 +228,7 @@ end
 
 function forward_problem(histogram_parameters,J1,J2,A,D,K)#; sys = setup_sys())
   cryst = Crystal("example_cif.cif"; symprec=1e-4)
-  sys = System(subcrystal(cryst,"Cr"), (1,1,1), [SpinInfo(1,S=3/2,g=2)], :SUN)
+  sys = System(subcrystal(cryst,"Cr"), (1,1,1), [SpinInfo(1,S=3/2,g=2)], :dipole)
   # J1
   set_exchange!(sys,J1,Bond(1,1,[1,0,0]))
 
@@ -157,16 +259,27 @@ function forward_problem(histogram_parameters,J1,J2,A,D,K)#; sys = setup_sys())
   # :perp, but with out-of-plane allowed
   # x occ. and (1-x) occ. of a,b ordered-by-disorder
   # (discrete group average)
+
+  swt = SpinWaveTheory(sys)
+  formula = intensity_formula(swt,:perp;
+    # TODO: instrument-adapted broadening
+    kernel = lorentzian(2.0)
+    ,formfactors = [FormFactor("Cr3")]
+    )
+
+  #=
   swt = SpinWaveTheory(sys;correlations = [(:Sx,:Sx),(:Sy,:Sy),(:Sz,:Sz)])
   formula = intensity_formula(swt,[1,2,3];
     # TODO: instrument-adapted broadening
-    kernel = lorentzian(2.)
+    kernel = lorentzian(2.0)
     ,mode_fast = true
     ,formfactors = [FormFactor("Cr3")]
     ) do k,ω,corr
     #(Sxx + Syy)/2 + Szz
     (corr[1] + corr[2])/2 + corr[3]
   end
+  =#
+
   #=
   swt = SpinWaveTheory(sys)
   formula = intensity_formula(swt,:perp;
@@ -177,19 +290,29 @@ function forward_problem(histogram_parameters,J1,J2,A,D,K)#; sys = setup_sys())
     )
   =#
   
-  intensity, counts = Sunny.intensities_bin_multisample(swt
+  intensity, counts = try
+    Sunny.intensities_bin_multisample(swt
                                                        ,histogram_parameters
                                                        ,msaa4
                                                        ,energy_multisample
                                                        ,formula)
+  catch e
+    println("LSWT error!")
+    println(e)
+    return NaN .* rdata
+  end
+  # Sunny LSWT is computing a density; even if the bin size goes to zero the value
+  # returned from LSWT is still finite. We need to multiply by the bin size!
+  intensity .*= prod(histogram_parameters.binwidth)
+
   return intensity ./ counts
 end
 
 function squared_errors(experiment_data,simulation_data)
-  Z_experiment = get_Z(experiment_data)
+  Z_experiment = 1#get_Z(experiment_data)
   normalized_exp_data = experiment_data ./ Z_experiment
 
-  Z_sunny = get_Z(simulation_data)
+  Z_sunny = 1#get_Z(simulation_data)
   normalized_sim_data = simulation_data ./ Z_sunny
 
   weights = 1.
@@ -197,7 +320,7 @@ function squared_errors(experiment_data,simulation_data)
   # Compute squared error over every histogram bin
   squared_errors = (normalized_exp_data .- normalized_sim_data).^2
   squared_errors[isnan.(experiment_data)] .= 0 # Filter out missing experiment data
-  squared_errors[:,:,:,1:2] .= 0 # Filter out elastic line
+  squared_errors[:,:,:,1:17] .= 0 # Filter out elastic line
   squared_errors .* weights
 end
 
@@ -206,6 +329,27 @@ function loss_function(experiment_data,simulation_data)
   sqrt(sum(sqr))
 end
 
+function get_loss_scaled(parameters)
+  println("Trying ", parameters)
+  J1,A,λ = parameters
+  simulation_data = forward_problem(rparams;J1,A)
+  return loss_function(rdata, λ * simulation_data)
+end
+
+function thermal_loss()
+  cent, cov = thermal_basin(get_loss_scaled,[10.6,0.098,10.0],0.002;j_max = 50,noise_scale = [1,0.01,1.0])
+  F = eigen(cov;sortby = λ -> -λ)
+  n(x) = Sunny.number_to_simple_string(x,digits = 8)
+  for i = 1:3
+    println("x[$i] = $(n(cent[i])) ± $(n(sqrt(cov[i,i])))")
+  end
+  println()
+  println("Loosest mode (σ = $(sqrt(F.values[1]))):")
+  println(F.vectors[:,1])
+  println("Strictest mode (σ = $(sqrt(F.values[3]))):")
+  println(F.vectors[:,3])
+  cent, cov
+end
 
 function get_loss(parameters)
   println("Trying ", parameters)
@@ -421,3 +565,12 @@ function multigrid_histograms(params)
   block_sizes, data_fraction
 end
 
+if !(:rparams ∈ names(Main))
+  global params
+  global data
+  global rparams
+  global rdata
+  params, data = load_data()
+  rparams, rdata = reduce_hist(params,data)
+end
+nothing

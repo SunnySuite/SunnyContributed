@@ -62,6 +62,8 @@ function walk_online!(oc)
   # samplebuf now holds a history of the latest samples
 
   # Go to spatial fourier space because we're correlating
+  #oc.backbuf .= oc.samplebuf
+  #fft!(oc.backbuf,(2,3,4))
   oc.backbuf .= fft(oc.samplebuf,(2,3,4))
 
   # Correlate this new observable value with the existing ones
@@ -72,23 +74,26 @@ function walk_online!(oc)
     a,b = ci.I
 
     # The 'present' is at index 1 of the history
-    now_b_value = view(oc.backbuf,1:1,:,:,:,j,b)
+    now_b_value = oc.backbuf[1,:,:,:,j,b]
+    #now_b_value = view(oc.backbuf,1,:,:,:,j,b)
 
     # Relative to the present, the history is aligned so that
     # future values exist at 'positive fftfreq' indices and vice versa
     then_a_values = view(oc.backbuf,:,:,:,:,i,a)
 
     # This performs the spatial correlation, in spatial fourier space
-    corr_buf .= then_a_values .* conj.(now_b_value)
+    pls = prod(oc.sys.latsize)
+    #window_func = cos.(range(0,π,length = nt)).^2 ./ pls
+    @inbounds for t = 1:nt, l = CartesianIndices(now_b_value)
+      corr_buf[t,l] = then_a_values[t,l] * conj(now_b_value[l]) / pls #* window_func[t]
+    end
 
-    corr_buf ./= prod(oc.sys.latsize)
-    corr_buf .*= reshape(cos.(range(0,π,length = nt)).^2,nt,1,1,1)
 
     # Average the corr_buf into oc.data
     databuf = view(oc.data,:,:,:,:,i,j,c)
     for k in eachindex(databuf)
       diff = corr_buf[k] - databuf[k]
-      databuf[k] += diff / oc.nsamples
+      databuf[k] += diff / nt #oc.nsamples
     end
   end
 
@@ -204,6 +209,7 @@ function streaming_fei2()
   @time for _ in 1:10_000
     step!(sys_large, langevin)
   end
+  thermal_langevin = copy(langevin)
 
   #=
   seed = 101
@@ -222,15 +228,21 @@ function streaming_fei2()
 
   nt = 120
   langevin.Δt = 0.05/D
-  langevin.kT = 0 * 0.2
-  langevin.λ = 0.1
+  langevin.kT = 0.5
+  langevin.λ = 0.2
   oc = mk_oc(sys_large; measperiod = 12,nt, integrator = langevin, observables = nothing, correlations = nothing)
   dw = 2π / (oc.integrator.Δt * oc.measperiod * nt)
   ωmax = dw * nt / 2
   sc = dynamical_correlations(sys_large; Δt=langevin.Δt, nω=(nt-1)÷2, ωmax)
-  add_sample!(sc,sys_large;alg = :window)
-  add_sample!(sc,sys_large;alg = :window)
-  add_sample!(sc,sys_large;alg = :window)
+  add_sample!(sc,sys_large;alg = :no_window)
+  for _ in 1:1000
+    step!(sys_large, thermal_langevin)
+  end
+  add_sample!(sc,sys_large;alg = :no_window)
+  for _ in 1:1000
+    step!(sys_large, thermal_langevin)
+  end
+  add_sample!(sc,sys_large;alg = :no_window)
   display(sc)
 
   points = [[0,   0, 0],  # List of wave vectors that define a path
@@ -256,7 +268,7 @@ function streaming_fei2()
   ax = Axis(f[1,1],ylabel = "meV",xticklabelrotation=π/8,xticklabelsize=12;xticks)
   dw = 2π / (oc.integrator.Δt * oc.measperiod * nt)
   display(dw)
-  heatmap!(ax,1:length(path),dw * fftshift(fftfreq(nt,nt)),map(x -> log10.(abs.(x)),hmdat))
+  heatmap!(ax,1:length(path),dw * fftshift(fftfreq(nt,nt)),map(x -> (abs.(x)),hmdat))
 
   is_interpolated = intensities_interpolated(sc, path, new_formula_sc;interpolation = :round);
   ax2 = Axis(f[2,1],ylabel = "meV",xticklabelrotation=π/8,xticklabelsize=12;xticks)
@@ -302,7 +314,7 @@ function streaming_afm()
   crystal = Crystal(I(3), [[0,0,0]], 1)
   units = Sunny.Units.theory
   sys_large = System(crystal, (20,20,1), [SpinInfo(1; S=1, g=2)], :dipole; units, seed)
-  J = -1.0
+  J = 1.0
   h = 0.4
   D = 0.1
   set_exchange!(sys_large, J, Bond(1, 1, [1, 0,0]))
@@ -355,6 +367,18 @@ function streaming_afm()
   ax = Axis(f[1,1],ylabel = "meV",xticklabelrotation=π/8,xticklabelsize=12;xticks)
   heatmap!(ax,1:length(path),dw * fftshift(fftfreq(nt,nt)),map(x -> log10.(abs.(x)),hmdat))
 
+  zeroDat_full = Observable(zeros(Float64,nt))
+  halfDat_full = Observable(zeros(Float64,nt))
+  #zeroDat_half = map(zeroDat_full) do zdf
+    #ifft(zdf)
+    #Observable(zeros(Float64,nt÷2))
+  #zeroDat_qtr = Observable(zeros(Float64,nt÷4))
+  ax = Axis(f[1,2],xlabel = "meV")
+  lines!(ax,dw * fftshift(fftfreq(nt,nt)),map(x -> real.(x),zeroDat_full), color = :blue)
+  lines!(ax,dw * fftshift(fftfreq(nt,nt)),map(x -> real.(x),halfDat_full), color = :orange)
+  #lines!(ax,2dw * fftshift(fftfreq(nt÷2,nt÷2)),zeroDat_half)
+  #lines!(ax,4dw * fftshift(fftfreq(nt÷4,nt÷4)),zeroDat_qtr)
+
   is_interpolated = intensities_interpolated(sc, path, new_formula_sc;interpolation = :round);
   ax2 = Axis(f[2,1],ylabel = "meV",xticklabelrotation=π/8,xticklabelsize=12;xticks)
   heatmap!(ax2,1:length(path),available_energies(sc),log10.(abs.(is_interpolated)))
@@ -377,13 +401,29 @@ function streaming_afm()
   function()
     l = l + 1
     walk_online!(oc)
-    if mod(l,100) == 0
+    if mod(l,10) == 0
       fft!(oc.data,1)
       for (j,q) in enumerate(path)
         for t = 1:nt
           hmdat[][j,t] = new_formula.calc_intensity(oc, ks[j], ixqs[j], t)
         end
       end
+      m = round.(Int, oc.sys.latsize .* [0,0,0.])
+      ix_q = map(i -> mod(m[i], oc.sys.latsize[i])+1, (1, 2, 3)) |> CartesianIndex{3}
+      for t = 1:nt
+        zeroDat_full[][t] = new_formula.calc_intensity(oc, Sunny.Vec3([0,0,0.]), ix_q, t)
+      end
+      zeroDat_full[] .= fftshift(zeroDat_full[])
+      notify(zeroDat_full)
+
+      m = round.(Int, oc.sys.latsize .* [0.5,0.5,0.])
+      ix_q = map(i -> mod(m[i], oc.sys.latsize[i])+1, (1, 2, 3)) |> CartesianIndex{3}
+      for t = 1:nt
+        halfDat_full[][t] = new_formula.calc_intensity(oc, Sunny.Vec3(oc.sys.crystal.recipvecs * [0.5,0.5,0.]), ix_q, t)
+      end
+      halfDat_full[] .= fftshift(halfDat_full[])
+      notify(halfDat_full)
+
       hmdat[] .= fftshift(hmdat[],2)
       ifft!(oc.data,1)
       notify(hmdat)
