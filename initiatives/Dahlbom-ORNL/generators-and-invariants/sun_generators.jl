@@ -1,7 +1,3 @@
-comm(A, B)     = A*B - B*A
-anticomm(A, B) = A*B + B*A
-δ(i,j) = i == j ? 1.0 : 0.0
-
 function e_mat(j, h, n)
     @assert j <= n && h <= n
     mat = zeros(ComplexF64, n, n)
