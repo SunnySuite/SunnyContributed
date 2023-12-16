@@ -1,11 +1,12 @@
 using Sunny # The main package
 using GLMakie # Plotting package
+using LinearAlgebra, StaticArrays, Statistics
 
 cif = "MgCr2O4_160953_2009.cif"
 xtal_mgcro = Crystal(cif; symprec=0.001)
 xtal_mgcro = subcrystal(xtal_mgcro,"Cr1")
 
-dims = (4, 4, 4)  # Supercell dimensions 
+dims = (6, 6, 6)  # Supercell dimensions 
 #dims = (20, 20, 20)  # Supercell dimensions 
 spininfos = [SpinInfo(1, S=3/2, g=2)]  # Specify spin information, note that all sites are symmetry equivalent 
 sys_mgcro = System(xtal_mgcro, dims, spininfos, :dipole); # Same on MgCr2O4 crystal
@@ -23,17 +24,19 @@ formula_d_mgcro = intensity_formula(dsc, :perp, kT = 1.8)
 formula_i_mgcro = intensity_formula(isc, :perp)#, kT = 1.8)
 
 params = unit_resolution_binning_parameters(isc)
-#params.binstart[1:2] .-= 4
-#params.binend[1:2] .+= 3
-params.binstart[1:2] .-= 2
-params.binend[1:2] .+= 1
+params.binstart[1:2] .-= 4
+params.binend[1:2] .+= 3
+#params.binstart[1:2] .-= 2
+#params.binend[1:2] .+= 1
 params.binstart[3] -= 1
 params.binend[3] += 1
 L_binwidth = params.binwidth[3]
 
 params_dyn = unit_resolution_binning_parameters(dsc)
-params_dyn.binstart[1:2] .-= 2
-params_dyn.binend[1:2] .+= 1
+params_dyn.binstart[1:2] .-= 4
+params_dyn.binend[1:2] .+= 3
+#params_dyn.binstart[1:2] .-= 2
+#params_dyn.binend[1:2] .+= 1
 params_dyn.binstart[3] -= 1
 params_dyn.binend[3] += 1
 
@@ -123,7 +126,8 @@ fig = Figure(; resolution=(1500,1000))
 axparams = (aspect = true, xticks=-4:4, yticks=-4:4, titlesize=20,
     xlabel = "H", ylabel = "K", xlabelsize = 18, ylabelsize=18,)
 
-Lbinixs = 1 .+ floor.(Int64,([0,0.5,1.0] .- params.binstart[3]) ./ L_binwidth)
+target_L = [0,1/2,1]
+Lbinixs = 1 .+ floor.(Int64,(target_L .- params.binstart[3]) ./ params.binwidth[3])
 for ix = 1:3
   bin_ix = Lbinixs[ix]
 
@@ -209,10 +213,17 @@ scga_fig = Figure()
 axparams = (aspect = true, xticks=-4:4, yticks=-4:4, titlesize=20,
     xlabel = "H", ylabel = "K", xlabelsize = 18, ylabelsize=18,)
 
-is_scga = scga_bincenters(params,sys_mgcro,1/1.8)
+params_scga = copy(params)
+params_scga.binwidth[1:2] ./= 2
+is_scga = scga_bincenters(params_scga,sys_mgcro,1/1.8)
+Lbinixs_scga = 1 .+ floor.(Int64,(target_L .- params_scga.binstart[3]) ./ params_scga.binwidth[3])
+
+bcs_scga = axes_bincenters(params_scga)
+h_scga = bcs_scga[1]
+k_scga = bcs_scga[2]
 
 for ix = 1:3
-  bin_ix = Lbinixs[ix]
+  bin_ix = Lbinixs_scga[ix]
 
   ax_mgcro = Axis(scga_fig[1,ix]; title="PRL model (T=1.8K), L = $(pn(bcs[3][bin_ix])) ± $(pn(L_binwidth))",  axparams...)
   hm = heatmap!(ax_mgcro, h, k, Sq_mgcro_d[:,:,bin_ix])
@@ -220,8 +231,8 @@ for ix = 1:3
   ax_mgcro = Axis(scga_fig[2,ix]; title="PRL model (instant), L = $(pn(bcs[3][bin_ix])) ± $(pn(L_binwidth))",  axparams...)
   hm = heatmap!(ax_mgcro, h, k, Sq_mgcro_i[:,:,bin_ix])
 
-  ax_mgcro = Axis(scga_fig[3,ix]; title="PRL model (SCGA), L = $(pn(bcs[3][bin_ix])) ± $(pn(L_binwidth))",  axparams...)
-  hm = heatmap!(ax_mgcro, h, k, is_scga[:,:,bin_ix])
+  ax_mgcro = Axis(scga_fig[3,ix]; title="PRL model (SCGA at bincenters), L = $(pn(bcs[3][bin_ix]))",  axparams...)
+  hm = heatmap!(ax_mgcro, h_scga, k_scga, is_scga[:,:,bin_ix])
 end
 
 scga_fig
@@ -239,6 +250,6 @@ function time_traj_stats(dsc)
   println("Settings (nω = $nsamps, ωmax = $(pn(dsc.Δω * nsamps))) so Δω = $(pn(dsc.Δω))")
   println()
   println("In the time-domain, the trajectories are:")
-  println("  length T = $(pn(T)) = $nsamps * $(pn(dt * nskip))")
+  println("  length T = $(pn(T)) = $nsamps * $(pn(dt * nskip)) = $(nsamps * nskip) * $(pn(dt))")
   println("  integration resolution = $(pn(dt)) = $(pn(T / nsamps)) / $nskip")
 end

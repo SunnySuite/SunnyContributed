@@ -1,7 +1,7 @@
 using Sunny
-using SpinMC
-using JuliaSCGA
-using LinearAlgebra, StaticArrays
+using SpinMC # ] add https://github.com/fbuessen/SpinMC.jl
+using JuliaSCGA # ] add https://github.com/moon-dust/JuliaSCGA.jl
+using LinearAlgebra, StaticArrays, Statistics
 
 SMC = JuliaSCGA
 
@@ -11,7 +11,7 @@ function to_spinmc_crystal(cryst)
   a3 = Tuple(cryst.latvecs[:,3])
   uc = SMC.UnitCell(a1,a2,a3)
   for j = 1:length(cryst.positions)
-    SMC.addBasisSite!(uc, Tuple(cryst.positions[j]))
+    @assert j == SMC.addBasisSite!(uc, Tuple(cryst.latvecs * cryst.positions[j]))
   end
   uc
 end
@@ -49,7 +49,31 @@ function run_sim(lat)
 
   # Create and run simulation
   m = MonteCarlo(lat, beta, thermalizationSweeps, measurementSweeps)
-  run!(m, outfile="simulation.h5") # Run simulation and write result file "simulation.h5".
+  run!(m)#, outfile="simulation.h5") # Run simulation and write result file "simulation.h5".
+  m
+end
+
+function get_sim_sf(m,L)
+  lattice = m.lattice
+  # Fourier transform correlations to compute structure factor. 
+  N = 256
+  correlation = mean(m.observables.correlation) # The correlation is measured with respect to spins on the lattice basis sites, i.e. the (i,j)-th entry of the matrix is the correlation dot(S_i,S_j), where i runs over all lattice sites and j runs over all basis sites. 
+  kx = collect(range(-2pi,2pi,length=N))
+  ky = collect(range(-2pi,2pi,length=N))
+  structurefactor = zeros(N,N)
+  for i in 1:N
+      for j in 1:N
+          z = 0.0
+          # Compute Fourier transformation at momentum (kx, ky). The real-space position of the i-th spin is obtained via getSitePosition(lattice,i). 
+          for b in 1:length(lattice.unitcell.basis)
+              for k in 1:length(lattice)
+                  z += cos(dot((kx[i],ky[j],L),getSitePosition(lattice,k).-getSitePosition(lattice,b))) * correlation[k,b]
+              end
+          end
+          structurefactor[j,i] = z / (length(lattice) * length(lattice.unitcell.basis))
+      end
+  end
+  structurefactor
 end
 
 function scga_bincenters(params,sys,beta)
@@ -72,12 +96,29 @@ function scga_bincenters(params,sys,beta)
       y_center = bin_centers[2][ci[2]]
       z_center = bin_centers[3][ci[3]]
 
-      q = coords_to_q * [x_center;y_center;z_center]
-      q_crys[i,:] .= q
+      # absolute wave vector
+      #k = sys.crystal.recipvecs * coords_to_q * [x_center;y_center;z_center]
+
+      # This satisfies q_lab = transpose(recipvecs) * q_crys
+      q = inv(transpose(sys.crystal.recipvecs)) * sys.crystal.recipvecs * coords_to_q * [x_center;y_center;z_center]
+      q_crys[i,:] .= q #/ 2π # This 2π is because the SCGA code contains exp(i q_lab⋅dist)
+      # why is it a reciprocal 2π? ¯\_(ツ)_/¯ 
+
+      # Later, in the SCGA code, this is used as:
+      #
+      #   r1 = uc.basis[bond[1]]
+      #   r2 = uc.basis[bond[2]] + ∑ᵢ bond[3][i] .* uc.primitive[i]
+      #   dist = r1 - r2
+      #   dot(q_lab,dist)
+      #
+      # which means that uc.basis[1] must be in physical units
   end
-  Jq_calc = getFourier_aniso(uc,dist,q_crys)
-  λ = solveLambda_aniso(uc,beta)
-  correl = getCorr_aniso(uc,q_crys,Jq_calc,beta,λ)
+  #Jq_calc = getFourier_aniso(uc,dist,q_crys)
+  #λ = solveLambda_aniso(uc,beta)
+  #correl = getCorr_aniso(uc,q_crys,Jq_calc,beta,λ)
+  Jq_calc = getFourier_iso(uc,dist,q_crys)
+  λ = solveLambda_iso(uc,beta)
+  correl = getCorr_iso(uc,Jq_calc,beta,λ)
   for (i,ci) in enumerate(cis)
     is[ci] = correl[i]
   end
