@@ -11,8 +11,8 @@ matrix_to_flat(M) = M[:]
 flat_to_matrix(v) = reshape(v,Int64(sqrt(length(v))),Int64(sqrt(length(v))))
 nothing#hide
 
-# The partially applied bracket $\operatorname{ad}_X = [X,\cdot] : L \to L$ (where $X \in L$) is called the *adjoint representation* of $L$.
-# In the extremely common case that the bracket operation is the matrix commutator, we can easily write down a matrix representation of $\operatorname{ad}_X$ with respect to some basis:
+# The partially applied bracket $\mathrm{ad}_X = [X,\cdot] : L \to L$ (where $X \in L$) is called the *adjoint representation* of $L$.
+# In the extremely common case that the bracket operation is the matrix commutator, we can easily write down a matrix representation of $\mathrm{ad}_X$ with respect to some basis:
 
 function basis_to_transformation_matrix(basis)
   basis = matrix_to_flat.(basis)
@@ -33,7 +33,7 @@ function adX_matrep(X,basis)
 end
 nothing#hide
 
-# Since $\operatorname{ad}_X$ is just a linear map, we can multiply it with itself and take a trace, $B(X,Y) = \operatorname{tr}(\operatorname{ad}_X \operatorname{ad}_Y)$, which defines the Killing form $B$:
+# Since $\mathrm{ad}_X$ is just a linear map, we can multiply it with itself and take a trace, $B(X,Y) = \mathrm{tr}(\mathrm{ad}_X \mathrm{ad}_Y)$, which defines the Killing form $B$:
 
 function killing_form(basis)
   B = zeros(ComplexF64,length(basis),length(basis))
@@ -61,7 +61,7 @@ end
 #
 # # Example: SU(2)
 #
-# The su(2) Lie algebra consists of real linear combinations of $S^x$, $S^y$ and $S^z$ (defined as half the pauli matrices), with the commutation relations $[S^x, S^y] = iS^z$ (pauli matrices would have $2i$ instead of $i$) and so on.
+# The $\mathfrak{su}(2)$ Lie algebra consists of real linear combinations of $S^x$, $S^y$ and $S^z$ (defined as half the pauli matrices), with the commutation relations $[S^x, S^y] = iS^z$ (pauli matrices would have $2i$ instead of $i$) and so on.
 
 su2 = spin_matrices(1/2)
 @assert su2[1] * su2[2] - su2[2] * su2[1] ≈ im * su2[3] # Check commutation relation
@@ -73,7 +73,7 @@ killing_form(su2)
 
 #
 # The UEA $U(\mathfrak{su}(2))$ consists of arbitrary spin polynomials $[S^x]^2$, $[S^y]^3S^x - 4 S^z$, etc, with only the commutation relations imposed (and *no* further "coincidental" representation-dependent relations like $[S^x]^2 = I$ imposed).
-# The Killing form-derived quadratic casimir of su(2) is $\frac{1}{2}S^2 \equiv \frac{1}{2}([S^x]^2 + [S^y]^2 + [S^z]^2)$:
+# The Killing form-derived quadratic casimir of $\mathfrak{su}(2)$ is $\frac{1}{2}S^2 \equiv \frac{1}{2}([S^x]^2 + [S^y]^2 + [S^z]^2)$:
 
 killing_casimir(su2)
 
@@ -103,7 +103,7 @@ killing_form(ladder)
 
 killing_casimir(ladder)
 
-# In all representations of su(2), i.e. for any spin $S$, the killing form-derived quadratic casimir is $S(S+1)/2$:
+# In all representations of $\mathfrak{su}(2)$, i.e. for any spin $S$, the killing form-derived quadratic casimir is $S(S+1)/2$:
 
 println()
 println("su(2) representations and their casimir values:")
@@ -129,7 +129,7 @@ function stevens_basis(S; Smax = S)
   basis
 end
  
-# Meanwhile, the 0,0 stevens operator is the identity matrix. Since the quadratic casimir of su(2) is always a scalar multiple of the identity matrix, `print_stevens_expansion(killing_casimir(spin_matrices(S)))` is a convenient way to print the quadratic casimir constant:
+# Meanwhile, the 0,0 stevens operator is the identity matrix. Since the quadratic casimir of $\mathfrak{su}(2)$ is always a scalar multiple of the identity matrix, `print_stevens_expansion(killing_casimir(spin_matrices(S)))` is a convenient way to print the quadratic casimir constant (which is the unique eigenvalue of the quadratic casimir):
 
 println()
 print("For S = 5, Ω = ")
