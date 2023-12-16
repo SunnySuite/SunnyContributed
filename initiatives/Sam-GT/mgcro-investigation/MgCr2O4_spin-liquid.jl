@@ -253,5 +253,3 @@ function time_traj_stats(dsc)
   println("  length T = $(pn(T)) = $nsamps * $(pn(dt * nskip)) = $(nsamps * nskip) * $(pn(dt))")
   println("  integration resolution = $(pn(dt)) = $(pn(T / nsamps)) / $nskip")
 end
-
-

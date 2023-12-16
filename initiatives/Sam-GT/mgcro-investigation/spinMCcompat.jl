@@ -124,5 +124,3 @@ function scga_bincenters(params,sys,beta)
   end
   is
 end
-
-
