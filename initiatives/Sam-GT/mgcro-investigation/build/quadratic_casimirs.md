@@ -60,7 +60,7 @@ In order to make sense of these formal products of Lie algebra elements, one nee
 Within any Lie algebra (including a UEA), the *center* is the subspace of the Lie algebra that commutes with everything: $X$ is in the center if and only if $[X,Y] = 0$ for all $Y$.
 The term "Casimir" sometimes refers to simply *any* element of the center of a Lie algebra, but we will be interested in defining a specific conventional (and basis-independent) Casimir element.
 
-Given a Lie algebra $L$, the *Killing form-derived quadratic casimir* is the following element of UEA of $L$: $\Omega \equiv \sum_{ij} [B^{-1}]^{ij} X^i X^j$ where $[B^{-1}]^{ij}$ is the inverse matrix of $B_{ij}$ in any basis $\{X^i\}_i$.
+Given a Lie algebra $L$, the *Killing form-derived quadratic casimir* is the following element of UEA of $L$: $\Omega \equiv \sum_{ij} [B^{-1}]^{ij} X^i X^j$ where $[B^{-1}]^{ij}$ is the inverse matrix of $B_{ij}$ in the $X^i$ basis.
 
 ````julia
 function killing_casimir(basis; B = killing_form(basis))
@@ -194,7 +194,7 @@ S = 5, S(S+1)/2 = 15.0
 
 ## Stevens Operator Bases
 
-The $N^2 - 1$ non-identity stevens operators form a basis for the defining representation of su(N). We can collect them into a basis:
+The $N^2 - 1$ non-identity stevens operators form a basis for the defining representation of $\mathfrak{su}(N)$. We can collect them into a basis:
 
 ````julia
 function stevens_basis(S; Smax = S)
@@ -228,7 +228,7 @@ For S = 5, Ω = 15
 ````
 
 Using the Stevens operators, we can compute Killing forms and derive quadratic casimir invariants from them.
-Note that, in the su(N) case, the quadratic means quadratic in the su(N) generators, *not* in the spin operators.
+Note that, in the $\mathfrak{su}(N)$ case, the quadratic means quadratic in the $\mathfrak{su}(N)$ generators, *not* in the spin operators.
 
 ````julia
 sparse(killing_form(stevens_basis(1)))
@@ -325,7 +325,7 @@ su(3): Ω = (1/36) * [3.0*𝒮ˣ^2 + 3.0*𝒮ʸ^2 + 3.0*𝒮ᶻ^2 + 4.0*𝒮ˣ^4
 
 ````
 
-However, the situation becomes more clear numerically, where all these complicated expressions turn out proportional to the identity matrix, similar to the representations of su(2):
+However, the situation becomes more clear numerically, where all these complicated expressions turn out proportional to the identity matrix, similar to the representations of $\mathfrak{su}(2)$:
 
 ````julia
 println()
@@ -335,7 +335,6 @@ for S = (1/2):(1/2):3
   suN = stevens_basis(S)
   C = killing_casimir(suN)
   @assert allequal(diag(C))
-  #@assert C ≈ (S*(S+1)/2) * I(Int64(2S+1))
   casimir = Float64(C[1,1])
   push!(sun_cas,casimir)
   println("S = $(Sunny.number_to_math_string(S)), Casimir diagonal = $casimir")
@@ -354,5 +353,120 @@ S = 3, Casimir diagonal = 0.489795918367
 
 ````
 
-The casimir value for su(N) can be predicted as $\frac{1}{2}\frac{N^2-1}{N^2}$, and it approaches $\frac{1}{2}$ as $N\to\infty$.
+The casimir value for $\mathfrak{su}(N)$ can be predicted as $\frac{1}{2}\frac{N^2-1}{N^2}$, and it approaches $\frac{1}{2}$ as $N\to\infty$.
+
+We can make a more complete table using the basis provided by D.D., original given in *Nemoto (2000), "Generalized coherent states for SU(n) systems."*, although we quickly run into scaling issues for larger $N$:
+
+````julia
+dd_file = "../../Dahlbom-ORNL\\generators-and-invariants\\sun_generators.jl"
+if !isfile(dd_file)
+  println("Couldn't find David's file :(")
+else
+  include(dd_file)
+  println()
+  println("su(N) casimir values")
+  for S = (1/2):(1/2):4
+    suN = sun_generators(Int64(2S+1))
+    C = killing_casimir(suN)
+    @assert allequal(diag(C))
+    casimir = Float64(C[1,1])
+    println("S = $(Sunny.number_to_math_string(S)), Casimir diagonal = $casimir")
+  end
+end
+````
+
+````
+su(N) casimir values
+S = 1/2, Casimir diagonal = 0.375
+S = 1, Casimir diagonal = 0.444444444444
+S = 3/2, Casimir diagonal = 0.46875
+S = 2, Casimir diagonal = 0.48
+S = 5/2, Casimir diagonal = 0.486111111111
+S = 3, Casimir diagonal = 0.489795918367
+S = 7/2, Casimir diagonal = 0.4921875
+S = 4, Casimir diagonal = 0.493827160494
+
+````
+
+## Killing form is rotation-invariant
+
+The group of physics rotations, $\mathrm{SO}(3)$, acts on $\mathfrak{su}(N)$ by rotating the stevens operators amongst themselves.
+In particular, the group action is block diagonal in the stevens operators, only mixing between `O[q,k]` with fixed `q`.
+The following shows that, although the Killing form `B_su3` restricted to the `q=2` "quadrupole" part is not proportional to the identity matrix,
+
+````julia
+multipolar_killing_form = B_su3[4:8,4:8]
+sparse(round.(multipolar_killing_form;digits = 8))
+````
+
+````
+5×5 SparseMatrixCSC{ComplexF64, Int64} with 5 stored entries:
+ 12.0-0.0im      ⋅           ⋅          ⋅           ⋅    
+      ⋅      3.0+0.0im       ⋅          ⋅           ⋅    
+      ⋅          ⋅      36.0+0.0im      ⋅           ⋅    
+      ⋅          ⋅           ⋅      3.0-0.0im       ⋅    
+      ⋅          ⋅           ⋅          ⋅      12.0-0.0im
+````
+
+it is still preserved under physical rotations:
+
+````julia
+# A random orthogonal matrix (a physical rotation)
+R = Sunny.Mat3(Matrix(qr(randn(3,3)).Q))
+
+# The matrix implementing the rotation of stevens operators
+V = Sunny.operator_for_stevens_rotation(2,R)
+
+V * multipolar_killing_form * transpose(V) ≈ multipolar_killing_form
+````
+
+````
+true
+````
+
+This can be checked more rigorously at the Lie algebra level by showing that the killing form is preserved under all infinitesimal rotations.
+In this case, the infinitesimal rotations are generated by the spin-2 representation of $\mathfrak{su}(2)$, since quadrupoles have dimension $5 = 2(2) + 1$, and $\mathfrak{su}(2) \cong $\mathfrak{so}(3)$ is the Lie algebra of physical rotations.
+The basis of stevens operators is related to the basis the spin matrices are defined in by the `Sunny.stevens_α` and `Sunny.stevens_αinv` matrices, so we use those to map the spin-2 Lie algebra `Sunny.spin_matrices(2)` to the Lie algebra generating rotations of stevens operators:
+
+````julia
+spin_generator_to_stevens_generator(S) = Sunny.stevens_α[2] * conj(S) * Sunny.stevens_αinv[2]
+steven_gens = map(spin_generator_to_stevens_generator,Sunny.spin_matrices(2))
+````
+
+For example, the $S^x$ gets mapped to the following 5x5 generator of multipolar rotations:
+
+````julia
+sparse(steven_gens[1])
+````
+
+````
+5×5 SparseMatrixCSC{ComplexF64, Int64} with 6 stored entries:
+     ⋅          ⋅          ⋅      0.0-2.0im      ⋅    
+     ⋅          ⋅          ⋅          ⋅      0.0-0.5im
+     ⋅          ⋅          ⋅      0.0-6.0im      ⋅    
+ 0.0+0.5im      ⋅      0.0+0.5im      ⋅          ⋅    
+     ⋅      0.0+2.0im      ⋅          ⋅          ⋅    
+````
+
+Now, we can differentiate the rotation `V * B * transpose(V)` by setting $V = I + \epsilonA$ and taking a derivative with respect to $\epsilon$ at $\epsilon = 0$.
+The result is `A * B + B * transpose(A)` plus $O(\epsilon^2)$.
+Thus, we can show that `B = multipolar_killing_form` is invariant under any rotation:
+
+````julia
+for A in steven_gens
+  # Computes the derivative of the killing form matrix elements
+  # with respect to the angle of rotation
+  deriv = A * multipolar_killing_form .+ multipolar_killing_form * transpose(A)
+
+  # If all angular derivatives vanish, it's invariant to rotations
+  println(norm(deriv) < 1e-12)
+end
+````
+
+````
+true
+true
+true
+
+````
 
