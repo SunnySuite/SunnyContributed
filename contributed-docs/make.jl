@@ -20,7 +20,7 @@ map(docnames) do docname
 end
 
 # Make compressed tarbar of build
-tar_gz = open(joinpath(root, "build_data.tar.gz"), write=true)
+tar_gz = open(joinpath(root, "build.tar.gz"), write=true)
 tar = GzipCompressorStream(tar_gz)
 Tar.create(build_dir, tar)
 close(tar)
@@ -29,6 +29,7 @@ close(tar)
 # Sync with github
 cd(joinpath(root, ".."))
 run(`$(git()) pull`) # Make sure up to date
+run(git(["add", joinpath(root, "build.tar.gz")]))
 run(git(["add", build_dir*"/*.md"]))
 run(git(["add", build_dir*"/*.png"]))
 run(`$(git()) commit -am "Auto-build $(string(Dates.now()))"`)
