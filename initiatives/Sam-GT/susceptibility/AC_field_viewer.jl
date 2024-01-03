@@ -152,6 +152,9 @@ function sim_AC_applied(sys)
     end
   end
 
+
+
+
   function name_to_unit_vector(s::Symbol)
     if s == :Sx
       [1,0,0]
@@ -172,7 +175,7 @@ function sim_AC_applied(sys)
   # Heatmap window
   fig = Figure(); ax_click = Axis(fig[1,1],xlabel = "Static Bx Applied", ylabel = "ω applied magnetic field")
   f_spectrum = fig[2,1]
-  static_B_fields = 0.1 * (0:120)
+  static_B_fields = 0.1 * (0:5:120)
   applied_B_freqs = range(-25,25,length = 200)
   chi_background = Observable(zeros(Float64,length(static_B_fields),length(applied_B_freqs)))
   hm = heatmap!(ax_click,static_B_fields,applied_B_freqs,chi_background)
@@ -204,7 +207,7 @@ function sim_AC_applied(sys)
   end
 
   Bxstatic = Observable(0.0)
-  refresh_button = Button(loc_controls[3,1], label = "Refresh ground state")
+  refresh_button = Button(loc_controls[4,1], label = "Refresh ground state")
   on(refresh_button.clicks) do event
     mouse_hook((Bxstatic[],omega0[]))
   end
@@ -232,6 +235,12 @@ function sim_AC_applied(sys)
   nt = 160#320
   measperiod = 8
   oc = mk_oc(sys; measperiod,nt, integrator = int, observables = nothing, correlations = nothing)
+
+  dump_corr = Button(loc_controls[3,1], label = "Dump correlations")
+  on(dump_corr.clicks) do event
+    oc.data .= 0
+    oc.samplebuf .= 0
+  end
 
   selected_correlation_index = map(corr_selector.selection) do ci
     a,b = ci.I
@@ -286,6 +295,8 @@ function sim_AC_applied(sys)
   lines!(ax_corr,corr_time,corr_vals)
   lines!(ax_corr,corr_time,corr_vals_neighbor,color = :black)
 
+  energy_resolve_correlations = false
+
   # Precompute interpolation constants (TODO: move to online correlations code)
   points = [[1/2,   0, 0],  # List of wave vectors that define a path
             [0,   1/2, 0],
@@ -297,13 +308,32 @@ function sim_AC_applied(sys)
   path, xticks = reciprocal_space_path(oc.sys.crystal, points, density);
   formfactors = [FormFactor("Fe2"; g_lande=3/2)]
   new_formula = intensity_formula(oc, :trace; kT = Inf, formfactors)
+  spectral_formula_oc = map(corr_selector.selection) do ci
+    a,b = ci.I
+    oc_onames = Dict([(v,k) for (k,v) in oc.observables.observable_ixs])
+    intensity_formula(oc, [(oc_onames[a],oc_onames[b])], return_type = ComplexF64) do k,ω,S
+      S[1]
+    end
+  end
   ixqs = Vector{CartesianIndex{3}}(undef,length(path))
   ks = Vector{Sunny.Vec3}(undef,length(path))
-  hmdat = Observable(ones(Float64,length(path),nt))
-  ax = Axis(f_spectrum[1,1],ylabel = "meV",xticklabelrotation=π/8,xticklabelsize=12;xticks)
-  dw = 2π / (oc.integrator.Δt * oc.measperiod * nt)
-  hm = heatmap!(ax,1:length(path),dw * fftshift(fftfreq(nt,nt)),map(x -> log10.(abs.(x)),hmdat))
-  Colorbar(f_spectrum[1,2],hm)
+
+  hmdat = if energy_resolve_correlations
+    hmdat = Observable(ones(Float64,length(path),nt))
+    ax = Axis(f_spectrum[1,1],ylabel = "meV",xticklabelrotation=π/8,xticklabelsize=12;xticks)
+    dw = 2π / (oc.integrator.Δt * oc.measperiod * nt)
+    hm = heatmap!(ax,1:length(path),dw * fftshift(fftfreq(nt,nt)),map(x -> log10.(abs.(x)),hmdat))
+    Colorbar(f_spectrum[1,2],hm)
+    hmdat
+  else
+    hmdat = Observable(randn(Float64,oc.sys.latsize[1],oc.sys.latsize[2]))
+    ax = Axis(f_spectrum[1,1],ylabel = "y",xlabel = "x")
+    #hm = heatmap!(ax,1:oc.sys.latsize[1],1:oc.sys.latsize[2],map(x -> log10.(abs.(x)),hmdat))
+    hm = heatmap!(ax,(1:oc.sys.latsize[1]) ./ oc.sys.latsize[1],(1:oc.sys.latsize[2]) ./ oc.sys.latsize[2],map(x -> (abs.(x)),hmdat))
+    Colorbar(f_spectrum[1,2],hm)
+    hmdat
+  end
+
   for (j,q) in enumerate(path)
     m = round.(Int, oc.sys.latsize .* q)
     ixqs[j] = map(i -> mod(m[i], oc.sys.latsize[i])+1, (1, 2, 3)) |> CartesianIndex{3}
@@ -313,6 +343,7 @@ function sim_AC_applied(sys)
   # Simulation loop
   i = 0
   @async begin
+  #begin
     while true
       i = i + 1
       t = i * dt
@@ -348,17 +379,32 @@ function sim_AC_applied(sys)
       lswt_prediction = applied_field_magnitude[] * abs(chi_current[]) * cos(omega0[] * t + angle(chi_current[]) - (pi/2)) + ground_state_mag
       push!(ms_predicted[],lswt_prediction)
 
-      if mod(i,2000) == 0
-        # Correlation spectrum
-        fft!(oc.data,1)
-        for (j,q) in enumerate(path)
-          for t = 1:nt
-            hmdat[][j,t] = new_formula.calc_intensity(oc, ks[j], ixqs[j], t)
+      if energy_resolve_correlations
+        if mod(i,2000) == 0
+          # Correlation spectrum
+          fft!(oc.data,1)
+          for (j,q) in enumerate(path)
+            for t = 1:nt
+              hmdat[][j,t] = new_formula.calc_intensity(oc, ks[j], ixqs[j], t)
+            end
           end
+          hmdat[] .= fftshift(hmdat[],2)
+          ifft!(oc.data,1)
+          notify(hmdat)
         end
-        hmdat[] .= fftshift(hmdat[],2)
-        ifft!(oc.data,1)
-        notify(hmdat)
+      else
+        if mod(i,20) == 0
+          formula = spectral_formula_oc[]
+          for i = 1:oc.sys.latsize[1], j = 1:oc.sys.latsize[2]
+            q = [i-1,j-1,0] ./ oc.sys.latsize
+            m = round.(Int, oc.sys.latsize .* q)
+            ixq = map(i -> mod(m[i], oc.sys.latsize[i])+1, (1, 2, 3)) |> CartesianIndex{3}
+            k = Sunny.Vec3(oc.sys.crystal.recipvecs * q)
+            present_index = 1
+            hmdat[][i,j] = abs(formula.calc_intensity(oc, k, ixq, present_index)) + 1e-16 * randn()
+          end
+          notify(hmdat)
+        end
       end
 
       if mod(i,20) == 0

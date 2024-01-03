@@ -6,7 +6,7 @@ cif = "MgCr2O4_160953_2009.cif"
 xtal_mgcro = Crystal(cif; symprec=0.001)
 xtal_mgcro = subcrystal(xtal_mgcro,"Cr1")
 
-dims = (6, 6, 6)  # Supercell dimensions 
+dims = (6, 6, 1)  # Supercell dimensions 
 #dims = (20, 20, 20)  # Supercell dimensions 
 spininfos = [SpinInfo(1, S=3/2, g=2)]  # Specify spin information, note that all sites are symmetry equivalent 
 sys_mgcro = System(xtal_mgcro, dims, spininfos, :dipole); # Same on MgCr2O4 crystal

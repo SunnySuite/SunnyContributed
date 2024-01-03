@@ -135,15 +135,17 @@ function Sunny.intensity_formula(f::Function, oc::OnlineCorrelations, corr_ix::A
     na = Val(Sunny.natoms(oc.sys.crystal))
     nc = Val(length(corr_ix))
 
+    dt = oc.integrator.Δt
+    cryst = oc.sys.crystal
+
     # Intensity is calculated at the discrete (ix_q,ix_ω) modes available to the system.
     # Additionally, for momentum transfers outside of the first BZ, the norm `q_absolute` of the
     # momentum transfer may be different than the one inferred from `ix_q`, so it needs
     # to be provided independently of `ix_q`.
     calc_intensity = function(oc::OnlineCorrelations, q_absolute::Sunny.Vec3, ix_q::CartesianIndex{3}, ix_ω::Int64)
-      correlations = Sunny.phase_averaged_elements(permutedims(view(oc.data, ix_ω, ix_q, :, :, corr_ix),[3,1,2]), q_absolute, oc.sys.crystal, ff_atoms, nc, na)
+      correlations = Sunny.phase_averaged_elements(permutedims(view(oc.data, ix_ω, ix_q, :, :, corr_ix),[3,1,2]), q_absolute, cryst, ff_atoms, nc, na)
 
-    ωs = fftfreq(size(oc.data,1),size(oc.data,1))
-      ω = ωs[ix_ω] * 2π / (oc.integrator.Δt * oc.measperiod * size(oc.data,1))
+      ω = ωs[ix_ω] * 2π / (dt * oc.measperiod * size(oc.data,1))
       return f(q_absolute, ω, correlations) * Sunny.classical_to_quantum(ω,kT)
     end
     Sunny.ClassicalIntensityFormula{return_type}(kT, formfactors, string_formula, calc_intensity)
