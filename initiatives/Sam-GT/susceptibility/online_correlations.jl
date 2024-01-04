@@ -13,6 +13,17 @@ mutable struct OnlineCorrelations
   integrator
 end
 
+function online_to_sampled(oc)
+  nt = size(oc.data,1)
+  dw = 2π / (oc.integrator.Δt * oc.measperiod * nt)
+  ωmax = dw * nt / 2
+  sc = dynamical_correlations(oc.sys; Δt=oc.integrator.Δt, nω=(nt+1)÷2, ωmax)
+  println(size(sc.data))
+  println(size(oc.data))
+  sc.data .= permutedims(fft(oc.data,1),[7,5,6,2,3,4,1])
+  sc
+end
+
 function mk_oc(sys;measperiod = 5,nt = 250, integrator = Langevin(0.001,λ=0.1,kT = 0.1), observables = nothing, correlations = nothing)
   N = typeof(sys).parameters[1]
   observables = Sunny.parse_observables(N;observables,correlations)
@@ -20,7 +31,7 @@ function mk_oc(sys;measperiod = 5,nt = 250, integrator = Langevin(0.001,λ=0.1,k
   data = zeros(ComplexF64,nt,sys.latsize...,na,na,Sunny.num_correlations(observables))
   samplebuf = zeros(ComplexF64,nt,sys.latsize...,na,Sunny.num_observables(observables))
   backbuf = copy(samplebuf)
-  pfft = plan_fft(samplebuf,(2,3,4))
+  pfft = plan_fft(samplebuf,(2,3,4)) * (1 / sqrt(prod(sys.latsize) * nt))
   corr_buf = zeros(ComplexF64,nt,sys.latsize...)
   OnlineCorrelations(sys,measperiod,data,samplebuf,backbuf,0,observables,pfft,corr_buf,integrator)
 end
@@ -44,9 +55,10 @@ function walk_online_no_step!(oc)
   if N == 0
     for site in eachsite(oc.sys), (i, op) in enumerate(oc.observables.observables)
       dipole = oc.sys.dipoles[site]
-      #if apply_g
-        #dipole = oc.sys.gs[site] * dipole
-      #end
+      apply_g = true
+      if apply_g
+        dipole = oc.sys.gs[site] * dipole
+      end
       now_buf[1,site,i] = op * dipole
     end
   else
@@ -89,10 +101,9 @@ function walk_online_no_step!(oc)
     then_a_values = view(oc.backbuf,:,:,:,:,i,a)
 
     # This performs the spatial correlation, in spatial fourier space
-    pls = prod(oc.sys.latsize)
     #window_func = cos.(range(0,π,length = nt)).^2 ./ pls
     @inbounds for t = 1:nt, l = CartesianIndices(now_b_value)
-      corr_buf[t,l] = then_a_values[t,l] * conj(now_b_value[l]) / pls #* window_func[t]
+      corr_buf[t,l] = then_a_values[t,l] * conj(now_b_value[l]) #* window_func[t]
     end
 
 
@@ -443,3 +454,4 @@ function streaming_afm()
 
   #calc_intensity = function(oc::OnlineCorrelations, q_absolute::Vec3, ix_q::CartesianIndex{3}, ix_ω::Int64)
 end
+

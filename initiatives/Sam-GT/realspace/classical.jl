@@ -1,4 +1,5 @@
 using Sunny
+using FFTW
 
 #=
 function individual_fourier_component(sys,sc; lolim = -Inf, hilim = Inf)
@@ -55,8 +56,8 @@ function Base.show(io::IO, ::MIME"text/plain", formula::DirectSpaceIntensityForm
 
     formula_lines = split(formula.string_formula,'\n')
 
-    intensity_equals = "  Intensity(q)[ix_ω] = "
-    println(io,"At any wavevector S = S(q)[ix_ω], use:")
+    intensity_equals = "  Intensity(q)[ix_ω] = ∑_Δx exp(iq⋅Δx) "
+    println(io,"At any wavevector q, use the discretely many S(Δx)[ix_ω]:")
     println(io)
     println(io,intensity_equals,formula_lines[1])
     for i = 2:length(formula_lines)
@@ -121,7 +122,7 @@ function intensity_formula_periodic_extension(f::Function, sc::SampledCorrelatio
   atom_pos = map(p -> sc.crystal.latvecs * p, sc.crystal.positions)
   na = Sunny.natoms(sc.crystal)
 
-  calc_intensity = function(fBack::Function, ix_ω::Int64)
+  calc_intensity = function(fBack::Function, ix_ω::Int64, q_absolute::Sunny.Vec3)
     val = zeros(ComplexF64,length(corr_ix))
     correlations = zeros(ComplexF64,length(corr_ix))
     # Correlations from every offset Δx
@@ -147,7 +148,7 @@ function intensity_formula_periodic_extension(f::Function, sc::SampledCorrelatio
     # This is NaN if sc is instant_correlations
     ω = (typeof(ωs_sc) == Float64 && isnan(ωs_sc)) ? NaN : ωs_sc[ix_ω] 
 
-    return f(ω, val) * Sunny.classical_to_quantum(ω,kT)
+    return f(q_absolute, ω, val) * Sunny.classical_to_quantum(ω,kT)
   end
   DirectSpaceIntensityFormula{return_type}(kT, formfactors, string_formula, calc_intensity)
 end
@@ -163,8 +164,8 @@ function intensity_formula_periodic_extension(sc::SampledCorrelations, mode::Sym
 end
 
 function intensity_formula_periodic_extension(sc::SampledCorrelations, contractor::Sunny.Contraction{T}; kwargs...) where T
-    intensity_formula_periodic_extension(sc,Sunny.required_correlations(contractor); return_type = T,kwargs...) do ω,correlations
-        intensity = Sunny.contract(correlations, contractor)
+    intensity_formula_periodic_extension(sc,Sunny.required_correlations(contractor); return_type = T,kwargs...) do k, ω, correlations
+        intensity = Sunny.contract(correlations, k, contractor)
     end
 end
 
@@ -184,7 +185,11 @@ function Sunny.intensities_binned(sc::SampledCorrelations, params::BinningParame
 
   # Loop over qs
   for bin_number in CartesianIndices(ntuple(i -> nbin[i],3)), ix_ω = 1:nbin[4]
-    bin_val = formula.calc_intensity(ix_ω) do val, this_R
+
+    # This line causes the dipole factor to be applied at the bin center only
+    k0 = params.binstart[1:3] .+ params.binwidth[1:3] .* (bin_number.I .+ 0.5)
+
+    bin_val = formula.calc_intensity(ix_ω,Sunny.Vec3(k0)) do val, this_R
       for j = 1:3
         sj = params.binstart[j]
         wj = params.binwidth[j]
@@ -216,7 +221,7 @@ function Sunny.intensities_interpolated(sc::SampledCorrelations, qs, formula::Di
 
   # Loop over qs
   for i in eachindex(ks), ix_ω in eachindex(ωs)
-    bin_val = formula.calc_intensity(ix_ω) do val, this_R
+    bin_val = formula.calc_intensity(ix_ω,ks[i]) do val, this_R
       val * exp(im * (ks[i] ⋅ this_R))
     end
     # Missing det(covectors) and 1/binwidth factors here?

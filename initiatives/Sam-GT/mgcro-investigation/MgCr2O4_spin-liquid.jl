@@ -6,7 +6,7 @@ cif = "MgCr2O4_160953_2009.cif"
 xtal_mgcro = Crystal(cif; symprec=0.001)
 xtal_mgcro = subcrystal(xtal_mgcro,"Cr1")
 
-dims = (6, 6, 1)  # Supercell dimensions 
+dims = (2, 2, 1)  # Supercell dimensions 
 #dims = (20, 20, 20)  # Supercell dimensions 
 spininfos = [SpinInfo(1, S=3/2, g=2)]  # Specify spin information, note that all sites are symmetry equivalent 
 sys_mgcro = System(xtal_mgcro, dims, spininfos, :dipole); # Same on MgCr2O4 crystal
@@ -131,17 +131,21 @@ Lbinixs = 1 .+ floor.(Int64,(target_L .- params.binstart[3]) ./ params.binwidth[
 for ix = 1:3
   bin_ix = Lbinixs[ix]
 
-  ax_mgcro = Axis(fig[1,ix]; title="PRL model (T=1.8K), L = $(pn(bcs[3][bin_ix])) ± $(pn(L_binwidth))",  axparams...)
+  ax_mgcro = Axis(fig[1,2ix-1]; title="PRL model (T=1.8K), L = $(pn(bcs[3][bin_ix])) ± $(pn(L_binwidth))",  axparams...)
   hm = heatmap!(ax_mgcro, h, k, Sq_mgcro_d[:,:,bin_ix])
+  Colorbar(fig[1,2ix],hm)
 
-  ax_mgcro = Axis(fig[2,ix]; title="PRL model (instant), L = $(pn(bcs[3][bin_ix])) ± $(pn(L_binwidth))",  axparams...)
+  ax_mgcro = Axis(fig[2,2ix-1]; title="PRL model (instant), L = $(pn(bcs[3][bin_ix])) ± $(pn(L_binwidth))",  axparams...)
   hm = heatmap!(ax_mgcro, h, k, Sq_mgcro_i[:,:,bin_ix])
+  Colorbar(fig[2,2ix],hm)
 
-  ax_mgcro = Axis(fig[3,ix]; title="New model (instant), L = $(pn(bcs[3][bin_ix])) ± $(pn(L_binwidth))",  axparams...)
+  ax_mgcro = Axis(fig[3,2ix-1]; title="New model (instant), L = $(pn(bcs[3][bin_ix])) ± $(pn(L_binwidth))",  axparams...)
   hm = heatmap!(ax_mgcro, h, k, Sq_mgcro2_i[:,:,bin_ix])
+  Colorbar(fig[3,2ix],hm)
 
-  ax_mgcro = Axis(fig[4,ix]; title="New model (T=1.8K), L = $(pn(bcs[3][bin_ix])) ± $(pn(L_binwidth))",  axparams...)
+  ax_mgcro = Axis(fig[4,2ix-1]; title="New model (T=1.8K), L = $(pn(bcs[3][bin_ix])) ± $(pn(L_binwidth))",  axparams...)
   hm = heatmap!(ax_mgcro, h, k, Sq_mgcro2_d[:,:,bin_ix])
+  Colorbar(fig[4,2ix],hm)
 end
 
 
