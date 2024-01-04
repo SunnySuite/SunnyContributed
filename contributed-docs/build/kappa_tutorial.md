@@ -173,7 +173,7 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 ````
 
 ````
-5.345455394762394
+5.3454553947623955
 ````
 
 This is in fact very close to 16/3. So, at low temperatures, application of
@@ -212,7 +212,7 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 ````
 
 ````
-2.895135420984909
+2.9237215440928477
 ````
 
 While this is larger than the classical value of 4/3, it is still
@@ -260,7 +260,7 @@ total_spectral_weight(sc; kT) / prod(sys.latsize)
 ````
 
 ````
-5.0478466685418475
+5.190400851435814
 ````
 
 The result is something slightly greater than 5, substantially closer to the
