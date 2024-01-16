@@ -8,17 +8,32 @@ mutable struct OnlineCorrelations
   backbuf :: Array{ComplexF64, 6}
   nsamples :: Int
   observables :: Sunny.ObservableInfo
+  pfft
+  corr_buf :: Array{ComplexF64, 4}
   integrator
+end
+
+function online_to_sampled(oc)
+  nt = size(oc.data,1)
+  dw = 2π / (oc.integrator.Δt * oc.measperiod * nt)
+  ωmax = dw * nt / 2
+  sc = dynamical_correlations(oc.sys; Δt=oc.integrator.Δt, nω=(nt+1)÷2, ωmax)
+  println(size(sc.data))
+  println(size(oc.data))
+  sc.data .= permutedims(fft(oc.data,1),[7,5,6,2,3,4,1])
+  sc
 end
 
 function mk_oc(sys;measperiod = 5,nt = 250, integrator = Langevin(0.001,λ=0.1,kT = 0.1), observables = nothing, correlations = nothing)
   N = typeof(sys).parameters[1]
   observables = Sunny.parse_observables(N;observables,correlations)
   na = Sunny.natoms(sys.crystal)
-  data = zeros(nt,sys.latsize...,na,na,Sunny.num_correlations(observables))
-  samplebuf = zeros(nt,sys.latsize...,na,Sunny.num_observables(observables))
+  data = zeros(ComplexF64,nt,sys.latsize...,na,na,Sunny.num_correlations(observables))
+  samplebuf = zeros(ComplexF64,nt,sys.latsize...,na,Sunny.num_observables(observables))
   backbuf = copy(samplebuf)
-  OnlineCorrelations(sys,measperiod,data,samplebuf,backbuf,0,observables,integrator)
+  pfft = plan_fft(samplebuf,(2,3,4)) * (1 / sqrt(prod(sys.latsize)))
+  corr_buf = zeros(ComplexF64,nt,sys.latsize...)
+  OnlineCorrelations(sys,measperiod,data,samplebuf,backbuf,0,observables,pfft,corr_buf,integrator)
 end
 
 
@@ -27,7 +42,10 @@ function walk_online!(oc)
   for j = 1:oc.measperiod
     step!(oc.sys,oc.integrator)
   end
+  walk_online_no_step!(oc)
+end
 
+function walk_online_no_step!(oc)
   # Put the new observable values at the end of the back buffer
   nt = size(oc.samplebuf,1)
   now_buf = reshape(copy(oc.backbuf[nt,:,:,:,:,:]),1,size(oc.backbuf)[2:6]...)
@@ -37,9 +55,10 @@ function walk_online!(oc)
   if N == 0
     for site in eachsite(oc.sys), (i, op) in enumerate(oc.observables.observables)
       dipole = oc.sys.dipoles[site]
-      #if apply_g
-        #dipole = oc.sys.gs[site] * dipole
-      #end
+      apply_g = true
+      if apply_g
+        dipole = oc.sys.gs[site] * dipole
+      end
       now_buf[1,site,i] = op * dipole
     end
   else
@@ -64,12 +83,12 @@ function walk_online!(oc)
   # Go to spatial fourier space because we're correlating
   #oc.backbuf .= oc.samplebuf
   #fft!(oc.backbuf,(2,3,4))
-  oc.backbuf .= fft(oc.samplebuf,(2,3,4))
+  oc.backbuf .= oc.pfft * oc.samplebuf
 
   # Correlate this new observable value with the existing ones
   oc.nsamples += 1
   na = Sunny.natoms(oc.sys.crystal)
-  corr_buf = zeros(ComplexF64,nt,oc.sys.latsize...)
+  corr_buf = oc.corr_buf
   for j = 1:na, i = 1:na, (ci, c) in oc.observables.correlations
     a,b = ci.I
 
@@ -82,10 +101,9 @@ function walk_online!(oc)
     then_a_values = view(oc.backbuf,:,:,:,:,i,a)
 
     # This performs the spatial correlation, in spatial fourier space
-    pls = prod(oc.sys.latsize)
     #window_func = cos.(range(0,π,length = nt)).^2 ./ pls
     @inbounds for t = 1:nt, l = CartesianIndices(now_b_value)
-      corr_buf[t,l] = then_a_values[t,l] * conj(now_b_value[l]) / pls #* window_func[t]
+      corr_buf[t,l] = then_a_values[t,l] * conj(now_b_value[l]) #* window_func[t]
     end
 
 
@@ -126,17 +144,19 @@ function Sunny.intensity_formula(f::Function, oc::OnlineCorrelations, corr_ix::A
 
     ff_atoms = Sunny.propagate_form_factors_to_atoms(formfactors, oc.sys.crystal)
     na = Val(Sunny.natoms(oc.sys.crystal))
-    nc = Val(size(oc.data,7))
+    nc = Val(length(corr_ix))
+
+    dt = oc.integrator.Δt
+    cryst = oc.sys.crystal
 
     # Intensity is calculated at the discrete (ix_q,ix_ω) modes available to the system.
     # Additionally, for momentum transfers outside of the first BZ, the norm `q_absolute` of the
     # momentum transfer may be different than the one inferred from `ix_q`, so it needs
     # to be provided independently of `ix_q`.
     calc_intensity = function(oc::OnlineCorrelations, q_absolute::Sunny.Vec3, ix_q::CartesianIndex{3}, ix_ω::Int64)
-      correlations = Sunny.phase_averaged_elements(view(oc.data, ix_ω, ix_q, :, :, corr_ix), q_absolute, oc.sys.crystal, ff_atoms, nc, na)
+      correlations = Sunny.phase_averaged_elements(permutedims(view(oc.data, ix_ω, ix_q, :, :, corr_ix),[3,1,2]), q_absolute, cryst, ff_atoms, nc, na)
 
-    ωs = fftfreq(size(oc.data,1),size(oc.data,1))
-      ω = ωs[ix_ω] * 2π / (oc.integrator.Δt * oc.measperiod * size(oc.data,1))
+      ω = ωs[ix_ω] * 2π / (dt * oc.measperiod * size(oc.data,1))
       return f(q_absolute, ω, correlations) * Sunny.classical_to_quantum(ω,kT)
     end
     Sunny.ClassicalIntensityFormula{return_type}(kT, formfactors, string_formula, calc_intensity)
@@ -310,33 +330,34 @@ function streaming_fei2()
 end
 
 function streaming_afm()
-  seed = 101
   crystal = Crystal(I(3), [[0,0,0]], 1)
   units = Sunny.Units.theory
-  sys_large = System(crystal, (20,20,1), [SpinInfo(1; S=1, g=2)], :dipole; units, seed)
-  J = 1.0
-  h = 0.4
-  D = 0.1
+  sys_large = System(crystal, (20,20,1), [SpinInfo(1; S=1, g=2)], :dipole; units)
+  randomize_spins!(sys_large)
+  J = -0.3
+  h = 1.0
+  D = 0.0#1.0
   set_exchange!(sys_large, J, Bond(1, 1, [1, 0,0]))
   set_exchange!(sys_large, J, Bond(1, 1, [0, 1,0]))
-  set_external_field!(sys_large, [h, 0, 0])
+  set_external_field!(sys_large, [0, 0, h])
   S = spin_matrices(1)
-  set_onsite_coupling!(sys_large, D*S[3]^2, 1)
+  #set_onsite_coupling!(sys_large, D*S[3]^2, 1)
 
-  Δt = 0.05/max(abs(J),abs(D))
+  Δt = 0.05#/max(abs(J),abs(D))
   kT = 0.2  
   λ = 0.1  
   langevin = Langevin(Δt; kT, λ);
+
+  nt = 240
+  langevin.Δt = 0.03
+  langevin.kT = 0.001#0.12
+  langevin.λ = 0.01
 
   println("Thermalize")
   @time for _ in 1:10_000
     step!(sys_large, langevin)
   end
 
-  nt = 240
-  langevin.Δt = 0.05
-  langevin.kT = 0.2
-  langevin.λ = 0.1
   oc = mk_oc(sys_large; measperiod = 4,nt, integrator = langevin, observables = nothing, correlations = nothing)
 
   dw = 2π / (oc.integrator.Δt * oc.measperiod * nt)
@@ -433,3 +454,4 @@ function streaming_afm()
 
   #calc_intensity = function(oc::OnlineCorrelations, q_absolute::Vec3, ix_q::CartesianIndex{3}, ix_ω::Int64)
 end
+

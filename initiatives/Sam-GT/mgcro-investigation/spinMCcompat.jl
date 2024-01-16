@@ -34,7 +34,8 @@ function to_spinmc_system(sys)
       if !iszero(c.scalar)
         error("Unsupported scalar interaction $c")
       end
-      SMC.addInteraction!(uc,c.bond.i,c.bond.j,Matrix(c.bilin * I(3)),Tuple(c.bond.n))
+      spinS = sys.κs[1]
+      SMC.addInteraction!(uc,c.bond.i,c.bond.j,Matrix(spinS * spinS * c.bilin * I(3)),Tuple(c.bond.n))
     end
   end
   #SMC.Lattice(uc,sys.latsize)
@@ -78,7 +79,6 @@ end
 
 function scga_bincenters(params,sys,beta)
   uc = to_spinmc_system(sys)
-  #uc = lat.unitcell
   dist = getDist(uc)
 
   bin_centers = axes_bincenters(params)
@@ -96,13 +96,11 @@ function scga_bincenters(params,sys,beta)
       y_center = bin_centers[2][ci[2]]
       z_center = bin_centers[3][ci[3]]
 
-      # absolute wave vector
-      #k = sys.crystal.recipvecs * coords_to_q * [x_center;y_center;z_center]
+      # absolute wave vector of bin center
+      k = sys.crystal.recipvecs * coords_to_q * [x_center;y_center;z_center]
 
       # This satisfies q_lab = transpose(recipvecs) * q_crys
-      q = inv(transpose(sys.crystal.recipvecs)) * sys.crystal.recipvecs * coords_to_q * [x_center;y_center;z_center]
-      q_crys[i,:] .= q #/ 2π # This 2π is because the SCGA code contains exp(i q_lab⋅dist)
-      # why is it a reciprocal 2π? ¯\_(ツ)_/¯ 
+      q_crys[i,:] .= inv(transpose(sys.crystal.recipvecs)) * k
 
       # Later, in the SCGA code, this is used as:
       #
@@ -113,14 +111,24 @@ function scga_bincenters(params,sys,beta)
       #
       # which means that uc.basis[1] must be in physical units
   end
-  #Jq_calc = getFourier_aniso(uc,dist,q_crys)
-  #λ = solveLambda_aniso(uc,beta)
-  #correl = getCorr_aniso(uc,q_crys,Jq_calc,beta,λ)
   Jq_calc = getFourier_iso(uc,dist,q_crys)
   λ = solveLambda_iso(uc,beta)
   correl = getCorr_iso(uc,Jq_calc,beta,λ)
   for (i,ci) in enumerate(cis)
     is[ci] = correl[i]
   end
+
+  # SCGA reports the intensity, so we need to "integrate" it over the bin
+  # by multiplying by the binwidth
+  is .*= prod(params.binwidth[1:3])
+  
+  # SCGA uses unit-length dimensionless spins, so we need to restore the units
+  spinS = sys.κs[1]
+  is .*= spinS * spinS
+
+  # SCGA computes the correlation per site (for some reason??) so we need
+  # to convert back to the actual mean correlation here:
+  #is .*= length(Sunny.eachsite(sys))
+
   is
 end

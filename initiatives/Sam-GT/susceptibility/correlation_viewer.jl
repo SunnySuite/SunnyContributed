@@ -251,8 +251,8 @@ function oscillatory_sc()
   out = minimize_energy!(sys)
   #println(out)
 
-  Δt = 0.0025
-  kT = 0.02
+  Δt = 0.0005
+  kT = 40.8
   λ = 0.1
   langevin = Langevin(Δt; kT, λ)
 
@@ -260,14 +260,15 @@ function oscillatory_sc()
       step!(sys, langevin)
   end
 
-  sc = dynamical_correlations(sys; Δt=2Δt, nω=200, ωmax=5.0)
+  sc = dynamical_correlations(sys; Δt=2Δt, nω=400, ωmax=10.0)
 
   nsamples = 50
   for _ in 1:nsamples
       for _ in 1:1_000
           step!(sys, langevin)
       end
-      @time add_sample!(sc, sys; alg = :no_window)
+      println(sys.dipoles[1])
+      @time add_sample!(sc, sys; alg = :no_window) # Never observe decorrelation due to ImplicitMidpoint
   end
   sc, sys
 end
