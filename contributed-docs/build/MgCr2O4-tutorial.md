@@ -366,35 +366,35 @@ Allowed anisotropy in Stevens operators:
     c₂*(7𝒪[4,-3]+2𝒪[4,-2]-𝒪[4,-1]+𝒪[4,1]+7𝒪[4,3]) + c₃*(𝒪[4,0]+5𝒪[4,4]) +
     c₄*(-11𝒪[6,-6]-8𝒪[6,-3]+𝒪[6,-2]-8𝒪[6,-1]+8𝒪[6,1]-8𝒪[6,3]) + c₅*(𝒪[6,0]-21𝒪[6,4]) + c₆*((9/5)𝒪[6,-6]+(24/5)𝒪[6,-5]+𝒪[6,-2]+(8/5)𝒪[6,-1]-(8/5)𝒪[6,1]-(24/5)𝒪[6,5])
 
-Sunny.Bond(1, 3, [0, 0, 0])
+Bond(1, 3, [0, 0, 0])
 Distance 2.9465846678825, coordination 6
 Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [7/8, 7/8, 1/8]
-Allowed exchange matrix:[ A -D D
-                          D  B C
-                         -D  C B]
+Allowed exchange matrix: [ A -D D
+                           D  B C
+                          -D  C B]
 Allowed DM vector: [0 -D -D]
 
-Sunny.Bond(1, 2, [0, 0, 0])
+Bond(1, 2, [0, 0, 0])
 Distance 5.1036343535759, coordination 12
 Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [5/8, 1/8, 5/8]
-Allowed exchange matrix:[  A  C-E  D-F
-                         C+E    B -C+E
-                         D+F -C-E    A]
+Allowed exchange matrix: [  A  C-E  D-F
+                          C+E    B -C+E
+                          D+F -C-E    A]
 Allowed DM vector: [E F -E]
 
-Sunny.Bond(2, 6, [0, 0, 0])
+Bond(2, 6, [0, 0, 0])
 Distance 5.8931693357649, coordination 6
 Connects 'B' at [5/8, 1/8, 5/8] to 'B' at [5/8, 5/8, 1/8]
-Allowed exchange matrix:[A D D
-                         D B C
-                         D C B]
+Allowed exchange matrix: [A D D
+                          D B C
+                          D C B]
 
-Sunny.Bond(1, 5, [0, 0, 0])
+Bond(1, 5, [0, 0, 0])
 Distance 5.8931693357649, coordination 6
 Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [7/8, 1/8, 7/8]
-Allowed exchange matrix:[ A D -D
-                          D B  C
-                         -D C  B]
+Allowed exchange matrix: [ A D -D
+                           D B  C
+                          -D C  B]
 
 
 ````
@@ -416,35 +416,35 @@ Allowed anisotropy in Stevens operators:
     c₂*(-7𝒪[4,-3]-2𝒪[4,-2]+𝒪[4,-1]+𝒪[4,1]+7𝒪[4,3]) + c₃*(𝒪[4,0]+5𝒪[4,4]) +
     c₄*(-11𝒪[6,-6]-8𝒪[6,-3]+𝒪[6,-2]-8𝒪[6,-1]-8𝒪[6,1]+8𝒪[6,3]) + c₅*(𝒪[6,0]-21𝒪[6,4]) + c₆*((9/5)𝒪[6,-6]+(24/5)𝒪[6,-5]+𝒪[6,-2]+(8/5)𝒪[6,-1]+(8/5)𝒪[6,1]+(24/5)𝒪[6,5])
 
-Sunny.Bond(1, 2, [0, 0, 0])
+Bond(1, 2, [0, 0, 0])
 Distance 2.9465846678825, coordination 6
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [3/4, 1/4, 0]
-Allowed exchange matrix:[A C -D
-                         C A -D
-                         D D  B]
+Allowed exchange matrix: [A C -D
+                          C A -D
+                          D D  B]
 Allowed DM vector: [-D D 0]
 
-Sunny.Bond(1, 7, [0, 0, 0])
+Bond(1, 7, [0, 0, 0])
 Distance 5.1036343535759, coordination 12
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [1/4, 1/2, 1/4]
-Allowed exchange matrix:[  A  C-E  D-F
-                         C+E    B -C+E
-                         D+F -C-E    A]
+Allowed exchange matrix: [  A  C-E  D-F
+                          C+E    B -C+E
+                          D+F -C-E    A]
 Allowed DM vector: [E F -E]
 
-Sunny.Bond(1, 3, [0, 0, 0])
+Bond(1, 3, [0, 0, 0])
 Distance 5.8931693357649, coordination 6
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [0, 1/2, 0]
-Allowed exchange matrix:[A D C
-                         D A C
-                         C C B]
+Allowed exchange matrix: [A D C
+                          D A C
+                          C C B]
 
-Sunny.Bond(1, 3, [1, 0, 0])
+Bond(1, 3, [1, 0, 0])
 Distance 5.8931693357649, coordination 6
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [1, 1/2, 0]
-Allowed exchange matrix:[A D C
-                         D A C
-                         C C B]
+Allowed exchange matrix: [A D C
+                          D A C
+                          C C B]
 
 
 ````

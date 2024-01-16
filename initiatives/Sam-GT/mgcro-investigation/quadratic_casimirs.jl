@@ -14,6 +14,7 @@ nothing#hide
 # The partially applied bracket $\mathrm{ad}_X = [X,\cdot] : L \to L$ (where $X \in L$) is called the *adjoint representation* of $L$.
 # In the extremely common case that the bracket operation is the matrix commutator, we can easily write down a matrix representation of $\mathrm{ad}_X$ with respect to some basis:
 
+
 function basis_to_transformation_matrix(basis)
   basis = matrix_to_flat.(basis)
   mat_size = length(basis[1])
@@ -35,6 +36,7 @@ nothing#hide
 
 # Since $\mathrm{ad}_X$ is just a linear map, we can multiply it with itself and take a trace, $B(X,Y) = \mathrm{tr}(\mathrm{ad}_X \mathrm{ad}_Y)$, which defines the Killing form $B$:
 
+
 function killing_form(basis)
   B = zeros(ComplexF64,length(basis),length(basis))
   ad = map(X -> adX_matrep(X,basis),basis)
@@ -53,6 +55,7 @@ end
 #
 # Given a Lie algebra $L$, the *Killing form-derived quadratic casimir* is the following element of UEA of $L$: $\Omega \equiv \sum_{ij} [B^{-1}]^{ij} X^i X^j$ where $[B^{-1}]^{ij}$ is the inverse matrix of $B_{ij}$ in the $X^i$ basis.
 
+
 function killing_casimir(basis; B = killing_form(basis))
   C = (permutedims(basis) * inv(B) * basis)[1]
   round.(C;digits = 12) # Chop tiny numbers
@@ -62,6 +65,7 @@ end
 # # Example: SU(2)
 #
 # The $\mathfrak{su}(2)$ Lie algebra consists of real linear combinations of $S^x$, $S^y$ and $S^z$ (defined as half the pauli matrices), with the commutation relations $[S^x, S^y] = iS^z$ (pauli matrices would have $2i$ instead of $i$) and so on.
+
 
 su2 = spin_matrices(1/2)
 @assert su2[1] * su2[2] - su2[2] * su2[1] ≈ im * su2[3] # Check commutation relation
@@ -74,6 +78,7 @@ killing_form(su2)
 #
 # The UEA $U(\mathfrak{su}(2))$ consists of arbitrary spin polynomials $[S^x]^2$, $[S^y]^3S^x - 4 S^z$, etc, with only the commutation relations imposed (and *no* further "coincidental" representation-dependent relations like $[S^x]^2 = I$ imposed).
 # The Killing form-derived quadratic casimir of $\mathfrak{su}(2)$ is $\frac{1}{2}S^2 \equiv \frac{1}{2}([S^x]^2 + [S^y]^2 + [S^z]^2)$:
+
 
 killing_casimir(su2)
 
@@ -118,6 +123,7 @@ end
 # ## Stevens Operator Bases
 #
 # The $N^2 - 1$ non-identity stevens operators form a basis for the defining representation of $\mathfrak{su}(N)$. We can collect them into a basis:
+
 function stevens_basis(S; Smax = S)
   O = stevens_matrices(S)
   basis = Vector{Any}(undef,0)
@@ -175,6 +181,7 @@ print("  stevens: ")
 print_stevens_expansion(Ω)
 
 # However, the situation becomes more clear numerically, where all these complicated expressions turn out proportional to the identity matrix, similar to the representations of $\mathfrak{su}(2)$:
+
 println()
 println("su(N) defining representations and their casimir values")
 sun_cas = []
