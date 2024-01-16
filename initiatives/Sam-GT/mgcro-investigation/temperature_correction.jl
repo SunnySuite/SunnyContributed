@@ -2,7 +2,7 @@ using Statistics
 
 function z_series(kT,λ;Δt = 0.05)
   cryst = Crystal(I(3),[[0,0,0]],1)
-  sys = System(cryst,(1,1,1), [SpinInfo(1,S=1,g=2)], :dipole)
+  sys = System(cryst,(1,1,1), [SpinInfo(1,S=1,g=2)], :dipole_large_S, units = Units.theory)
 
   # Prefer z = 0
   set_onsite_coupling!(sys, S -> S[3]^2,1)

@@ -128,7 +128,7 @@ function scga_bincenters(params,sys,beta)
 
   # SCGA computes the correlation per site (for some reason??) so we need
   # to convert back to the actual mean correlation here:
-  is .*= length(Sunny.eachsite(sys))
+  #is .*= length(Sunny.eachsite(sys))
 
   is
 end

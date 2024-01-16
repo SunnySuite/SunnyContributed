@@ -124,7 +124,6 @@ function intensity_formula_periodic_extension(f::Function, sc::SampledCorrelatio
 
   calc_intensity = function(fBack::Function, ix_ω::Int64, q_absolute::Sunny.Vec3)
     val = zeros(ComplexF64,length(corr_ix))
-    correlations = zeros(ComplexF64,length(corr_ix))
     # Correlations from every offset Δx
     for cell in CartesianIndices(ls), a = 1:na, b = 1:na
 
@@ -136,13 +135,11 @@ function intensity_formula_periodic_extension(f::Function, sc::SampledCorrelatio
         continue
       end
 
-      correlations .= view(real_corr,corr_ix,a,b,cell,ix_ω)
-
       # TODO: form factors!
-      for i = eachindex(correlations)
-        correlations[i] = fBack(correlations[i],this_R) / (prod(ls) * na * na)
+      for i = eachindex(val)
+        correlation = real_corr[corr_ix[i],a,b,cell,ix_ω]
+        val[i] = val[i] + fBack(correlation,this_R) / na # Mean over a
       end
-      val .= val .+ correlations
     end
 
     # This is NaN if sc is instant_correlations
@@ -207,7 +204,7 @@ function Sunny.intensities_binned(sc::SampledCorrelations, params::BinningParame
       val
     end
     # Missing det(covectors) and 1/binwidth factors here?
-    is[bin_number,ix_ω] = real(bin_val)
+    is[bin_number,ix_ω] = real(bin_val) # / prod(params.binwidth[1:3])
   end
   is
 end
@@ -305,6 +302,7 @@ function binned_components(sys, sc, params::BinningParameters; lolim = -Inf, hil
 end
 
 
+# Show several S(q,w) plots, resolved by interaction range
 function show_ranges(sys,sc)
   f = Figure()
   params = unit_resolution_binning_parameters(sc)

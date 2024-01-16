@@ -31,7 +31,7 @@ function mk_oc(sys;measperiod = 5,nt = 250, integrator = Langevin(0.001,λ=0.1,k
   data = zeros(ComplexF64,nt,sys.latsize...,na,na,Sunny.num_correlations(observables))
   samplebuf = zeros(ComplexF64,nt,sys.latsize...,na,Sunny.num_observables(observables))
   backbuf = copy(samplebuf)
-  pfft = plan_fft(samplebuf,(2,3,4)) * (1 / sqrt(prod(sys.latsize) * nt))
+  pfft = plan_fft(samplebuf,(2,3,4)) * (1 / sqrt(prod(sys.latsize)))
   corr_buf = zeros(ComplexF64,nt,sys.latsize...)
   OnlineCorrelations(sys,measperiod,data,samplebuf,backbuf,0,observables,pfft,corr_buf,integrator)
 end
