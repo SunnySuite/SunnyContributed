@@ -56,8 +56,9 @@ function get_eigenmodes(swt,q; verbose = false)
     #
     # There is one such (2:N) block for each atom in the magnetic unit cell
 
+    ix_uncondensed = 1:(N-1)
 
-    bases = swt.data.local_unitary
+    bases = swt.data.local_unitaries
 
     eigen_mode_displacements = zeros(ComplexF64,N,Nm,2nmodes)
 
@@ -89,14 +90,10 @@ function get_eigenmodes(swt,q; verbose = false)
         # The first basis vector in the basis is along the 'ground state'/longitudinal mode
         # and it got condensed away. There will be no eigenmode displacements in that
         # direction.
-        uncondensed_basis = basis[:,2:N]
+        uncondensed_basis = basis[:,ix_uncondensed]
 
         # Loop over only the uncondensed bosons
-        for original_uncondensed_boson = 2:N
-          # The bosons all got shifted one to the left when we chopped of the
-          # one which was condensed away.
-          boson_ix = original_uncondensed_boson - 1
-
+        for (boson_ix,original_uncondensed_boson) = enumerate(ix_uncondensed)
           this_displacement = uncondensed_basis[:,boson_ix]
           this_amplitude = deletion_operators_on_this_atom[boson_ix]
           eigen_mode_displacements[:,atom,eigen_mode] .+= this_displacement .* this_amplitude

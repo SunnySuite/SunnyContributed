@@ -71,10 +71,16 @@ function plot_spin_data!(ax, sys::System; arrowscale=1.0, stemcolor=:lightgray, 
     elseif dims == 2
         r0 = [0.5, 0.5, 0]
     end
-    images = Sunny.Plotting.all_images_within_distance(supervecs, rs, [r0]; max_dist=ghost_radius, include_zeros=true)
 
     # Require separate drawing calls with `transparency=true` for ghost sites
-    for (isghost, alpha) in ((false, 1.0), (true, 0.08))
+    for isghost in (false, true)
+        if isghost
+            alpha = 0.08
+            images = Sunny.Plotting.all_ghost_images_within_distance(supervecs, rs, Sunny.Plotting.cell_center(dims); max_dist=ghost_radius)
+        else
+            alpha = 1.0
+            images = [[zero(Sunny.Vec3)] for _ in rs]
+        end
         pts = Makie.Point3f0[]
         vecs = Makie.Observable(Makie.Vec3f0[])
         arrowcolor = Tuple{eltype(color0), Float64}[]
@@ -82,8 +88,6 @@ function plot_spin_data!(ax, sys::System; arrowscale=1.0, stemcolor=:lightgray, 
             vec = (lengthscale / S0) * sys.dipoles[site]
             # Loop over all periodic images of site within radius
             for n in images[site]
-                # If drawing ghosts, require !iszero(n), and vice versa
-                iszero(n) == isghost && continue
                 pt = supervecs * (rs[site] + n)
                 push!(pts, Makie.Point3f0(pt))
                 push!(vecs[], Makie.Vec3f0(vec))
@@ -122,7 +126,7 @@ function plot_spin_data!(ax, sys::System; arrowscale=1.0, stemcolor=:lightgray, 
                     glowcolor=(:white, 0.6), align=(:center, :center), overdraw=true)
     end
 
-    Sunny.Plotting.orient_camera!(ax, supervecs; ghost_radius, orthographic, dims)
+    Sunny.Plotting.orient_camera!(ax, supervecs; ghost_radius, ℓ0, orthographic, dims)
 
     return ax
 end
