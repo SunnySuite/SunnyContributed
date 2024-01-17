@@ -7,6 +7,10 @@ If you're interested in any of these, take a look at the docs/code (linked below
 Linear spin wave theory can be considered as a fully classical theory with normal modes.
 This script visualizes the dipole-sector oscillations of the classical trajectories for a selectable point in the LSWT band structure.
 
+## [Explainer: (Quadratic) Casimirs](docs/quadratic_casimirs.md)
+This explainer demonstrates how to derive and verify a uniquely normalized quadratic casimir element for a Lie algebra.
+This is important for comparing theories with different numbers of boson flavors (e.g. SU(N) vs dipole).
+
 ## [Finding a few of the lowest-energy modes of a Linear Spin Wave system using Sunny and ARPACK](eigenmodes/arnoldi.jl)
 Since the spin wave hamiltonian produced by Sunny is sparse, we can use Arnoldi iteration on it.
 This script packages this concept into a Sunny-like `intensity_formula_arnoldi(...)` interface.
