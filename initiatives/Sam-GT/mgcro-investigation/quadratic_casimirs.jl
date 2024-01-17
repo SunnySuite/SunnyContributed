@@ -1,6 +1,7 @@
 # # Quadratic Casimirs
 
 using Sunny, GLMakie, LinearAlgebra, SparseArrays
+cd("../mgcro-investigation")#hide
 nothing#hide
 
 # ## Background: The Killing Form and its associated Quadratic Casimir

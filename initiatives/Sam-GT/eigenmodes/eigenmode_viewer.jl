@@ -1,8 +1,10 @@
-# This script is an experiment which visualizes individual spin wave oscillations
-# in real space. Run one of the example_* functions at the bottom to see it in action!
-# 
-# Works on Sunny main as of this writing! (Oct 27)
+# This script visualizes individual spin wave oscillations in real space.
 #
+# To use the GUI viewer, call `interact_eigenmodes(swt, qs, formula)` using the same
+# arguments as `intensities_interpolated(::SpinWaveTheory, ...)`.
+#
+# To run the eigenmode analysis at a single wavevector, call `get_eigenmodes(swt,q,verbose = true)`.
+# 
 # The correctness of the visualization is not yet verified--see comments within--and also
 # currently only really shows the dipole sector.
 
@@ -56,6 +58,7 @@ function get_eigenmodes(swt,q; verbose = false)
     #
     # There is one such (2:N) block for each atom in the magnetic unit cell
 
+    # Sunny changed from (2:N) to 1:(N-1) at some point
     ix_uncondensed = 1:(N-1)
 
     bases = swt.data.local_unitaries
@@ -164,7 +167,7 @@ function plot_eigenmode!(ax, displacements, swt::SpinWaveTheory; t = nothing, kw
     notify(t)
   end
   
-  on(t) do time
+  on(t;update = true) do time
     disps = displacements[]
     # Requires single-site swt system
     for i = 1:size(coherents_scratch,4)
@@ -175,14 +178,14 @@ function plot_eigenmode!(ax, displacements, swt::SpinWaveTheory; t = nothing, kw
   end
 
   # TODO: ghost spins are currently inaccurate, since they should pick up a phase factor
-  plot_spin_data!(ax,swt.sys;color = :blue,spin_data = tweaked,kwargs...)
+  plot_spin_data!(ax,swt.sys;color = :blue,spin_data = tweaked,show_cell=false,kwargs...)
 end
 
 if !(:eigenmode_viewer_screen ∈ names(Main))
   global eigenmode_viewer_screen = nothing
 end
-function interact_eigenmodes(swt::SpinWaveTheory, qs, formula; kwargs...)
-    # The background band structure plot
+function interact_eigenmodes(swt::SpinWaveTheory, qs, formula)
+  # The background band structure plot
   fig = Figure()
   ax = Axis(fig[1,1], title = "Click a mode! (Spacebar to animate)", xticklabelsvisible = false, xrectzoom = false, yrectzoom = false)
   dispersion, intensity = intensities_bands(swt, qs, formula)
@@ -293,113 +296,6 @@ function interact_eigenmodes(swt::SpinWaveTheory, qs, formula; kwargs...)
   display(eigenmode_viewer_screen,fig_mode)
   display(eigenmode_viewer_screen)
   fig
-end
-
-function example_eigenmodes()
-  sys = System(Sunny.cubic_crystal(), (1,2,1), [SpinInfo(1;S=1/2,g=1)], :SUN, units = Units.theory)
-  set_external_field!(sys,[0,0,0.5]) # Field along Z
-  set_exchange!(sys,-1.,Bond(1,1,[0,1,0])) # Strong Ferromagnetic J
-  randomize_spins!(sys)
-  minimize_energy!(sys)
-  minimize_energy!(sys)
-  minimize_energy!(sys)
-
-  swt = SpinWaveTheory(sys)
-  qs = [[0,k,0] for k = range(0,1,length=20)]
-  get_eigenmodes(swt,qs[3]; verbose = true)
-  formula = intensity_formula(swt,:perp, kernel = delta_function_kernel)
-  interact_eigenmodes(swt, qs, formula)
-end
-
-function example_afm()
-  a = b = 8.539
-  c = 5.2414
-  latvecs = lattice_vectors(a, b, c, 90, 90, 90)
-  crystal = Crystal(latvecs,[[0.,0,0]],1)
-  latsize = (2,1,1)
-  sys = System(crystal, latsize, [SpinInfo(1; S=5/2, g=2)], :SUN; seed=5)
-  set_exchange!(sys, 0.85,  Bond(1, 1, [1,0,0]))   # J1
-  set_onsite_coupling!(sys, S -> 0.3 * S[3]^2,1)
-
-  #sys.dipoles[1] = SVector{3}([0,0,1])
-  #sys.dipoles[2] = SVector{3}([0,0,-1])
-  randomize_spins!(sys)
-  minimize_energy!(sys)
-
-  swt = SpinWaveTheory(sys)
-  qs = [[k,k,0] for k = range(0,1,length=2000)]
-  formula = intensity_formula(swt,:perp, kernel = Sunny.delta_function_kernel)
-  interact_eigenmodes(swt, qs, formula)
-end
-
-function example_fei2()
-  a = b = 4.05012  # Lattice constants for triangular lattice
-  c = 6.75214      # Spacing in the z-direction
-  latvecs = lattice_vectors(a, b, c, 90, 90, 120) # A 3x3 matrix of lattice vectors that
-                                                  # define the conventional unit cell
-  positions = [[0, 0, 0], [1/3, 2/3, 1/4], [2/3, 1/3, 3/4]]  # Positions of atoms in fractions
-                                                             # of lattice vectors
-  types = ["Fe", "I", "I"]
-  FeI2 = Crystal(latvecs, positions; types)
-  cryst = subcrystal(FeI2, "Fe")
-  sys = System(cryst, (4,4,4), [SpinInfo(1, S=1, g=2)], :SUN, seed=2)
-  J1pm   = -0.236
-  J1pmpm = -0.161
-  J1zpm  = -0.261
-  J2pm   = 0.026
-  J3pm   = 0.166
-  J′0pm  = 0.037
-  J′1pm  = 0.013
-  J′2apm = 0.068
-
-  J1zz   = -0.236
-  J2zz   = 0.113
-  J3zz   = 0.211
-  J′0zz  = -0.036
-  J′1zz  = 0.051
-  J′2azz = 0.073
-
-  J1xx = J1pm + J1pmpm
-  J1yy = J1pm - J1pmpm
-  J1yz = J1zpm
-
-  set_exchange!(sys, [J1xx   0.0    0.0;
-                      0.0    J1yy   J1yz;
-                      0.0    J1yz   J1zz], Bond(1,1,[1,0,0]))
-  set_exchange!(sys, [J2pm   0.0    0.0;
-                      0.0    J2pm   0.0;
-                      0.0    0.0    J2zz], Bond(1,1,[1,2,0]))
-  set_exchange!(sys, [J3pm   0.0    0.0;
-                      0.0    J3pm   0.0;
-                      0.0    0.0    J3zz], Bond(1,1,[2,0,0]))
-  set_exchange!(sys, [J′0pm  0.0    0.0;
-                      0.0    J′0pm  0.0;
-                      0.0    0.0    J′0zz], Bond(1,1,[0,0,1]))
-  set_exchange!(sys, [J′1pm  0.0    0.0;
-                      0.0    J′1pm  0.0;
-                      0.0    0.0    J′1zz], Bond(1,1,[1,0,1]))
-  set_exchange!(sys, [J′2apm 0.0    0.0;
-                      0.0    J′2apm 0.0;
-                      0.0    0.0    J′2azz], Bond(1,1,[1,2,1]))
-
-  D = 2.165
-  S = spin_operators(sys, 1)
-  set_onsite_coupling!(sys, -D*S[3]^2, 1)
-
-  randomize_spins!(sys)
-  minimize_energy!(sys);
-
-  sys_min = reshape_supercell(sys, [1 0 0; 0 1 -2; 0 1 2])
-  randomize_spins!(sys_min)
-  minimize_energy!(sys_min)
-
-  swt = SpinWaveTheory(sys_min)
-
-  q_points = [[0,0,0], [1,0,0], [0,1,0], [1/2,0,0], [0,1,0], [0,0,0]];
-  density = 50
-  path, xticks = reciprocal_space_path(cryst, q_points, density);
-  formula = intensity_formula(swt,:perp, kernel = delta_function_kernel)
-  interact_eigenmodes(swt, path, formula)
 end
 
 include("support.jl")

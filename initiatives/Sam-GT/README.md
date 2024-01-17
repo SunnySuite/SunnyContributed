@@ -1,9 +1,9 @@
 # Sam's SunnyContributed Scripts
 
 All of these scripts should be considered works-in-progress unless otherwise noted.
-If you're interested in any of these, take a look at the code (linked below) or reach out to me (Sam Quinn) on Sunny's Slack workspace.
+If you're interested in any of these, take a look at the docs/code (linked below) or reach out to me (Sam Quinn) on Sunny's Slack workspace.
 
-## [Visualize the eigenmodes of a Linear Spin Wave system (GUI)](eigenmodes/eigenmode_viewer.jl)
+## [Visualize the eigenmodes of a Linear Spin Wave system (GUI)](docs/eigenmode_viewer_examples.md)
 Linear spin wave theory can be considered as a fully classical theory with normal modes.
 This script visualizes the dipole-sector oscillations of the classical trajectories for a selectable point in the LSWT band structure.
 

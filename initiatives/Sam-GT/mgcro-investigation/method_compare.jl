@@ -192,8 +192,8 @@ function run_comparison()
   f = Figure()
 
   pars = [params,params,params,params,params,params,params_hires]
-  dats = [is_online_uncorrected, is_online_corrected, is_instant, is_uncorrected, is_corrected, is_scga,is_periodic]
-  names = ["Online","Online, Corrected","Instant","Sampled","Sampled, Corrected","SCGA","Instant + Periodic Extension"]
+  dats = [is_online_uncorrected, is_online_corrected, is_instant, is_uncorrected, is_corrected, is_scga,is_periodic .* 4]
+  names = ["Online","Online, Corrected","Instant","Sampled","Sampled, Corrected","SCGA","Instant + Periodic Extension (4x Zoom and 4x Brighten)"]
 
   bcs = axes_bincenters(params)
 

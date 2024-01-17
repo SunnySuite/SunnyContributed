@@ -376,7 +376,16 @@ end
 ````
 
 ````
-Couldn't find David's file :(
+
+su(N) casimir values
+S = 1/2, Casimir diagonal = 0.375
+S = 1, Casimir diagonal = 0.444444444444
+S = 3/2, Casimir diagonal = 0.46875
+S = 2, Casimir diagonal = 0.48
+S = 5/2, Casimir diagonal = 0.486111111111
+S = 3, Casimir diagonal = 0.489795918367
+S = 7/2, Casimir diagonal = 0.4921875
+S = 4, Casimir diagonal = 0.493827160494
 
 ````
 
