@@ -131,8 +131,6 @@ function sim_AC_applied(sys)
     λ[] = 10^logλ
   end
 
-  tracer_points = Observable(Point2f[Point2f(NaN,NaN)])
-
   display(f)
   empty!(view_screen)
   display(view_screen,f)
@@ -250,6 +248,7 @@ function sim_AC_applied(sys)
   # Marker interaction
   sys_gs = Sunny.clone_system(sys)
   chi_current = Observable(NaN + 0im) # Records the LSWT-predicted χ
+  tracer_points = Observable(Point2f[Point2f(NaN,NaN)])
   mouse_hook = hook_mouse_marker(fig,ax_click) do B, ωclick
     tracer_points[][1] = Point2f(ωclick,tracer_points[][1][2])
     notify(tracer_points)

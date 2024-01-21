@@ -116,3 +116,58 @@ function log_sweep(x0,v,f;count = 30, dlog = 0.2, verbose = true)
   end
   sc, vals
 end
+
+
+function approximate_bintegrate(ax,desire_start,desire_end,params,data;restrict = false,nan=true)
+  x0 = params.binstart[ax]
+  dx = params.binwidth[ax]
+  x1 = (desire_start - x0)/dx
+  x2 = (desire_end - x0)/dx
+
+  x1 = max(0,x1)
+  x2 = min(params.numbins[ax],x2)
+
+  # Edge case
+  x2 = max(1,x2)
+  x1 = min(params.numbins[ax]-1,x1)
+
+  x1 = round(Int64,x1)
+  x2 = round(Int64,x2)
+  bes = Sunny.axes_binedges(params)[ax]
+  ix = (x1+1):x2
+  data_nonan = if nan
+    data
+  else
+    data_nonan = copy(data)
+    data_nonan[isnan.(data)] .= 0.
+    data_nonan
+  end
+  new_data = if restrict
+    if ax == 1
+      data_nonan[ix,:,:,:]
+    elseif ax == 2
+      data_nonan[:,ix,:,:]
+    elseif ax == 3
+      data_nonan[:,:,ix,:]
+    elseif ax == 4
+      data_nonan[:,:,:,ix]
+    end
+  else
+    if ax == 1
+      sum(data_nonan[ix,:,:,:],dims=1)
+    elseif ax == 2
+      sum(data_nonan[:,ix,:,:],dims=2)
+    elseif ax == 3
+      sum(data_nonan[:,:,ix,:],dims=3)
+    elseif ax == 4
+      sum(data_nonan[:,:,:,ix],dims=4)
+    end
+  end
+  new_params = copy(params)
+  new_params.binstart[ax] = bes[x1+1]
+  new_params.binend[ax] = bes[x2+1]
+  new_params.binwidth[ax] = (restrict ? 1 : (0.1 + x2 - x1)) * params.binwidth[ax]
+  new_params, new_data
+end
+
+

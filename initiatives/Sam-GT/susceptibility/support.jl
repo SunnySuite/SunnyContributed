@@ -1,4 +1,4 @@
-
+using Printf
 function detail_sys(sys::System{N}) where N
     io = stdout
     modename = if sys.mode==:SUN

@@ -40,6 +40,22 @@ function plot_comps(ff;nres = 100)
 end
 =#
 
+function rep_sc(sys,sc,sz)
+  big_sys = repeat_periodically(sys,sz)
+  big_sc = dynamical_correlations(big_sys;Δt = sc.Δt, nω = size(sc.data,7)÷2 + 1, ωmax = sc.Δω * (size(sc.data,7)÷2 + 1))
+
+  x = size(sc.data,4)
+  y = size(sc.data,5)
+  z = size(sc.data,6)
+
+  X = size(big_sc.data,4)
+  Y = size(big_sc.data,5)
+  Z = size(big_sc.data,6)
+  big_sc.data[:,:,:,(X÷2 - x÷2) .+ (1:x),(Y÷2 - y÷2) .+ (1:y),(Z÷2 - z÷2) .+ (1:z),:] .= fftshift(ifft(sc.data,(4,5,6)),(4,5,6))
+  big_sc.data .= fft(ifftshift(big_sc.data,(4,5,6)),(4,5,6))
+  big_sc
+end
+
 struct DirectSpaceIntensityFormula{T} <: Sunny.IntensityFormula
     kT :: Float64
     formfactors :: Union{Nothing, Vector{FormFactor}}
@@ -168,7 +184,7 @@ end
 
 
 
-function Sunny.intensities_binned(sc::SampledCorrelations, params::BinningParameters,formula::DirectSpaceIntensityFormula)
+function Sunny.intensities_binned(sc::SampledCorrelations, params::BinningParameters,formula::DirectSpaceIntensityFormula;fast_mode = false)
   if any(params.covectors[1:3,4] .!= 0.) || any(params.covectors[4,1:3] .!= 0.)
     error("Complicated binning parameters not supported")
   end
@@ -184,7 +200,7 @@ function Sunny.intensities_binned(sc::SampledCorrelations, params::BinningParame
   for bin_number in CartesianIndices(ntuple(i -> nbin[i],3)), ix_ω = 1:nbin[4]
 
     # This line causes the dipole factor to be applied at the bin center only
-    k0 = params.binstart[1:3] .+ params.binwidth[1:3] .* (bin_number.I .+ 0.5)
+    k0 = params.binstart[1:3] .+ params.binwidth[1:3] .* (bin_number.I .- 0.5)
 
     bin_val = formula.calc_intensity(ix_ω,Sunny.Vec3(k0)) do val, this_R
       for j = 1:3
@@ -197,14 +213,18 @@ function Sunny.intensities_binned(sc::SampledCorrelations, params::BinningParame
           continue
         else
           val = val * exp(im * left_edge * ejdx)
-          val = val * (exp(im * wj * ejdx) - 1)
-          val = val / (im * ejdx)
+          if fast_mode
+            val = val * wj
+          else
+            val = val * (exp(im * wj * ejdx) - 1)
+            val = val / (im * ejdx)
+          end
         end
       end
       val
     end
     # Missing det(covectors) and 1/binwidth factors here?
-    is[bin_number,ix_ω] = real(bin_val) # / prod(params.binwidth[1:3])
+    is[bin_number,ix_ω] = bin_val # / prod(params.binwidth[1:3])
   end
   is
 end

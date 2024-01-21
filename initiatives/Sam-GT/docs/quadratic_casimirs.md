@@ -235,7 +235,7 @@ sparse(killing_form(stevens_basis(1)))
 ````
 
 ````
-8×8 SparseArrays.SparseMatrixCSC{ComplexF64, Int64} with 8 stored entries:
+8×8 SparseMatrixCSC{ComplexF64, Int64} with 8 stored entries:
  12.0+0.0im       ⋅           ⋅           ⋅          ⋅           ⋅          ⋅           ⋅    
       ⋅      12.0-0.0im       ⋅           ⋅          ⋅           ⋅          ⋅           ⋅    
       ⋅           ⋅      12.0-0.0im       ⋅          ⋅           ⋅          ⋅           ⋅    
@@ -401,7 +401,7 @@ sparse(round.(multipolar_killing_form;digits = 8))
 ````
 
 ````
-5×5 SparseArrays.SparseMatrixCSC{ComplexF64, Int64} with 5 stored entries:
+5×5 SparseMatrixCSC{ComplexF64, Int64} with 5 stored entries:
  12.0-0.0im      ⋅           ⋅          ⋅           ⋅    
       ⋅      3.0+0.0im       ⋅          ⋅           ⋅    
       ⋅          ⋅      36.0+0.0im      ⋅           ⋅    
@@ -441,7 +441,7 @@ sparse(steven_gens[1])
 ````
 
 ````
-5×5 SparseArrays.SparseMatrixCSC{ComplexF64, Int64} with 6 stored entries:
+5×5 SparseMatrixCSC{ComplexF64, Int64} with 6 stored entries:
      ⋅          ⋅          ⋅      0.0-2.0im      ⋅    
      ⋅          ⋅          ⋅          ⋅      0.0-0.5im
      ⋅          ⋅          ⋅      0.0-6.0im      ⋅    
@@ -470,6 +470,274 @@ true
 true
 
 ````
+
+## Polarization Identity for Entangled Sites
+
+Consider two coupled spins, $S = 1$ for the left spin and $S=3/2$ for the right spin.
+The total spin operator "$S_T = S_L + S_R$" is defined more carefully by $S_T^i = S_L^i \otimes I + I\otimes S_R^i$ for each component $i = x,y,z$:
+
+````julia
+sL = spin_matrices(1)
+IL = I(3)
+
+sR = spin_matrices(3/2)
+IR = I(4)
+
+sT = [kron(sL[i],IR) + kron(IL,sR[i]) for i = [1,2,3]]
+````
+
+We can verify a few facts about the spectrum of the total spin operators in terms of the individual spin operators, just to check that we have everything set up correctly.
+For example, the eigenvalues of $[S_T^x]^2$ are the squares of sums of eigenvalues of $S_L^x$ and $S_R^x$:
+
+````julia
+total_spin_x_vals = eigvals(sT[1]^2)
+squared_left_plus_right_x_vals = sort([(a + b)^2 for a = eigvals(sL[1]), b = eigvals(sR[1])][:])
+display(round.([total_spin_x_vals squared_left_plus_right_x_vals],digits = 12))
+````
+
+This happens because eigenstates of $[S_T^x]^2$ are *also* eigenstates of both $S_L^x$ and $S_R^x$, which can be verified because these operators commute $[(S_T^x)^2,S_L^x\otimes I] = 0 = [(S_T^x)^2,I \otimes S_R^x]$:
+
+````julia
+println(norm(sT[1]^2 * kron(sL[1],IR) - kron(sL[1],IR) * sT[1]^2) < 1e-12)
+println(norm(sT[1]^2 * kron(IL,sR[1]) - kron(IL,sR[1]) * sT[1]^2) < 1e-12)
+````
+
+````
+true
+true
+
+````
+
+Now that we know $S_T$ is correct, we can look at it's killing form:
+
+````julia
+κ_total = killing_form(sT)
+κ_symbolic = killing_casimir(stevens_basis(Inf;Smax = 1/2); B = κ_total)
+````
+
+Observe that the killing form is still just diagonal in $[S_T^i]^2$, even though the matrices are larger and more complicated.
+Here, we have used the `stevens_basis(Inf;Smax = 1/2)` as a symbolic representation for the *total* spin, so $Sˣ$ in the readout above means $S_T^x$.
+
+However, something interesting happens when we look at the actual matrix form of the killing casimir.
+Firstly, it's (real and) non-diagonal!
+
+````julia
+Ω = killing_casimir(sT)
+@assert all(imag.(Ω) .== 0)
+sparse(real.(Ω))
+````
+
+````
+12×12 SparseMatrixCSC{Float64, Int64} with 24 stored entries:
+ 4.375   ⋅        ⋅        ⋅        ⋅        ⋅        ⋅        ⋅        ⋅        ⋅        ⋅        ⋅ 
+  ⋅     3.375     ⋅        ⋅       1.22474   ⋅        ⋅        ⋅        ⋅        ⋅        ⋅        ⋅ 
+  ⋅      ⋅       2.375     ⋅        ⋅       1.41421   ⋅        ⋅        ⋅        ⋅        ⋅        ⋅ 
+  ⋅      ⋅        ⋅       1.375     ⋅        ⋅       1.22474   ⋅        ⋅        ⋅        ⋅        ⋅ 
+  ⋅     1.22474   ⋅        ⋅       2.875     ⋅        ⋅        ⋅        ⋅        ⋅        ⋅        ⋅ 
+  ⋅      ⋅       1.41421   ⋅        ⋅       2.875     ⋅        ⋅       1.22474   ⋅        ⋅        ⋅ 
+  ⋅      ⋅        ⋅       1.22474   ⋅        ⋅       2.875     ⋅        ⋅       1.41421   ⋅        ⋅ 
+  ⋅      ⋅        ⋅        ⋅        ⋅        ⋅        ⋅       2.875     ⋅        ⋅       1.22474   ⋅ 
+  ⋅      ⋅        ⋅        ⋅        ⋅       1.22474   ⋅        ⋅       1.375     ⋅        ⋅        ⋅ 
+  ⋅      ⋅        ⋅        ⋅        ⋅        ⋅       1.41421   ⋅        ⋅       2.375     ⋅        ⋅ 
+  ⋅      ⋅        ⋅        ⋅        ⋅        ⋅        ⋅       1.22474   ⋅        ⋅       3.375     ⋅ 
+  ⋅      ⋅        ⋅        ⋅        ⋅        ⋅        ⋅        ⋅        ⋅        ⋅        ⋅       4.375
+````
+
+Further, it's eigenvalues are all over the place!
+
+````julia
+function pretty_eigen(M)
+  F = eigen(M)
+  for i = 1:length(F.values)
+    println("λ = $(Sunny.number_to_math_string(real(F.values[i])));\tv = [$(string(map(x -> x * ", ",Sunny.number_to_math_string.(real.(F.vectors[:,i])))...))\b\b]")
+  end
+end
+
+pretty_eigen(Ω)
+````
+
+````
+λ = 3/8;	v = [0, 0, 0, 1/√2, 0, 0, -1/√3, 0, 0, 1/√6, 0, 0, ]
+λ = 3/8;	v = [0, 0, 1/√6, 0, 0, -1/√3, 0, 0, 1/√2, 0, 0, 0, ]
+λ = 15/8;	v = [0, √2/√5, 0, 0, -√3/√5, 0, 0, 0, 0, 0, 0, 0, ]
+λ = 15/8;	v = [0, 0, 0, 0, 0, 0, 0, -√3/√5, 0, 0, √2/√5, 0, ]
+λ = 15/8;	v = [0, 0, -√8/√15, 0, 0, 1/√15, 0, 0, √2/√5, 0, 0, 0, ]
+λ = 15/8;	v = [0, 0, 0, -√2/√5, 0, 0, -1/√15, 0, 0, √8/√15, 0, 0, ]
+λ = 35/8;	v = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ]
+λ = 35/8;	v = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, ]
+λ = 35/8;	v = [0, 0, -√3/√10, 0, 0, -√3/√5, 0, 0, -1/√10, 0, 0, 0, ]
+λ = 35/8;	v = [0, 0, 0, -1/√10, 0, 0, -√3/√5, 0, 0, -√3/√10, 0, 0, ]
+λ = 35/8;	v = [0, 0, 0, 0, 0, 0, 0, √2/√5, 0, 0, √3/√5, 0, ]
+λ = 35/8;	v = [0, √3/√5, 0, 0, √2/√5, 0, 0, 0, 0, 0, 0, 0, ]
+
+````
+
+Contrast this to the situation we encountered previously for e.g. $\mathfrak{su}(N)$, where all killing casimirs were proportional to the identity matrix:
+
+````julia
+pretty_eigen(killing_casimir(stevens_basis(3/2)))
+````
+
+````
+λ = 15/32;	v = [1, 0, 0, 0, ]
+λ = 15/32;	v = [0, 1, 0, 0, ]
+λ = 15/32;	v = [0, 0, 1, 0, ]
+λ = 15/32;	v = [0, 0, 0, 1, ]
+
+````
+
+The main reason for this difference is that the $\mathfrak{su}(N)$ representations are irreducible, while the tensor product representation for the left and right sites together is not.
+Let's prove that:
+
+It's clear that, since the casimir $\Omega$ commutes with every $X$ in the Lie algebra, we get $\Omega (X w) = X \Omega w$ for free, for all $w$ in the representation space.
+In particular, if $w$ is an eigenvector of $\Omega$ with eigenvalue $\lambda$, then $(Xw)$ is another eigenvector of $\Omega$ with the same eigenvalue.
+That is, **every eigenspace of $\Omega$ is an invariant subspace of the Lie algebra!**
+Thus, $\Omega$ having multiple distinct eigenspaces gives us multiple distinct invariant subspaces--which is the definition of a *reducible* Lie algebra.
+
+In fact, the eigenspaces of the killing casimir coincide with the Clebsch-Gordon decomposition.
+In our case, taking a spin-1 (dimension 3) site and a spin-3/2 (dimension 4) site together gives $3 \times 4 = 2 + 4 + 6$ three eigenspaces with dimensions 2, 4, and 6.
+Observe that, if we reshape the entries in each eigenvector according to the uncoupled basis, they form diagonal bands (like level curves of $f(x,y) = x+y$) because each vector has a fixed total spin:
+
+````julia
+f = Figure(;size = (400,700))
+F = eigen(Ω)
+λs = round.(F.values,digits = 12)
+subspaces = unique(λs)
+
+dim_L = size(sL[1],1)
+dim_R = size(sR[1],1)
+
+λs_L = eigvals(sL[1])
+λs_R = eigvals(sR[1])
+
+nms = Sunny.number_to_math_string
+
+for (i,λ) = enumerate(subspaces)
+  ixs = findall(λ .== λs)
+  for j = 1:length(ixs)
+    ax = Axis(f[j,i], title = j == 1 ? "Casimir = $(nms(λ))" : "",xticks = (λs_R,nms.(λs_R)), yticks = (λs_L,nms.(λs_L)),aspect = DataAspect(),xticklabelrotation = -π/2)
+    reshaped_vector = reshape(F.vectors[:,ixs[j]],dim_R,dim_L)
+    heatmap!(ax,λs_R,λs_L,reshaped_vector,colorrange = (-1,1))
+  end
+end
+
+f
+````
+![](quadratic_casimirs-71.png)
+
+With this in place, we move on to the main purpose of this section: **the polarization identity**.
+Given a quadratic form $q$ on a vector space (e.g., $q$ could be the norm-squared $q(v) = \lVert v \rVert^2$), we can use it to define a symmetric bilinear form using the "polarization identity":
+$g(v,w) := \frac{1}{2}(q(v + w) - q(v) - q(w))$.
+If one *defines* $q$ by $q(v) := g(v,v)$, then the polarization identity is just a fact about $g$.
+But in the present context, we will start from $q$ and *defining* $g$ using the polarization "identity."
+
+Now for the trick: we will use the quadratic casimir, given by `killing_casimir`, as a quadratic form on some module of Lie algebras!
+Usually, a quadratic form takes a **vector**, e.g. $q([0,3,4])$, and produces a **scalar**, e.g. $25$.
+But now, `killing_casimir(sR)` takes in the entire **Lie algebra** `sR` (the spin-3/2 Lie algebra on the right site) and produces an **operator**:
+
+````julia
+killing_casimir(sR)
+````
+
+````
+4×4 Matrix{ComplexF64}:
+ 1.875+0.0im    0.0+0.0im    0.0+0.0im    0.0+0.0im
+   0.0+0.0im  1.875+0.0im    0.0+0.0im    0.0+0.0im
+   0.0+0.0im    0.0+0.0im  1.875+0.0im    0.0+0.0im
+   0.0+0.0im    0.0+0.0im    0.0+0.0im  1.875+0.0im
+````
+
+Firstly, in order for `v` (single-site spin algebra) and `v+w` (multi-site spin algebra) to be in the same space, we need to (trivially) embed the individual spin operators into the space including both sites:
+
+````julia
+inj_left(sl,dim_R) = kron(sl,I(dim_R))
+inj_right(dim_L,sr) = kron(I(dim_L),sr)
+
+# Verify sLʸ ⊗ I + I ⊗ sRʸ = sTʸ
+@assert inj_left(sL[2],size(sR[1],1)) + inj_right(size(sL[1],1),sR[2]) == sT[2]
+````
+
+Now we can defin the "sum" of Lie algebras (which recall we need to use in the $v+w$ term of the polarization identity).
+It's given by constructing the total spin operator(s) from the individual spin operator(s):
+
+````julia
+function total_spin(s_left,s_right)
+  @assert length(s_left) == length(s_right)
+  dim_L = size(s_left[1],1)
+  dim_R = size(s_right[1],1)
+  [inj_left(s_left[i],dim_R) + inj_right(dim_L,s_right[i]) for i = eachindex(s_left)]
+end
+
+# Check this definition reproduces sT from before
+@assert all(total_spin(sL,sR) .== sT)
+````
+
+Now for the punchline!
+The polarization identity allows us to define a dot product between neighboring sites:
+
+````julia
+function polarization_dot(sL,sR)
+  dim_L = size(sL[1],1)
+  dim_R = size(sR[1],1)
+
+  # Just g(sL,sR) = (1/2) * (q(sL+sR) - q(sL) - s(sR))
+  qLR = killing_casimir(total_spin(sL,sR))
+  qL  = killing_casimir(inj_left.(sL,dim_R))
+  qR  = killing_casimir(inj_right.(dim_L,sR))
+  (1/2) * (qLR - qL - qR)
+end
+
+polarization_gLR = polarization_dot(sL,sR)
+````
+
+````
+12×12 Matrix{ComplexF64}:
+ 0.75+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
+  0.0+0.0im      0.25+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
+  0.0+0.0im       0.0+0.0im     -0.25+0.0im       0.0+0.0im       0.0+0.0im  0.707107+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
+  0.0+0.0im       0.0+0.0im       0.0+0.0im     -0.75+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
+  0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
+  0.0+0.0im       0.0+0.0im  0.707107+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
+  0.0+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.707107+0.0im       0.0+0.0im   0.0+0.0im
+  0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im   0.0+0.0im
+  0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im     -0.75+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
+  0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.707107+0.0im       0.0+0.0im       0.0+0.0im     -0.25+0.0im       0.0+0.0im   0.0+0.0im
+  0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im      0.25+0.0im   0.0+0.0im
+  0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.75+0.0im
+````
+
+Now, since the individual component Lie algebras were reducible, `qL` and `qR` are proportional to the identity matrix.
+This means that `polarization_gLR` (in this case) is just a shifted-and-scaled `killing_casimir(sT)`.
+
+What use is this killing-casimir-polarization dot product, when we have the simple definition $S_L\cdot S_R = \sum_i S^i_L \otimes S^i_R$?
+
+````julia
+naive_dot(sL,sR) = sum([kron(sL[i],sR[i]) for i = 1:length(sL)])
+
+# Check this matches our more complicated definition
+@assert all(round(2 * polarization_dot(sL,sR) == naive_dot(sL,sR),digits = 12) .== 0)
+````
+
+The answer is that (besides the possibly important factor 1/2 coming from the killing form), `polarization_dot` can handle non-orthogonal transformations of the spin operators:
+
+````julia
+# Arbitrary
+M = rand(3,3)
+
+# polarization_dot is invariant
+println("Polarization dot: ",isapprox(polarization_dot(sL,sR),polarization_dot(M*sL,M*sR),atol = 1e-8))
+
+# naive_dot is not!
+println("Naive dot: ",isapprox(naive_dot(sL,sR),naive_dot(M*sL,M*sR),atol = 1e-8))
+````
+
+````
+Polarization dot: true
+Naive dot: false
+
+````
+
+In other words, the `naive_dot` uses an externally imposed geometry $\delta_{ij}$, while `polarization_dot` infers the geometry intrinsically from the commutation relations.
 
 ---
 
