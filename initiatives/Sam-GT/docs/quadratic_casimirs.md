@@ -474,7 +474,7 @@ true
 ## Polarization Identity for Entangled Sites
 
 Consider two coupled spins, $S = 1$ for the left spin and $S=3/2$ for the right spin.
-The total spin operator "$S_T = S_L + S_R$" is defined more carefully by $S_T^i = S_L^i \otimes I + I\otimes S_R^i$ for each component $i = x,y,z$:
+The total spin operator $S_T = S_L + S_R$ is defined more carefully by $S_T^i = S_L^i \otimes I + I\otimes S_R^i$ for each component $i = x,y,z$:
 
 ````julia
 sL = spin_matrices(1)
@@ -492,7 +492,23 @@ For example, the eigenvalues of $[S_T^x]^2$ are the squares of sums of eigenvalu
 ````julia
 total_spin_x_vals = eigvals(sT[1]^2)
 squared_left_plus_right_x_vals = sort([(a + b)^2 for a = eigvals(sL[1]), b = eigvals(sR[1])][:])
-display(round.([total_spin_x_vals squared_left_plus_right_x_vals],digits = 12))
+round.([total_spin_x_vals squared_left_plus_right_x_vals],digits = 12)
+````
+
+````
+12×2 Matrix{Float64}:
+ 0.25  0.25
+ 0.25  0.25
+ 0.25  0.25
+ 0.25  0.25
+ 0.25  0.25
+ 0.25  0.25
+ 2.25  2.25
+ 2.25  2.25
+ 2.25  2.25
+ 2.25  2.25
+ 6.25  6.25
+ 6.25  6.25
 ````
 
 This happens because eigenstates of $[S_T^x]^2$ are *also* eigenstates of both $S_L^x$ and $S_R^x$, which can be verified because these operators commute $[(S_T^x)^2,S_L^x\otimes I] = 0 = [(S_T^x)^2,I \otimes S_R^x]$:
@@ -512,7 +528,24 @@ Now that we know $S_T$ is correct, we can look at it's killing form:
 
 ````julia
 κ_total = killing_form(sT)
-κ_symbolic = killing_casimir(stevens_basis(Inf;Smax = 1/2); B = κ_total)
+sparse(κ_total)
+````
+
+````
+3×3 SparseMatrixCSC{ComplexF64, Int64} with 3 stored entries:
+ 2.0-0.0im      ⋅          ⋅    
+     ⋅      2.0-0.0im      ⋅    
+     ⋅          ⋅      2.0+0.0im
+````
+
+Or in symbolic form in terms of $S_T^i$ operators:
+
+````julia
+killing_casimir(stevens_basis(Inf;Smax = 1/2); B = κ_total)
+````
+
+````
+(0.5 + 0.0im)𝒮ˣ² + (0.5 + 0.0im)𝒮ʸ² + (0.5 + 0.0im)𝒮ᶻ²
 ````
 
 Observe that the killing form is still just diagonal in $[S_T^i]^2$, even though the matrices are larger and more complicated.
@@ -549,7 +582,7 @@ Further, it's eigenvalues are all over the place!
 function pretty_eigen(M)
   F = eigen(M)
   for i = 1:length(F.values)
-    println("λ = $(Sunny.number_to_math_string(real(F.values[i])));\tv = [$(string(map(x -> x * ", ",Sunny.number_to_math_string.(real.(F.vectors[:,i])))...))\b\b]")
+    println("λ = $(Sunny.number_to_math_string(real(F.values[i])));\tv = [$(string(map(x -> x * ", ",Sunny.number_to_math_string.(real.(F.vectors[:,i])))...))]")
   end
 end
 
@@ -557,18 +590,18 @@ pretty_eigen(Ω)
 ````
 
 ````
-λ = 3/8;	v = [0, 0, 0, 1/√2, 0, 0, -1/√3, 0, 0, 1/√6, 0, 0, ]
-λ = 3/8;	v = [0, 0, 1/√6, 0, 0, -1/√3, 0, 0, 1/√2, 0, 0, 0, ]
-λ = 15/8;	v = [0, √2/√5, 0, 0, -√3/√5, 0, 0, 0, 0, 0, 0, 0, ]
-λ = 15/8;	v = [0, 0, 0, 0, 0, 0, 0, -√3/√5, 0, 0, √2/√5, 0, ]
-λ = 15/8;	v = [0, 0, -√8/√15, 0, 0, 1/√15, 0, 0, √2/√5, 0, 0, 0, ]
-λ = 15/8;	v = [0, 0, 0, -√2/√5, 0, 0, -1/√15, 0, 0, √8/√15, 0, 0, ]
-λ = 35/8;	v = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ]
-λ = 35/8;	v = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, ]
-λ = 35/8;	v = [0, 0, -√3/√10, 0, 0, -√3/√5, 0, 0, -1/√10, 0, 0, 0, ]
-λ = 35/8;	v = [0, 0, 0, -1/√10, 0, 0, -√3/√5, 0, 0, -√3/√10, 0, 0, ]
-λ = 35/8;	v = [0, 0, 0, 0, 0, 0, 0, √2/√5, 0, 0, √3/√5, 0, ]
-λ = 35/8;	v = [0, √3/√5, 0, 0, √2/√5, 0, 0, 0, 0, 0, 0, 0, ]
+λ = 3/8;	v = [0, 0, 0, 1/√2, 0, 0, -1/√3, 0, 0, 1/√6, 0, 0, ]
+λ = 3/8;	v = [0, 0, 1/√6, 0, 0, -1/√3, 0, 0, 1/√2, 0, 0, 0, ]
+λ = 15/8;	v = [0, √2/√5, 0, 0, -√3/√5, 0, 0, 0, 0, 0, 0, 0, ]
+λ = 15/8;	v = [0, 0, 0, 0, 0, 0, 0, -√3/√5, 0, 0, √2/√5, 0, ]
+λ = 15/8;	v = [0, 0, -√8/√15, 0, 0, 1/√15, 0, 0, √2/√5, 0, 0, 0, ]
+λ = 15/8;	v = [0, 0, 0, -√2/√5, 0, 0, -1/√15, 0, 0, √8/√15, 0, 0, ]
+λ = 35/8;	v = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ]
+λ = 35/8;	v = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, ]
+λ = 35/8;	v = [0, 0, -√3/√10, 0, 0, -√3/√5, 0, 0, -1/√10, 0, 0, 0, ]
+λ = 35/8;	v = [0, 0, 0, -1/√10, 0, 0, -√3/√5, 0, 0, -√3/√10, 0, 0, ]
+λ = 35/8;	v = [0, 0, 0, 0, 0, 0, 0, √2/√5, 0, 0, √3/√5, 0, ]
+λ = 35/8;	v = [0, √3/√5, 0, 0, √2/√5, 0, 0, 0, 0, 0, 0, 0, ]
 
 ````
 
@@ -579,10 +612,10 @@ pretty_eigen(killing_casimir(stevens_basis(3/2)))
 ````
 
 ````
-λ = 15/32;	v = [1, 0, 0, 0, ]
-λ = 15/32;	v = [0, 1, 0, 0, ]
-λ = 15/32;	v = [0, 0, 1, 0, ]
-λ = 15/32;	v = [0, 0, 0, 1, ]
+λ = 15/32;	v = [1, 0, 0, 0, ]
+λ = 15/32;	v = [0, 1, 0, 0, ]
+λ = 15/32;	v = [0, 0, 1, 0, ]
+λ = 15/32;	v = [0, 0, 0, 1, ]
 
 ````
 
@@ -657,7 +690,7 @@ inj_right(dim_L,sr) = kron(I(dim_L),sr)
 @assert inj_left(sL[2],size(sR[1],1)) + inj_right(size(sL[1],1),sR[2]) == sT[2]
 ````
 
-Now we can defin the "sum" of Lie algebras (which recall we need to use in the $v+w$ term of the polarization identity).
+Now we can define the "sum" of Lie algebras (which recall we need to use in the $v+w$ term of the polarization identity).
 It's given by constructing the total spin operator(s) from the individual spin operator(s):
 
 ````julia
@@ -687,23 +720,23 @@ function polarization_dot(sL,sR)
   (1/2) * (qLR - qL - qR)
 end
 
-polarization_gLR = polarization_dot(sL,sR)
+sparse(polarization_dot(sL,sR))
 ````
 
 ````
-12×12 Matrix{ComplexF64}:
- 0.75+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
-  0.0+0.0im      0.25+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
-  0.0+0.0im       0.0+0.0im     -0.25+0.0im       0.0+0.0im       0.0+0.0im  0.707107+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
-  0.0+0.0im       0.0+0.0im       0.0+0.0im     -0.75+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
-  0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
-  0.0+0.0im       0.0+0.0im  0.707107+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
-  0.0+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.707107+0.0im       0.0+0.0im   0.0+0.0im
-  0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im   0.0+0.0im
-  0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im     -0.75+0.0im       0.0+0.0im       0.0+0.0im   0.0+0.0im
-  0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.707107+0.0im       0.0+0.0im       0.0+0.0im     -0.25+0.0im       0.0+0.0im   0.0+0.0im
-  0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.612372+0.0im       0.0+0.0im       0.0+0.0im      0.25+0.0im   0.0+0.0im
-  0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im       0.0+0.0im  0.75+0.0im
+12×12 SparseMatrixCSC{ComplexF64, Int64} with 20 stored entries:
+ 0.75+0.0im           ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅           ⋅    
+      ⋅          0.25+0.0im           ⋅               ⋅      0.612372+0.0im           ⋅               ⋅               ⋅               ⋅               ⋅               ⋅           ⋅    
+      ⋅               ⋅         -0.25+0.0im           ⋅               ⋅      0.707107+0.0im           ⋅               ⋅               ⋅               ⋅               ⋅           ⋅    
+      ⋅               ⋅               ⋅         -0.75+0.0im           ⋅               ⋅      0.612372+0.0im           ⋅               ⋅               ⋅               ⋅           ⋅    
+      ⋅      0.612372+0.0im           ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅           ⋅    
+      ⋅               ⋅      0.707107+0.0im           ⋅               ⋅               ⋅               ⋅               ⋅      0.612372+0.0im           ⋅               ⋅           ⋅    
+      ⋅               ⋅               ⋅      0.612372+0.0im           ⋅               ⋅               ⋅               ⋅               ⋅      0.707107+0.0im           ⋅           ⋅    
+      ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅      0.612372+0.0im       ⋅    
+      ⋅               ⋅               ⋅               ⋅               ⋅      0.612372+0.0im           ⋅               ⋅         -0.75+0.0im           ⋅               ⋅           ⋅    
+      ⋅               ⋅               ⋅               ⋅               ⋅               ⋅      0.707107+0.0im           ⋅               ⋅         -0.25+0.0im           ⋅           ⋅    
+      ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅      0.612372+0.0im           ⋅               ⋅          0.25+0.0im       ⋅    
+      ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅               ⋅      0.75+0.0im
 ````
 
 Now, since the individual component Lie algebras were reducible, `qL` and `qR` are proportional to the identity matrix.

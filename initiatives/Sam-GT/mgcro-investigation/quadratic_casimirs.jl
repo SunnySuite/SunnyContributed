@@ -263,7 +263,7 @@ end
 # ## Polarization Identity for Entangled Sites
 #
 # Consider two coupled spins, $S = 1$ for the left spin and $S=3/2$ for the right spin.
-# The total spin operator "$S_T = S_L + S_R$" is defined more carefully by $S_T^i = S_L^i \otimes I + I\otimes S_R^i$ for each component $i = x,y,z$:
+# The total spin operator $S_T = S_L + S_R$ is defined more carefully by $S_T^i = S_L^i \otimes I + I\otimes S_R^i$ for each component $i = x,y,z$:
 
 sL = spin_matrices(1)
 IL = I(3)
@@ -279,7 +279,7 @@ nothing#hide
 
 total_spin_x_vals = eigvals(sT[1]^2)
 squared_left_plus_right_x_vals = sort([(a + b)^2 for a = eigvals(sL[1]), b = eigvals(sR[1])][:])
-display(round.([total_spin_x_vals squared_left_plus_right_x_vals],digits = 12))
+round.([total_spin_x_vals squared_left_plus_right_x_vals],digits = 12)
 
 # This happens because eigenstates of $[S_T^x]^2$ are *also* eigenstates of both $S_L^x$ and $S_R^x$, which can be verified because these operators commute $[(S_T^x)^2,S_L^x\otimes I] = 0 = [(S_T^x)^2,I \otimes S_R^x]$:
 
@@ -289,9 +289,11 @@ println(norm(sT[1]^2 * kron(IL,sR[1]) - kron(IL,sR[1]) * sT[1]^2) < 1e-12)
 # Now that we know $S_T$ is correct, we can look at it's killing form:
 
 κ_total = killing_form(sT)
-display(sparse(κ_total))#hide
-κ_symbolic = killing_casimir(stevens_basis(Inf;Smax = 1/2); B = κ_total)
-display(κ_symbolic)#hide
+sparse(κ_total)
+
+# Or in symbolic form in terms of $S_T^i$ operators:
+
+killing_casimir(stevens_basis(Inf;Smax = 1/2); B = κ_total)
 
 # Observe that the killing form is still just diagonal in $[S_T^i]^2$, even though the matrices are larger and more complicated.
 # Here, we have used the `stevens_basis(Inf;Smax = 1/2)` as a symbolic representation for the *total* spin, so $Sˣ$ in the readout above means $S_T^x$.
@@ -308,7 +310,7 @@ sparse(real.(Ω))
 function pretty_eigen(M)
   F = eigen(M)
   for i = 1:length(F.values)
-    println("λ = $(Sunny.number_to_math_string(real(F.values[i])));\tv = [$(string(map(x -> x * ", ",Sunny.number_to_math_string.(real.(F.vectors[:,i])))...))\b\b]")
+    println("λ = $(Sunny.number_to_math_string(real(F.values[i])));\tv = [$(string(map(x -> x * ", ",Sunny.number_to_math_string.(real.(F.vectors[:,i])))...))]")
   end
 end
 
@@ -374,7 +376,7 @@ inj_right(dim_L,sr) = kron(I(dim_L),sr)
 ## Verify sLʸ ⊗ I + I ⊗ sRʸ = sTʸ
 @assert inj_left(sL[2],size(sR[1],1)) + inj_right(size(sL[1],1),sR[2]) == sT[2]
 
-# Now we can defin the "sum" of Lie algebras (which recall we need to use in the $v+w$ term of the polarization identity).
+# Now we can define the "sum" of Lie algebras (which recall we need to use in the $v+w$ term of the polarization identity).
 # It's given by constructing the total spin operator(s) from the individual spin operator(s):
 
 function total_spin(s_left,s_right)
@@ -402,7 +404,7 @@ function polarization_dot(sL,sR)
   (1/2) * (qLR - qL - qR)
 end
 
-polarization_gLR = polarization_dot(sL,sR)
+sparse(polarization_dot(sL,sR))
 
 # Now, since the individual component Lie algebras were reducible, `qL` and `qR` are proportional to the identity matrix.
 # This means that `polarization_gLR` (in this case) is just a shifted-and-scaled `killing_casimir(sT)`.
