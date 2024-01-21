@@ -5,7 +5,7 @@
 
 using Sunny, CairoMakie, LinearAlgebra, Revise
 using Optim
-includet("DispersionAndIntensitiesDipoleSingleQ .jl")
+includet("DispersionAndIntensitiesDipoleSingleQ.jl")
 includet("SWTSingleQcalculations.jl")
 
 # Build a crystal
