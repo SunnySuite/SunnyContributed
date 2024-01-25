@@ -1,5 +1,5 @@
 # The goal is to calculate linear spinwave spectrum for the Kagome antiferromagnet 
-# with easy plane anisotropy using incommensurate spiral structure.
+# using incommensurate spiral structure.
 
 # Load packages
 
@@ -26,13 +26,9 @@ J1 = 1.
 set_exchange!(sys,[J1 0. 0.;0 J1 0;0 0 J1],bond1)
 
 # Axis of rotation, n = [0.0,0.0,1], along c -direction. 
-# Also, we are constructing single ion anisotropy which has U(1) symmetry. 
-# To generate onsite coupling, you can use either use construct_uniaxial_anisotropy function or 
-# use simply anonmynous function as shown below.
-# We can also check whether the interaction of system is invariant under axis of rotation using check_rotational_symmetry function.
 
 n = [0.,0,1]
-set_onsite_coupling!(sys, S -> (n'*S)^2, 1)
+# We can also check whether the interaction of system is invariant under axis of rotation using check_rotational_symmetry function.
 
 Sunny.check_rotational_symmetry(sys; n, θ=0.01)
 
