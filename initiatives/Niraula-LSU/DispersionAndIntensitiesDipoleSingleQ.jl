@@ -35,6 +35,8 @@ function swt_hamiltonian_dipole_singleQ!(H::Matrix{ComplexF64}, swt::SpinWaveThe
             local_rotations_i = local_rotations[sub_i]
             local_rotations_j = local_rotations[sub_j]
             J = c.bilin
+            J = (local_rotations_i * c.bilin * local_rotations_j') ./S
+            
             Jij = (J * R + R * J) ./ 2
             phase = exp(2π*im * dot(q_reshaped, d))
             
