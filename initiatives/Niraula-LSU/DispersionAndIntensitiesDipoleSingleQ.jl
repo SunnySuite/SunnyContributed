@@ -8,15 +8,6 @@ function swt_hamiltonian_dipole_singleQ!(H::Matrix{ComplexF64}, swt::SpinWaveThe
     L = Sunny.nbands(swt) 
     @assert size(H) == (2L, 2L)
     H .= 0.0 
-
-    # Add Zeeman term
-    (; extfield, gs, units) = sys
-    for i in 1:L
-        B = units.μB * (Transpose(extfield[1, 1, 1, i]) * gs[1, 1, 1, i]) 
-        B′ = (B * local_rotations[i][:, 3]) / 2 
-        H[i, i]     -= B′
-        H[i+L, i+L] -= conj(B′)
-    end
     
     #Add pairwise bilinear term
     for matom = 1:L
@@ -66,7 +57,14 @@ function swt_hamiltonian_dipole_singleQ!(H::Matrix{ComplexF64}, swt::SpinWaveThe
     end
 
     H[:,:] = H / 2
-
+    # Add Zeeman term
+    (; extfield, gs, units) = sys
+    for i in 1:L
+        B = units.μB * (Transpose(extfield[1, 1, 1, i]) * gs[1, 1, 1, i]) 
+        B′ = (B * local_rotations[i][:, 3]) / 2 
+        H[i, i]     += B′
+        H[i+L, i+L] += conj(B′)
+    end 
     
     for i in 1:L
         (; c2, c4, c6) = stevens_coefs[i]
