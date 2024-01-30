@@ -37,11 +37,12 @@ function gm_spherical3d!(sys::System,n,x)
     k = x[end-2:end]
     MTheta  = x[(1:nspin) .* 2 .- 1]
     MPhi    = x[(1:nspin) .* 2]
+	R = Sunny.rotation_between_vectors(n,[0.0,0.0,1])
     for i in 1:nspin
         if length(MTheta)!=length(sys.Ns)
             error("gm_spherical3d:NumberOfMoments','The number of fitting parameters doesn''t produce the right number of moments!")
         end
-        sys.dipoles[i] =  [sin(MTheta[i])*cos(MPhi[i]); sin(MTheta[i])*sin(MPhi[i]); cos(MTheta[i])] * sys.κs[i]
+        sys.dipoles[i] = R * [sin(MTheta[i])*cos(MPhi[i]); sin(MTheta[i])*sin(MPhi[i]); cos(MTheta[i])] * sys.κs[i]
     end
     E = energy(sys,k,n)
     return E
