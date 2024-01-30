@@ -37,14 +37,11 @@ function gm_spherical3d!(sys::System,n,x)
     k = x[end-2:end]
     MTheta  = x[(1:nspin) .* 2 .- 1]
     MPhi    = x[(1:nspin) .* 2]
-    R = [-sin(nphi) -cos(nphi)*cos(ntheta) cos(nphi)*sin(ntheta);
-        cos(nphi) -sin(nphi)*cos(ntheta) sin(nphi)*sin(ntheta);
-        0.0     sin(ntheta)           cos(ntheta)]
     for i in 1:nspin
         if length(MTheta)!=length(sys.Ns)
             error("gm_spherical3d:NumberOfMoments','The number of fitting parameters doesn''t produce the right number of moments!")
         end
-        sys.dipoles[i] = R * [sin(MTheta[i])*cos(MPhi[i]); sin(MTheta[i])*sin(MPhi[i]); cos(MTheta[i])] * sys.κs[i]
+        sys.dipoles[i] =  [sin(MTheta[i])*cos(MPhi[i]); sin(MTheta[i])*sin(MPhi[i]); cos(MTheta[i])] * sys.κs[i]
     end
     E = energy(sys,k,n)
     return E
@@ -74,20 +71,30 @@ function energy(sys::System,k,n)  # calculate the energy of the system
     end
     E = E/2
     for i in 1:L
-        Si = sys.dipoles[i]
-        E += (Si' * A * Si)
+        if Sunny.is_homogeneous(sys)
+            stvexp = sys.interactions_union[i].onsite
+            for cell in Sunny.eachcell(sys)
+                s = sys.dipoles[cell, i]
+                E += Sunny.energy_and_gradient_for_classical_anisotropy(s, stvexp)[1]
+            end
+        else
+            for cell in Sunny.eachcell(sys)
+                stvexp = sys.interactions_union[cell, i]
+                for cell in (cell,)
+                    s = sys.dipoles[cell, i]
+                    E += Sunny.energy_and_gradient_for_classical_anisotropy(s, stvexp)[1]
+                end
+            end
+        end
     end
-    for i in 1:L
-        Si = sys.dipoles[i]
-        B = sys.units.μB * (Transpose(sys.extfield[1, 1, 1, i]) * sys.gs[1, 1, 1, i])  
-        E += B * Si  
+    for site in Sunny.eachsite(sys)
+        E -= sys.units.μB * sys.extfield[site] ⋅ (sys.gs[site] * sys.dipoles[site])
     end
     return real(E)
 end
 
 function optimagstr(f::Function,xmin,xmax,x0,n) # optimizing function to get minimum energy and propagation factor.
-    f = (x->gm_planar!(sys,n, [x...,]))  
-	results = optimize(f,xmin,xmax,x0,Fminbox(BFGS()));
+    results = optimize(x->f(sys,n,x),xmin,xmax,x0,Fminbox(BFGS()));
 	println("Ground state Energy(meV) = ", results.minimum);
 	opt = Optim.minimizer(results)
     k = opt[end-2:end]
