@@ -37,11 +37,11 @@ function compute_instant_correlations(sys; nsample, λ, kT, Δt)
   isc
 end
 
-function compute_dynamical_correlations(sys; nsample, Δtlangevin, Δtmidpoint, nω, ωmax, kT, λ, alg = :no_window)
+function compute_dynamical_correlations(sys; nsample, Δtlangevin, Δtmidpoint, nω, ωmax, kT, λ)
   dsc = dynamical_correlations(sys; Δt = Δtmidpoint, nω, ωmax)
   langevin = Langevin(Δtlangevin; λ, kT);
   sample_from_equilibrium(sys,langevin;nsample) do
-    add_sample!(dsc, sys; alg)
+    add_sample!(dsc, sys)
   end
   dsc
 end

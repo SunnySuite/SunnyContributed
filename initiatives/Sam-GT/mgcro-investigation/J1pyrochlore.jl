@@ -379,4 +379,105 @@ function hook_mouse_marker(f,fig,ax; marker = true)
   mouse_hook
 end
 
+function mk_gen_eq()
+  sys = System(Sunny.pyrochlore_crystal(), (1,1,1), [SpinInfo(1,S=1/2,g=2)], :dipole)
+  set_exchange!(sys, 1., Bond(1,2,[0,0,0]))
+  function gen_eq()
+    randomize_spins!(sys)
+    minimize_energy!(sys,maxiters = 3000)
+    sys.dipoles
+  end
+end
+
+bond_pairs = begin
+  sys = System(Sunny.pyrochlore_crystal(), (1,1,1), [SpinInfo(1,S=1/2,g=2)], :dipole)
+  set_exchange!(sys, 1., Bond(1,2,[0,0,0]))
+  bpairs = []
+  for i = 1:16
+    bonds = sys.interactions_union[i].pair
+    for j = 1:length(bonds)
+      if bonds[j].isculled
+        continue
+      end
+      push!(bpairs,(bonds[j].bond.i,bonds[j].bond.j))
+    end
+  end
+  bpairs
+end
+
+function get_site_corrs(dipoles)
+  dipoles[1] ⋅ dipoles[2]
+end
+function get_site_sums(dipoles)
+  [dipoles[i] .+ dipoles[j] for (i,j) in bond_pairs]
+end
+
+
+function exact_hamiltonian()
+  S = spin_matrices(1/2)
+  Sa = [kron(S[i],I(2),I(2),I(2)) for i = 1:3]
+  Sb = [kron(I(2),S[i],I(2),I(2)) for i = 1:3]
+  Sc = [kron(I(2),I(2),S[i],I(2)) for i = 1:3]
+  Sd = [kron(I(2),I(2),I(2),S[i]) for i = 1:3]
+  S_sites = [Sa,Sb,Sc,Sd]
+  H = sum([(l != r ? 1 : 0) * S_sites[l][i] * S_sites[r][i] for l = 1:4, r = 1:4, i = 1:3])
+  F = eigen(H)
+  V = round.(F.vectors,digits=12)
+  H,V,F.values
+end
+
+function reduced_densities(v)
+  rho = reshape(v * v',2,2,2,2,2,2,2,2)
+
+  function trace_over(M,d)
+    ci1 = CartesianIndices(ntuple(i -> size(M,i),d-1))
+    ci2 = CartesianIndices(ntuple(i -> size(M,i+d),3))
+    ci3 = CartesianIndices(ntuple(i -> size(M,i+d+4),8 - (d+4)))
+    sum(M[ci1,[i],ci2,[i],ci3] for i = 1:2)
+  end
+
+  println("Single site matrices:")
+  for i = 1:4
+    ix_trace = setdiff(1:4,i)
+    rho_loc = copy(rho)
+    for j = 1:3
+      rho_loc = trace_over(rho_loc,ix_trace[j])
+    end
+    println("Site $i:")
+    display(reshape(rho_loc,2,2))
+    println()
+  end
+
+  println("Two site matrices:")
+  for i = 1:4
+    for j = (i+1):4
+      ix_trace = setdiff(1:4,[i,j])
+      rho_loc = copy(rho)
+      for k = 1:2
+        rho_loc = trace_over(rho_loc,ix_trace[k])
+      end
+      println("Double site ($i,$j):")
+      #display(reshape(rho_loc,2,2,2,2))
+      display(reshape(rho_loc,4,4))
+      println()
+    end
+  end
+
+  println("Three site matrices:")
+  for i = 1:4
+    for j = (i+1):4
+      for k = (j+1):4
+        ix_trace = setdiff(1:4,[i,j,k])
+        rho_loc = copy(rho)
+        for l = 1:1
+          rho_loc = trace_over(rho_loc,ix_trace[l])
+        end
+        println("Triple site ($i,$j,$k):")
+        display(reshape(rho_loc,8,8))
+        println()
+      end
+    end
+  end
+
+end
 

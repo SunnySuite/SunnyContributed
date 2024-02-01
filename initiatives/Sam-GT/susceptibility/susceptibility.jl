@@ -72,6 +72,11 @@ function susceptibility_spectral_function(band_structure::BandStructure{NBands,C
     return val
 end
 
+function kramers_kronig_matrix(ωs)
+  dω = ωs[2] - ωs[1]
+  n = length(ωs)
+  [dω ./ (i == j ? Inf : (ωs[i] - ω[j])) for i = 1:n, j = 1:n] ./ (im * π)
+end
 
 function intensities_spectral_function(swt::SpinWaveTheory, ks, ωvals, formula; susceptibility = true, decay = 0.1, part = identity)
     if !isnothing(formula.kernel)

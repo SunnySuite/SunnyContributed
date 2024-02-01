@@ -184,7 +184,7 @@ end
 if !(:eigenmode_viewer_screen ∈ names(Main))
   global eigenmode_viewer_screen = nothing
 end
-function interact_eigenmodes(swt::SpinWaveTheory, qs, formula)
+function interact_eigenmodes(swt::SpinWaveTheory, qs, formula;time_scale = 1.0)
   # The background band structure plot
   fig = Figure()
   ax = Axis(fig[1,1], title = "Click a mode! (Spacebar to animate)", xticklabelsvisible = false, xrectzoom = false, yrectzoom = false)
@@ -276,7 +276,7 @@ function interact_eigenmodes(swt::SpinWaveTheory, qs, formula)
       if event.action == Keyboard.press
           @async begin
             if trylock(lck)
-              for t0 in range(0,100 * 2π,length = 8000)
+              for t0 in range(0,time_scale * 100 * 2π,length = 8000)
                 omega = marker_points[][1][2]
                 t[] = omega .* t0
                 sleep(1/30)
