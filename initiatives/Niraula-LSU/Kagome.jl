@@ -42,7 +42,7 @@ randomize_spins!(sys)
 xmin = [-1e-6 -1e-6 -1e-6 -1e-6 -1e-6 -1e-6] # Minimum value of x
 xmax = [2π 2π 2π 1 1 1e-6]  # Maximum value of x
 x0 = [0.01 0.01 0.01 0.01 0.01 0.0]  # Initial value of x
-k = optimagstr(gm_planar!,xmin,xmax,x0,n)
+k = optimagstr(x ->gm_planar!(sys,n,x),xmin,xmax,x0)
 
 # Define a path in reciprocal space.
 
