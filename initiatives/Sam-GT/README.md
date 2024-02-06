@@ -1,7 +1,9 @@
 # Sam's SunnyContributed Scripts
 
 All of these scripts should be considered works-in-progress unless otherwise noted.
-If you're interested in any of these, take a look at the docs/code (linked below) or reach out to me (Sam Quinn) on Sunny's Slack workspace.
+If you're interested in any of these, take a look at the explainers (linked below) or reach out to me (Sam Quinn) on Sunny's Slack workspace.
+
+Some of the links below go to scripts rather than explainers; this means that the corresponding explainer isn't written yet. Stay tuned!
 
 ## [Visualize the eigenmodes of a Linear Spin Wave system (GUI)](docs/eigenmode_viewer_examples.md)
 Linear spin wave theory can be considered as a fully classical theory with normal modes.
