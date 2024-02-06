@@ -5,7 +5,7 @@
 
 using Sunny, Arpack, SparseArrays
 
-function bogoliubov_arnoldi(H::SparseMatrixCSC{ComplexF64,Int64};nev)
+function bogoliubov_arnoldi(H::SparseMatrixCSC{ComplexF64,Int64};nev,para_unit_normalize=true,verbose = false)
     L = div(size(H, 1), 2)
     @assert size(H) == (2L, 2L)
 
@@ -16,21 +16,23 @@ function bogoliubov_arnoldi(H::SparseMatrixCSC{ComplexF64,Int64};nev)
     # Eigenvalues are sorted such that quasi-particle energies will appear in
     # descending order.
     #λ, V0 = eigen!(Hermitian(V), Hermitian(H); sortby = x -> -1/real(x))
-    display(V)
-    display(H)
-    λ, V, nconv, niter, nmult, resid = eigs(V,H;nev,which = :LR,ncv = 2*nev+1)
-    println("nconv = $nconv")
-    println("niter = $niter")
-    println("nmult = $nmult")
+    λ, V, nconv, niter, nmult, resid = eigs(V,H;nev,which = :LR,ncv = 2*nev+1,maxiter = 3000)
+    if verbose
+      println("Number of successfully converged eigenpairs: $nconv")
+      println("Number of iterations required: $niter")
+      println("Number of matrix-vector multiplies performed: $nmult")
+      println("Final Residual: $(norm(resid))")
+    end
 
     # Normalize columns of V so that para-unitarity holds, V† Ĩ V = Ĩ.
-    for j in axes(V, 2)
-        c = 1 / sqrt(abs(λ[j]))
-        view(V, :, j) .*= c
+    if para_unit_normalize
+      for j in axes(V, 2)
+          c = 1 / sqrt(abs(λ[j]))
+          view(V, :, j) .*= c
+      end
     end
 
     # Relation between generalized eigenproblem and the actual modes
-    display(λ)
     disp = 2 ./ real.(λ)
 
     return disp, V
