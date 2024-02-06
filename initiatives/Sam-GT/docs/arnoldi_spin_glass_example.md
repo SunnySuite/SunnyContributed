@@ -50,7 +50,7 @@ sys = mk_J1_sys(;latsize = (3,3,3))
 ````
 System [SU(2)]
 Lattice (3×3×3)×16
-Energy per site 0.005099
+Energy per site -0.007736
 
 ````
 
@@ -62,7 +62,7 @@ println("It took $iters_to_min iterations to minimize the energy. The energy per
 ````
 
 ````
-It took 216 iterations to minimize the energy. The energy per site is now -0.24999999999999928.
+It took 190 iterations to minimize the energy. The energy per site is now -0.2499999999999997.
 
 ````
 
@@ -167,8 +167,8 @@ energies, vectors = bogoliubov_arnoldi(Hsp;nev = few,verbose = true)
 ````
 Number of successfully converged eigenpairs: 25
 Number of iterations required: 9
-Number of matrix-vector multiplies performed: 199
-Final Residual: 326018.1415485318
+Number of matrix-vector multiplies performed: 198
+Final Residual: 351120.566180446
 
 ````
 
@@ -180,34 +180,35 @@ energies
 
 ````
 25-element Vector{Float64}:
- 0.0002838647518230705
- 0.0002879236862311863
- 0.00029538955193589815
- 0.00030002133910623943
- 0.0003084269802081323
- 0.00031519066521030326
- 0.0003202769958758004
- 0.00032262480817091347
- 0.00033030204532653336
- 0.0003370937059311029
- 0.00034423624284989415
- 0.0003470262183083236
- 0.00035641309573384287
- 0.0003629130423798987
- 0.0003666965151541645
- 0.00037514471593832566
- 0.00037707651514383265
- 0.00038380173325239735
- 0.0003951296564294073
- 0.00039890441872635784
- 0.0004095800248038017
- 0.00041118902692261405
- 0.00041812340922208423
- 0.0004225645774797582
- 0.0004321629938804565
+ 0.00027766676895533325
+ 0.00028647768595899684
+ 0.00029118323032413073
+ 0.0002964405576545902
+ 0.00030128761346624646
+ 0.0003093873164966282
+ 0.00031453102543706256
+ 0.00031772725627576826
+ 0.00032476390446304466
+ 0.0003340008016825499
+ 0.0003385683755442629
+ 0.0003395175433825566
+ 0.0003524509926011099
+ 0.0003553162012649173
+ 0.0003638514288905353
+ 0.0003679663668692481
+ 0.0003748614678871373
+ 0.0003820341750631554
+ 0.00039019567554269223
+ 0.0003937742202446753
+ 0.00040112374748411755
+ 0.00041315892508189174
+ 0.0004201674013324028
+ 0.0004271016756566846
+ 0.0004352016123114083
 ````
 
-Now, we can visualize the zero modes using the spin wave viewer:
+Now, we can visualize the zero modes using the spin wave viewer (gray is ground state, and blue is
+an illustration of the perturbation at a particular moment `t=0` in time):
 
 ````julia
 # This is the transformation matrix that maps an eigenvector for H
@@ -226,7 +227,8 @@ plot_eigenmode(Observable(copy(zero_modes[1]) / (5 * mean(abs.(zero_modes[1]))))
 ![](arnoldi_spin_glass_example-24.png)
 
 We can verify that this is in fact a zero mode of the energy manually.
-If we perturb the ground state by the perturbation, the energy landscape should be very flat:
+If we perturb the ground state by the perturbation, the energy landscape should be very flat (that is,
+the y-intercept of this line is very low, near `log10(1e-4)`):
 
 ````julia
 λs = 10 .^ (-4:0.1:0)
