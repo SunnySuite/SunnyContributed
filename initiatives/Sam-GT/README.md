@@ -11,9 +11,10 @@ This script visualizes the dipole-sector oscillations of the classical trajector
 This explainer demonstrates how to derive and verify a uniquely normalized quadratic casimir element for a Lie algebra.
 This is important for comparing theories with different numbers of boson flavors (e.g. SU(N) vs dipole).
 
-## [Finding a few of the lowest-energy modes of a Linear Spin Wave system using Sunny and ARPACK](eigenmodes/arnoldi.jl)
+## [Finding a few of the lowest-energy modes of a Heisenberg Pyrochlore Spin Glass using Sunny and ARPACK](docs/arnoldi_spin_glass_example.md)
 Since the spin wave hamiltonian produced by Sunny is sparse, we can use Arnoldi iteration on it.
 This script packages this concept into a Sunny-like `intensity_formula_arnoldi(...)` interface.
+The linked example applies the method to identify some zero modes of the J1 AFM pyrochlore spin glass.
 
 ## [Compute Spectral Response Functions using Sunny](susceptibility/susceptibility.jl)
 Usually, Sunny focuses on generating neutron scattering intensity data.
