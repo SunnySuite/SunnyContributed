@@ -8,7 +8,7 @@
 #
 #   Pkg.add(PackageSpec(url="https://github.com/luchr/ComplexPortraits.jl", rev="master"))
 #
-using ComplexPortraits
+#using ComplexPortraits
 using Sunny, GLMakie, StaticArrays, LinearAlgebra
 
 # Steal this internal type
