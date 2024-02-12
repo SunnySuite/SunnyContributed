@@ -42,6 +42,10 @@ Benchmarks not yet written.
 Tools for using Sunny to perform inverse modelling tasks.
 Currently under development (Nov 15) and currently under-documented.
 
+## [Detailed Balance Factors (Desmos widget)](https://www.desmos.com/calculator/e4xnsq6hf3)
+Which functions $g$ obey $g(x) = e^x g(-x)$?
+This widget parameterizes them (two real parameters) to fifth order in $x$.
+
 ## Miscellaneous support functions
 ### [`plot_band_intensities`](eigenmodes/support.jl)
 Plots a band structure (with delta function broadening) using color to display the scattering intensity.
