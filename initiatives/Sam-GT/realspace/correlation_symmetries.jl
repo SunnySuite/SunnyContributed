@@ -148,3 +148,9 @@ function to_chi_prime_prime(dsc;β)
   ω = reshape(ω,1,1,1,1,1,1,length(ω))
   dat .* (1 .- exp.(-β .* ω)) ./ 2
 end
+
+function kramers_kronig_matrix(ωs)
+  dω = ωs[2] - ωs[1]
+  n = length(ωs)
+  [dω ./ (i == j ? Inf : (ωs[i] - ωs[j])) for i = 1:n, j = 1:n] ./ (im * π)
+end

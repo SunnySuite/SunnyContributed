@@ -65,8 +65,9 @@ end
 
 sc = dynamical_correlations(sys_large; Δt=2Δt, nω=120, ωmax=7.5)
 
+weak_langevin = ImplicitMidpoint(0.03;λ = 1e-7, kT=langevin.kT)
 #add_sample!(sc, sys_large; alg = :window)        # Accumulate the sample into `sc`
-add_sample!(sc, sys_large; alg = :no_window)        # Accumulate the sample into `sc`
+add_sample!(sc, sys_large; alg = :no_window, integrator = weak_langevin)        # Accumulate the sample into `sc`
 
 for _ in 1:8
   println("Sampling...")
@@ -74,7 +75,7 @@ for _ in 1:8
         step!(sys_large, langevin)
     end
     #add_sample!(sc, sys_large; alg = :window)    # Accumulate the sample into `sc`
-    add_sample!(sc, sys_large; alg = :no_window)    # Accumulate the sample into `sc`
+    add_sample!(sc, sys_large; alg = :no_window, integrator = weak_langevin)    # Accumulate the sample into `sc`
 end
 
 display(sc)
@@ -91,7 +92,7 @@ axislegend()
 fig
 
 formfactors = [FormFactor("Fe2"; g_lande=3/2)]
-new_formula = intensity_formula(sc, :perp; kT, formfactors = formfactors)
+new_formula = intensity_formula(sc, :trace; kT, formfactors = formfactors)
 
 points = [[0,   0, 0],  # List of wave vectors that define a path
           [1,   0, 0],
