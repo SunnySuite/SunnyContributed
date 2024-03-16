@@ -18,6 +18,11 @@ Since the spin wave hamiltonian produced by Sunny is sparse, we can use Arnoldi 
 This script packages this concept into a Sunny-like `intensity_formula_arnoldi(...)` interface.
 The linked example applies the method to identify some zero modes of the J1 AFM pyrochlore spin glass.
 
+## [Explainer: Principled Upscaling of the Diffuse Scattering of a Cooperative Paramagnet](docs/cooperative_chain.md)
+The momentum-space resolution of the diffuse scattering function $S(Q)$ computed by classical simulations is limited by the size of the simulation domain.
+However, when only short-range correlations are present, it's possible to (correctly) upscale to arbitrary momentum-space resolution as a post-processing step, using [this script](realspace/classical.jl).
+This explainer demonstrates how to use this functionality as well as the limits of validity.
+
 ## [Compute Spectral Response Functions using Sunny](susceptibility/susceptibility.jl)
 Usually, Sunny focuses on generating neutron scattering intensity data.
 By a simple calculation, it's possible to instead extract linear response theoretic quantities, e.g. the complex generalized susceptibility.
