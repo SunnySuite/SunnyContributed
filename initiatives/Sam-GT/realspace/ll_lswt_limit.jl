@@ -124,10 +124,8 @@ dynamic_transverse = mk_dt()
   # The bin size as a fraction of the BZ is:
   bin_size = prod(params.binwidth[1:3]) / det(params.covectors[1:3,1:3])
 
-  g_factor = 2
-
-  sw_is_transverse = g_factor^2 * bin_size * map(x -> sum(map(y -> y[1,1] + y[2,2],x.intensity)),is)
-  sw_is_trace = g_factor^2 * bin_size * map(x -> sum(map(y -> y[1,1] + y[2,2] + y[3,3],x.intensity)),is)
+  sw_is_transverse = bin_size * map(x -> sum(map(y -> y[1,1] + y[2,2],x.intensity)),is)
+  sw_is_trace = bin_size * map(x -> sum(map(y -> y[1,1] + y[2,2] + y[3,3],x.intensity)),is)
   println("Now for spin wave:")
   println(" sum(sw_is_transverse) / A = $(sum(sw_is_transverse)/A)")
   println("      sum(sw_is_trace) / A = $(sum(sw_is_trace)/A)")
