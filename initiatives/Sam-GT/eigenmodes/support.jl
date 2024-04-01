@@ -1,18 +1,18 @@
 ### Support functions
 
-function plot_band_intensities(dispersion, intensity)
+function plot_band_intensities(dispersion, intensity;kwargs...)
     f = Makie.Figure()
     ax = Makie.Axis(f[1,1]; xlabel = "Momentum", ylabel = "Energy (meV)", xticklabelsvisible = false)
-    plot_band_intensities!(ax,dispersion,intensity)
+    plot_band_intensities!(ax,dispersion,intensity;kwargs...)
     f
 end
 
-function plot_band_intensities!(ax, dispersion, intensity)
+function plot_band_intensities!(ax, dispersion, intensity;kwargs...)
     Makie.ylims!(ax, min(0.0,minimum(dispersion)), maximum(dispersion))
     Makie.xlims!(ax, 1, size(dispersion, 1))
     colorrange = extrema(intensity)
     for i in axes(dispersion)[2]
-        Makie.lines!(ax, 1:length(dispersion[:,i]), dispersion[:,i]; color=intensity[:,i], colorrange)
+        Makie.lines!(ax, 1:length(dispersion[:,i]), dispersion[:,i]; color=intensity[:,i], colorrange,kwargs...)
     end
     nothing
 end

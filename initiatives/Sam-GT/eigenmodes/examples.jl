@@ -19,7 +19,7 @@ function example_afm()
   latvecs = lattice_vectors(a, b, c, 90, 90, 90)
   crystal = Crystal(latvecs,[[0.,0,0]],1)
   latsize = (2,1,1)
-  sys = System(crystal, latsize, [SpinInfo(1; S=1, g=2)], :SUN; seed=5)
+  sys = System(crystal, latsize, [SpinInfo(1; S=1, g=2)], :dipole; seed=5)
   set_exchange!(sys, 0.85,  Bond(1, 1, [1,0,0]))   # J1
   set_onsite_coupling!(sys, S -> 0.3 * S[3]^2,1)
 
@@ -43,7 +43,7 @@ display(example_afm_swt.sys)
 
 particular_wavevector = qs[35]
 result = get_eigenmodes(example_afm_swt, particular_wavevector, verbose = true)
-H, V, bases, eigenmode_displacements, energies = result
+H, V, eigenmode_displacements, energies = result
 nothing#hide
 
 # The LSWT Hamiltonian at $q$:

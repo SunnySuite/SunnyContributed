@@ -11,121 +11,185 @@
 using Sunny, GLMakie, Observables, LinearAlgebra
 
 # Steal these internal functions required for the eigenmode computation
-import Sunny: bogoliubov!, to_reshaped_rlu, swt_hamiltonian_SUN!, natoms
+import Sunny: bogoliubov!, to_reshaped_rlu, swt_hamiltonian_SUN!, swt_hamiltonian_dipole!, natoms
 
 function get_eigenmodes(swt,q; verbose = false)
     (; sys, data, observables) = swt
 
-    Nm = natoms(sys.crystal) # Number of atoms in magnetic unit cell
-    N = sys.Ns[1] # The N in SU(N), giving the total number of boson flavors
-    Nf = N - 1 # Number of uncondensed boson flavors
-    nmodes = Nf * Nm
 
-    Hmat = zeros(ComplexF64, 2*nmodes, 2*nmodes)
-    Vmat = zeros(ComplexF64, 2*nmodes, 2*nmodes)
+    # The spin wave system is described by classical variables (α1,...,αN,α†1,..,α†N).
+    # The N pairs of variables are organized by sublattice:
+    Nm = natoms(sys.crystal) # Number of sublattice = number of atoms in magnetic unit cell
+    # and each sublattice may have several flavors of excitation; there is one flavor of
+    # boson for each transverse mode. In :dipole mode, there is only one flavor per sublattice.
+    # For SU(N), there are N total components per sublattice, but one is longitudinal, so (N-1) flavors.
+    Nf = sys.mode == :dipole ? 1 : (sys.Ns[1] - 1)
+    # 
+    # The variables are ordered as:
+    #
+    #   First atom: α1,...,αNf
+    #   Second atom: α(Nf+1),...,α(2Nf)
+    #   ...
+    #   Nmth atom: α((Nm - 1)*Nf+1),...,α(Nm * Nf)
+    #   
+    #   [followed by † version of the above]
+    #
+    # The number of eigenmodes (number of columns of Vmat) is one for each classical variable.
+    num_dagger_vs_non_dagger = 2
+    num_variables = Nf * Nm * num_dagger_vs_non_dagger
+    num_eigenmodes = num_variables
 
+    # The Hamiltonian is a bilinear form between the classical variables:
+    Hmat = zeros(ComplexF64, num_variables, num_variables)
 
+    # The `Vmat' bogoliubov matrix has one column for each eigenmode, and
+    # each column contains initial configurations for every variable:
+    Vmat = zeros(ComplexF64, num_variables, num_eigenmodes)
+
+    # Ask Sunny to fill in the Hamiltonian matrix
     q_reshaped = to_reshaped_rlu(swt.sys, Sunny.Vec3(q))
-
     if sys.mode == :SUN
         swt_hamiltonian_SUN!(Hmat, swt, q_reshaped)
     elseif sys.mode == :dipole
-        error("Dipole mode not supported")
+        swt_hamiltonian_dipole!(Hmat, swt, q_reshaped)
     end
-    #println("Original Hamiltonian:")
-    H0 = copy(Hmat)
-    #display(H0)
-    #display(eigen(H0))
 
+    # Keep a copy of the original Hamiltonian, since it
+    # gets overwritten by `bogoliubov!'
+    H0 = copy(Hmat)
+
+    # Ask Sunny to perform the bogoliubov diagonalization to give us the
+    # modeshapes in Vmat. The eigenmodes are ordered by decreasing ω
+    #
+    #   WARNING: The `disp' returned by Sunny only includes some of the eigenvalues.
+    #
     disp = bogoliubov!(Vmat, Hmat)
 
-    # Now, Vmat contains the information about the eigenmodes as columns.
-    # The way this works is that the first [nmodes] columns describe the
-    # [nmodes] many boson deletion operators at +k, as linear combinations of both
-    # the original boson deletion operators at +k (top half of column) and the original boson
-    # creation operators at -k (bottom half of column).
+    # Break down each eigenmode in the bogoliubov matrix
+    # by variable: flavor, site, and dagger-vs-non-dagger
+    modeshapes_α = reshape(Vmat,Nf,Nm,num_dagger_vs_non_dagger,num_eigenmodes)
+
+    # Next, we want to make a change of coordinates from (α,α†)
+    # to q = (α + α†)/2, p = (α - α†)/(2i), which are the more
+    # usual coordinates for each oscillator. This matrix
+    # will multiply the dagger-vs-non-dagger dimension of the modeshape:
+    boson_coords_to_qp = [1 1; (1/im) (-1/im)]/2
+
+    # The (q,p) coordinates are a specific choice of coordinates for the tangent
+    # space to the ground state. To visualize the eigenmode however, we want to
+    # embed the tangent space into the ambient space. The embedding is given by:
     #
+    #   (q,p) ↦ [ground state] + ε R*(q,p,0)
+    #
+    # where ε is a small number, R is the rotation matrix relevant for the given site
+    # and [ground state] is the point in state space that the LSWT is linearized around.
+    R = if sys.mode == :SUN
+      # Only need the transverse columns
+      [swt.data.local_unitaries[:,1:Nf,i] for i = 1:Nm]
+    elseif sys.mode == :dipole
+      # Only need the first two columns (for q and p) since
+      # the longitudinal displacement is always zero
+      map(x -> x[:,1:2],swt.data.local_rotations)
+    end
+
+    # Historical note:
     # [[The second half of the columns contain the boson creation operators at -k in a similar
     # format, but in reverse order, e.g. it goes [b1,b2,b†2,b†1]. But the creation operators
     # are not needed because they can be inferred from the deletion operators. The fact
     # that they can be inferred is equivalent to the dagger operation being preserved
     # by the bogoliubov transform V]]
+    
+
+    dim_global = sys.mode == :dipole ? 3 : sys.Ns[1]
+    num_sin_cos = 2
+    sin_cos_displacements = zeros(ComplexF64,dim_global,Nm,num_sin_cos,num_eigenmodes)
+
+    # The eigenmodes described by Vmat were generated using the ansatz:
     #
-    # The operators within each half-column come in blocks.
-    # The length of the block corresponds to the boson flavor index, which runs
-    # from 2 to N (where N is as in SU(N)). The #1 is the 'ground state' boson which
-    # was condensed away.
+    #   (α(t),α†(t)) = (α0,α†0) exp(iωt)
     #
-    # There is one such (2:N) block for each atom in the magnetic unit cell
-
-    # Sunny changed from (2:N) to 1:(N-1) at some point
-    ix_uncondensed = 1:(N-1)
-
-    bases = swt.data.local_unitaries
-
-    eigen_mode_displacements = zeros(ComplexF64,N,Nm,2nmodes)
-
-    # Only loops over the boson deletion operators
-    for eigen_mode = 1:(2nmodes) # NEW: and creation
-
-      # Describes the operator by its coefficients in the linear
-      # combination ∑ᵢ λᵢaᵢ where aᵢ runs over both the deletion and
-      # creation operators for the *original* non-bogoliubov bosons
-      bogoliubov_deletion_operator = Vmat[:,eigen_mode]
-
-      # Now we construct the (real-space, eventually) displacement
-      # associated with each eigenmode
-      for atom = 1:Nm
-        # Skip the first (atom-1) blocks
-        offset = (atom - 1) * Nf
-
-        # Get the combination of original bosons relevant for this atom
-        deletion_operators_on_this_atom = bogoliubov_deletion_operator[offset .+ (1:Nf)]
-        creation_operators_on_this_atom = bogoliubov_deletion_operator[nmodes .+ offset .+ (1:Nf)]
-
-        # Get the local quantization basis at this atom.
-        # This is actually a basis for the *tangent space* of the space
-        # of coherent states, rooted at the ground state coherent state.
-        # The basis is orthogonal, and there is one boson flavor associated
-        # with each basis vector.
-        basis = bases[:,:,atom]
-
-        # The first basis vector in the basis is along the 'ground state'/longitudinal mode
-        # and it got condensed away. There will be no eigenmode displacements in that
-        # direction.
-        uncondensed_basis = basis[:,ix_uncondensed]
-
-        # Loop over only the uncondensed bosons
-        for (boson_ix,original_uncondensed_boson) = enumerate(ix_uncondensed)
-          this_displacement = uncondensed_basis[:,boson_ix]
-          this_amplitude = deletion_operators_on_this_atom[boson_ix]
-          eigen_mode_displacements[:,atom,eigen_mode] .+= this_displacement .* this_amplitude
-
-          # This says that the basis vectors corresponding to the creation operators
-          # are the imaginary unit (1im) times the basis vectors corresponding to the deletion
-          # operators. Is this true? Who knows...
-          this_conj_displacement = 1im .* uncondensed_basis[:,boson_ix]
-          this_conj_amplitude = creation_operators_on_this_atom[boson_ix]
-          eigen_mode_displacements[:,atom,eigen_mode] .+= this_conj_displacement .* this_conj_amplitude
-
+    # which is a *complex* solution. To get classical trajectories we need to
+    # add or subtract this from a solution with the opposite complex phase, exp(i(-ω)t).
+    # In a centrosymmetric system, the eigenvalues `eigvals(Itilde,H0)` come in ±pairs,
+    # so we could use those to construct real-valued classical solutions---but in general
+    # systems this eigenvalue spectrum is *not* symmetric so we can't do this.
+    #
+    # Instead, we need to rely on a special property of Linear Spin Wave Hamiltonians, namely
+    # that the eigenvalue spectrum for +k is negative of the spectrum of -k, with corresponding
+    # eigenvectors mapping as x ↦ conj(swap(x)), where swap(...) swaps † operators with non-† operators.
+    #
+    # Using this, we create classical trajectories that are associated with the entire
+    # ±k system rather than just +k or just -k:
+    #
+    #   (αk(t),αk†(t)) = (αk0,αk†0) exp(iωt)
+    #   (α-k(t),α-k†(t)) = (α-k0,α-k†0) exp(-iωt)
+    #
+    #   (αj(t),αj†(t)) =   exp(-ik Rj) c1 (αk0,αk†0) exp(iωt)
+    #                    + exp(+ik Rj) c2 (α-k0,α-k†0) exp(-iωt)
+    #
+    for apply_swap = [false,true]
+      modeshapes_α_swap = copy(modeshapes_α)
+      if apply_swap
+        for (i,j) = [(1,2),(2,1)]
+          modeshapes_α_swap[:,:,i,:] .= conj.(modeshapes_α[:,:,j,:])
         end
+      end
+
+      # Matrix multiply (α,α†) → (q,p)
+      num_qp = 2
+      modeshapes_qp = zeros(ComplexF64,Nf,Nm,num_qp,num_eigenmodes)
+      for i = 1:num_qp, j = 1:num_dagger_vs_non_dagger
+        modeshapes_qp[:,:,i,:] .+= boson_coords_to_qp[i,j] * modeshapes_α_swap[:,:,j,:]
+      end
+
+      # Rotate local spin wave theory frame → lab frame
+      modeshapes_global = zeros(ComplexF64,dim_global,Nm,num_eigenmodes)
+      for i = 1:dim_global, j = 1:num_qp, atom = 1:Nm
+        if sys.mode == :dipole
+          # In dipole mode, there is only one boson flavor and the
+          # rotation/embedding acts on the (q,p)
+          modeshapes_global[i,atom,:] .+= R[atom][i,j] * modeshapes_qp[1,atom,j,:]
+        elseif sys.mode == :SUN
+          # In SU(N) mode, q is the real part and p is the imaginary part,
+          # and the rotation acts on the flavor index
+          modeshapes_global[i,atom,:] .+= R[atom][i,j] * (modeshapes_qp[j,atom,1,:] + im * modeshapes_qp[j,atom,2,:])
+        end
+      end
+      
+      # Convert unswapped [exp(ix)] and swapped [exp(-ix)] complex solutions
+      # to sin-like and cos-like real solutions by linear combination:
+      #
+      # cos(x) = [exp(ix) + exp(-ix)]/2      [[c1 = 1/2,  c2 = 1/2  ]]
+      # sin(x) = [exp(ix) - exp(-ix)]/(2i)   [[c1 = 1/2i, c2 = -1/2i]]
+      if apply_swap
+        # exp(-ix) contribution
+        sin_cos_displacements[:,:,1,:] .+= modeshapes_global / 2 # cos
+        sin_cos_displacements[:,:,2,:] .+= -modeshapes_global / (2im) # sin
+      else
+        # exp(+ix) contribution
+        sin_cos_displacements[:,:,1,:] .+= modeshapes_global / 2 # cos
+        sin_cos_displacements[:,:,2,:] .+= modeshapes_global / (2im) # sin
       end
     end
 
+    It = diagm([repeat([1],Nf * Nm); repeat([-1],Nf * Nm)])
+    disp_full = 2 ./ eigvals(It,H0; sortby = x -> -1/x)
 
-
+    @assert norm(imag(sin_cos_displacements)) < 1e-8
+    sin_cos_displacements = real(round.(sin_cos_displacements,digits = 8))
     if verbose
       println("V matrix:")
       display(Vmat)
       println("Diagonalized V'HV:")
       display(Vmat' * H0 * Vmat)
-      println("Bases")
-      display(bases)
-      println("Eigenmodes (columns are atoms)")
-      for m = 1:nmodes
+      println("Eigenmodes (columns are sites)")
+      for m = 1:num_eigenmodes
         println()
-        println("Mode #$m with energy $(disp[m])")
-        display(eigen_mode_displacements[:,:,m])
+        println("Mode #$m with energy $(disp_full[m])")
+        println("cos → ")
+        display(sin_cos_displacements[:,:,1,m])
+        println("sin →")
+        display(sin_cos_displacements[:,:,2,m])
         #=
         for i = 1:Nm
           println("Atom#$i:")
@@ -141,11 +205,11 @@ function get_eigenmodes(swt,q; verbose = false)
         =#
       end
       println("Eigenenergies")
-      display(disp)
-      println("Nm = $Nm, N = $N, Nf = $Nf, nmodes = $nmodes")
+      display(disp_full)
+      println("Nm = $Nm, Nf = $Nf, dim_global = $dim_global, num_eigenmodes = $num_eigenmodes")
       display(sys.coherents)
     end
-    return H0, Vmat, bases, eigen_mode_displacements, disp
+    return H0, Vmat, round.(sin_cos_displacements,digits = 12), disp_full
 end
 
 function plot_eigenmode(displacements, swt::SpinWaveTheory; kwargs...)
@@ -155,30 +219,42 @@ function plot_eigenmode(displacements, swt::SpinWaveTheory; kwargs...)
     fig
 end
 
-function plot_eigenmode!(ax, displacements, swt::SpinWaveTheory; t = nothing, kwargs...)
-  plot_spin_data!(ax,swt.sys;color=:grey,arrowscale = 0.9,kwargs...)
+function plot_eigenmode!(ax, displacements, swt::SpinWaveTheory; t = nothing, k, kwargs...)
+  super_size = (5,1,2)
+  sys_large = resize_supercell(swt.sys,super_size)
+  
+  plot_spin_data!(ax,sys_large;color=:grey,arrowscale = 0.9,kwargs...)
 
-  tweaked = Observable(zeros(Vec3f,size(swt.sys.dipoles)))
-  coherents_scratch = copy(swt.sys.coherents)
+  tweaked = Observable(zeros(Vec3f,size(sys_large.dipoles)))
+  coherents_scratch = copy(sys_large.coherents)
+  dipole_scratch = copy(sys_large.dipoles)
 
   t = isnothing(t) ? Observable(0.) : t
 
   on(displacements,update = true) do disps
     notify(t)
   end
-  
+
   on(t;update = true) do time
     disps = displacements[]
-    # Requires single-site swt system
-    for i = 1:size(coherents_scratch,4)
-      coherents_scratch[i] = swt.sys.coherents[i] .+ 0.5 .* exp(im * time) .* disps[:,i]
-      tweaked[][i] = Sunny.expected_spin(coherents_scratch[i])
+    for i = eachsite(sys_large)
+      #spatial_phase = -2π * ((collect(i.I[1:3]) .+ sys_large.crystal.positions[i.I[4]]) ⋅ k[])
+      spatial_phase = -2π * ((collect(i.I[1:3])) ⋅ k[])
+      atom = i.I[4]
+      phase = spatial_phase + time
+      if sys_large.mode == :SUN
+        coherents_scratch[i] = sys_large.coherents[i] .+ cos(phase) * disps[:,atom,1] .+ sin(phase) * disps[:,atom,2]
+        tweaked[][i] = Sunny.expected_spin(coherents_scratch[i])
+      elseif sys_large.mode == :dipole
+        dipole_scratch[i] = sys_large.dipoles[i] .+ cos(phase) * disps[:,atom,1] .+ sin(phase) * disps[:,atom,2]
+        tweaked[][i] = dipole_scratch[i]
+      end
     end
     notify(tweaked)
   end
 
   # TODO: ghost spins are currently inaccurate, since they should pick up a phase factor
-  plot_spin_data!(ax,swt.sys;color = :blue,spin_data = tweaked,show_cell=false,kwargs...)
+  plot_spin_data!(ax,sys_large;color = :blue,spin_data = tweaked,show_cell=false,kwargs...)
 end
 
 if !(:eigenmode_viewer_screen ∈ names(Main))
@@ -189,7 +265,11 @@ function interact_eigenmodes(swt::SpinWaveTheory, qs, formula;time_scale = 1.0)
   fig = Figure()
   ax = Axis(fig[1,1], title = "Click a mode! (Spacebar to animate)", xticklabelsvisible = false, xrectzoom = false, yrectzoom = false)
   dispersion, intensity = intensities_bands(swt, qs, formula)
+  dispersionmq, intensitymq = intensities_bands(swt, -qs, formula)
   plot_band_intensities!(ax, dispersion, intensity)
+  plot_band_intensities!(ax, -dispersionmq, intensitymq, colormap = :spring)
+
+  ylims!(ax, 1.1 * minimum([dispersion;-dispersionmq]), 1.1 * maximum([dispersion;-dispersionmq]))
 
   # The marker showing the user-selected oscillation
   marker_points = Observable(Point2f[Point2f(NaN,NaN)])
@@ -204,8 +284,11 @@ function interact_eigenmodes(swt::SpinWaveTheory, qs, formula;time_scale = 1.0)
   fig_mode = Figure()
   ax_mode = LScene(fig_mode[1,1]; show_axis = false)
   t = Observable(0.) # Animation time
-  rendered_displacements = Observable(zeros(ComplexF64,swt.sys.Ns[1],natoms(swt.sys.crystal)))
-  plot_eigenmode!(ax_mode, rendered_displacements, swt; t)
+  k = Observable([0. + 0im,0,0]) # SWT Wavevector
+
+  dim_global = swt.sys.mode == :dipole ? 3 : sys.Ns[1]
+  rendered_displacements = Observable(zeros(Float64,dim_global,natoms(swt.sys.crystal),2))
+  plot_eigenmode!(ax_mode, rendered_displacements, swt; t, k)
 
   # Update the eigenviewer based on the user-selected position
   function do_update(;mp = nothing)
@@ -229,7 +312,10 @@ function interact_eigenmodes(swt::SpinWaveTheory, qs, formula;time_scale = 1.0)
       q_interp = (1-τ) .* qs[q_int] .+ τ .* qs[q_int+1]
 
       # Perform the eigenmode analysis
-      _H, _V, _bases, displacements, disp = get_eigenmodes(swt,q_interp)
+      _H, _V, sin_cos_displacements, disp = get_eigenmodes(swt,q_interp)
+
+      k[] .= q_interp
+      notify(k)
 
       # Snap to the nearest band (vertically only)
       _, ix = findmin(abs.(disp .- ωclick))
@@ -240,7 +326,7 @@ function interact_eigenmodes(swt::SpinWaveTheory, qs, formula;time_scale = 1.0)
       notify(marker_points)
 
       # Update eigenmode viewer with the newly selected mode
-      rendered_displacements[] .= displacements[:,:,ix]
+      rendered_displacements[] .= real(sin_cos_displacements[:,:,:,ix])
       notify(rendered_displacements)
       ax.title[] = "q = [$(join(Sunny.number_to_simple_string.(q_interp,digits=3),","))], ω = $(Sunny.number_to_simple_string(disp[ix],digits=3))"
     end
