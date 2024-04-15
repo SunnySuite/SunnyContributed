@@ -13,4 +13,5 @@ cd("..")
 
 cd("inverse-toolkit")
 Literate.markdown("fitting_tutorial.jl", "../docs"; execute = true, documenter = false)
+Literate.markdown("bin_effect_tutorial.jl", "../docs"; execute = true, documenter = false)
 cd("..")
