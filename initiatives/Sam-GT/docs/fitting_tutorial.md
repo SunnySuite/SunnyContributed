@@ -50,7 +50,7 @@ Now, to slice the data into a usable format, we will use `bin_tools.jl`:
 include("../inverse-toolkit/bin_tools.jl")
 
 # Integrate [K,-K,0] axis over an interval around K=0
-p, d = approximate_bintegrate(2,-0.1,0.12,params,data)
+p, d = approximate_bintegrate(2,-0.05,0.05,params,data)
 
 # Leave energy axis unrestricted
 p, d = approximate_bintegrate(4,-Inf,Inf,p,d,restrict = true)
@@ -83,7 +83,7 @@ params_use
 ````
 Binning Parameters
 ⊡   100 bins from +0.000 to +2.000 along [+0.50 dx +0.50 dy] (Δ = 0.028)
-∫ Integrated from -0.080 to +0.124 along [+0.50 dx -0.50 dy] (Δ = 0.288)
+∫ Integrated from -0.040 to +0.044 along [+0.50 dx -0.50 dy] (Δ = 0.119)
 ∫ Integrated from -2.000 to +2.010 along [+1.00 dz] (Δ = 4.010)
 ⊡   142 bins from -2.000 to +140.000 along [+1.00 dE] (Δ = 1.000)
 
@@ -122,7 +122,6 @@ function get_intensities(sys::System,linewidth)
       sys.dipoles[2] = [0,3/2,0]
       sys.dipoles[3] = [3/2,0,0]
       sys.dipoles[4] = [-3/2,0,0]
-      randomize_spins!(sys)
     else
       # If that fails, try a random initial state
       randomize_spins!(sys)
@@ -339,7 +338,7 @@ function hand_fit()
 
   # Re-run the calculator whenever the sliders change
   function do_update()
-    sim_data[] .= scale[] * forward_problem(J1[], linewidth[];distance_renorm = d[],D=0,K=0)[:,1,1,:]
+    sim_data[] .= scale[] * forward_problem(J1[], linewidth[];distance_renorm = d[])[:,1,1,:]
     notify(sim_data)
   end
 
@@ -439,7 +438,6 @@ end
 do_basin()
 ````
 ![](fitting_tutorial-23.png)
-
 
 The last two plots above are parameter sweeps of the loss landscape superimposed with
 the thermal basin trajectory. They can be used to assessed to decide whether the `noise_scale` and `temperature`

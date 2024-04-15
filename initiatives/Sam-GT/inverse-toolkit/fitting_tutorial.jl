@@ -20,7 +20,7 @@ params
 include("../inverse-toolkit/bin_tools.jl")
 
 ## Integrate [K,-K,0] axis over an interval around K=0
-p, d = approximate_bintegrate(2,-0.1,0.12,params,data)
+p, d = approximate_bintegrate(2,-0.05,0.05,params,data)
 
 ## Leave energy axis unrestricted
 p, d = approximate_bintegrate(4,-Inf,Inf,p,d,restrict = true)
@@ -78,7 +78,6 @@ function get_intensities(sys::System,linewidth)
       sys.dipoles[2] = [0,3/2,0]
       sys.dipoles[3] = [3/2,0,0]
       sys.dipoles[4] = [-3/2,0,0]
-      randomize_spins!(sys)
     else
       ## If that fails, try a random initial state
       randomize_spins!(sys)
@@ -274,7 +273,7 @@ function hand_fit()
 
   ## Re-run the calculator whenever the sliders change
   function do_update()
-    sim_data[] .= scale[] * forward_problem(J1[], linewidth[];distance_renorm = d[],D=0,K=0)[:,1,1,:]
+    sim_data[] .= scale[] * forward_problem(J1[], linewidth[];distance_renorm = d[])[:,1,1,:]
     notify(sim_data)
   end
 
