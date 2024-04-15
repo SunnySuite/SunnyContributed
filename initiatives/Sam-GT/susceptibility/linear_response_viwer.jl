@@ -1,5 +1,7 @@
 
 using Sunny, LinearAlgebra
+using ProgressMeter
+using GLMakie
 using Observables, Statistics, FFTW
 using DataStructures
 using Random
@@ -13,32 +15,86 @@ function spin_in_field_system(;ls = (1,1,1))
   sys
 end
 
+function copper_sulfate(;inter_chain_coupling = false,chain_length = 4, n_chains = (4,4))
+  crystal= Crystal("CuSO4_main.cif", symprec=0.001)
+  subc= subcrystal(crystal, "Cu1","Cu2")
+
+  sys = System(subc,(chain_length,n_chains...), [SpinInfo(1;S=1/2, g=2.51),SpinInfo(2;S=1/2, g=2.35)], :dipole)
+
+  # row (g) of Table 4.1 Mourigal Thesis
+  # N.B.: Interactions will be renormalized!! (due to :dipole mode Sunny)
+  J = 0.252 # Intrachain coupling (a axis)
+  J12 = -0.025 # Intracell coupling (Cu1-Cu2)
+  Jinter = 0.005 # Interchain (c axis); no interchain (b axis) because that bond is very long
+
+  set_exchange!(sys,J,Bond(1, 1, [1, 0, 0]))
+  set_exchange!(sys,J12,Bond(1, 2, [0, 0, 0]))
+  if inter_chain_coupling
+    set_exchange!(sys,Jinter,Bond(1, 1, [0, 0, 1]))
+  end
+  set_external_field!(sys,[0,0.2,0])
+
+  # ESR units
+  meV_per_GHz = 1/241.8
+  meV_per_kHz = 1e-6 * meV_per_GHz
+
+  # ESR parameters
+  ωc = 3.5 * meV_per_GHz
+  kappa_e = 556 * meV_per_kHz
+  kappa_i = 381 * meV_per_kHz
+  gamma = 0.001 # This is the line-broadening for the calculation of χ
+
+  # Calculating |g(ωc)|²:
+  # should be roughly 88 MHz
+  coupling_G_sq = 88000 * meV_per_kHz
+  # formula might be: abs2(im * filling_factor * sqrt(sys.units.μ0))
+  #   (with filling_factor = 0.4)
+  # This works for plotting purposes:
+  #coupling_G_sq = 0.00005 * 20
+
+  # The DC field applied along y axis
+  #nB = 375 # Resolution in DC Field
+  #B_min = 0 # Oe
+  #B_max = 3000 # Oe
+  #tesla_per_Oe = 1e-4
+  #B_fields = tesla_per_Oe * range(B_min,B_max,length = nB) # Tesla
+  #println("ΔB = $(Sunny.number_to_simple_string((B_max - B_min)/nB,digits = 8)) Oe")
+  sys
+end
+
+function bake_cuso4(;kwargs...)
+  sys = copper_sulfate(;n_chains = (1,1))
+  meV_per_GHz = 1/241.8
+  bake_chi(sys;kT = 1e-3,dt = 0.5,n_energies = 250, max_energy = meV_per_GHz * 60,kwargs...)
+end
+
 #struct ChiModel
 #end
 
-function bake_chi(sys;kT = 0.01)
+function bake_chi(sys;kT = 0.01,damping = 0.1,dt = 0.05,n_energies = 600, max_energy = 1.0,n_sample = 200)
   s_dot_obs(i) = Sunny.NonLocalObservableOperator(sys -> map(x -> x[i],sys.dipoles .× Sunny.energy_grad_dipoles(sys)))
 
-  dsc = dynamical_correlations(sys;Δt = 0.05, nω = 600, ωmax = 1.0, observables = [:Sx => [1. 0 0], :Sy => [0. 1 0], :Sz => [0. 0 1], :Sxdot => s_dot_obs(1), :Sydot => s_dot_obs(2), :Szdot => s_dot_obs(3)])
+  dsc = dynamical_correlations(sys;Δt = dt, nω = n_energies, ωmax = max_energy, observables = [:Sx => [1. 0 0], :Sy => [0. 1 0], :Sz => [0. 0 1], :Sxdot => s_dot_obs(1), :Sydot => s_dot_obs(2), :Szdot => s_dot_obs(3)])
+  display(dsc)
 
-  langevin = Langevin(0.05;λ = 0.1, kT)
+  langevin = Langevin(dt;λ = damping, kT)
   #println("x = βω₀ = $(beta * omega0)")
 
   viewed_thetas = Float64[]
 
-  #glob_s = 0.008
-  #filt = reshape(exp.(- glob_s .* range(0,step = dt,length = size(dsc.samplebuf,6))),1,1,1,1,1,size(dsc.samplebuf,6))
-
-  for k = 1:200
+  prog = Progress(n_sample,"Baking")
+  for k = 1:n_sample
     for j = 1:1000
       step!(sys,langevin)
     end
     theta = acos(sys.dipoles[1][3])
     #push!(viewed_thetas,theta)
 
-    Sunny.new_sample!(dsc,sys,() -> nothing,ImplicitMidpoint(0.05;λ = 0.1,kT))
+    Sunny.new_sample!(dsc,sys,() -> nothing,ImplicitMidpoint(dt;λ = damping,kT))
     Sunny.accum_sample!(dsc)
+    next!(prog)
   end
+  finish!(prog)
 
   N = size(dsc.data,7)
   params = unit_resolution_binning_parameters(dsc;negative_energies = true)
@@ -58,19 +114,13 @@ function bake_chi(sys;kT = 0.01)
     chi_model[i,j] = ff
   end
 
-  #dt = dsc.Δt * dsc.measperiod
   chi_model, dsc.Δt, dsc.measperiod
-end
-
-function trivial_chi()
-  obs = Sunny.parse_observables(0;observables = nothing, correlations = nothing, g = nothing)
-  obs, 1
 end
 
 if !(:view_screen ∈ names(Main))
   global view_screen = nothing
 end
-function sim_AC_applied(sys,chi_model,dt_sim,measperiod)
+function sim_AC_applied(sys,chi_model,dt_sim,measperiod;static_field = [0,0,-1])
   global view_screen
   if isnothing(view_screen) || view_screen.window_open[] == false
     view_screen = GLMakie.Screen()
@@ -98,7 +148,7 @@ function sim_AC_applied(sys,chi_model,dt_sim,measperiod)
   time_axis = (dt_sim * measperiod) * (1:n_memory) .- ((dt_sim * measperiod) * n_memory)
   λs = Observable(CircularBuffer{Float64}(n_memory))
   fill!(λs[],0)
-  lines!(ax_input,time_axis,λs)
+  lines!(ax_input,time_axis,λs; color = :lightblue)
 
   output_chi = Observable(CircularBuffer{Float64}(n_memory))
   fill!(output_chi[],NaN)
@@ -122,18 +172,21 @@ function sim_AC_applied(sys,chi_model,dt_sim,measperiod)
 
   ax_response = Axis(loc_graphs[3,1],xlabel = "Time", ylabel = "δB")
 
+
   fluct_actual = Observable(CircularBuffer{Float64}(n_memory))
   fill!(fluct_actual[],0)
-  lines!(ax_response,time_axis,fluct_actual,color = :black)
+  lines!(ax_response,time_axis,fluct_actual,color = :blue)
 
   fluct_predict = Observable(CircularBuffer{Float64}(n_memory))
   fill!(fluct_predict[],0)
-  lines!(ax_response,time_axis,fluct_predict,color = :red)
+  lines!(ax_response,time_axis,fluct_predict,color = :black, linestyle = :dash)
+
+  lines!(ax_response,time_axis,0 .* fluct_actual[],color = :orange)
 
   sg = SliderGrid(f_sliders[1,1],
     (label = "F", range = 0:0.01:10, startvalue = 3, format = x -> "$(Sunny.number_to_simple_string(10. ^ x; digits = 4))"),
     (label = "kT", range = -4:0.01:2, startvalue = -2, format = x -> "$(Sunny.number_to_simple_string(10. ^ x; digits = 2))"),
-    (label = "λ", range = -4:0.01:2, startvalue = -1, format = x -> "$(Sunny.number_to_simple_string(10. ^ x; digits = 2))")
+    (label = "damping", range = -4:0.01:2, startvalue = -1, format = x -> "$(Sunny.number_to_simple_string(10. ^ x; digits = 2))")
    )
 
   control_fudge = Observable(0.)
@@ -201,6 +254,41 @@ function sim_AC_applied(sys,chi_model,dt_sim,measperiod)
   on(sgj.sliders[2].value;update = true) do s
     control_falloff[] = 1 - 10^(-s)
   end
+
+  ax_spectrum = Axis(fig[3,1])
+  spectrum_axis = 2π * fftfreq(n_memory, 1 / (dt_sim * measperiod))
+  spectrum_ix = sortperm(spectrum_axis)
+
+  vlines!(map(x -> -x,control_frequency),color = :lightblue)
+  vlines!(control_frequency,color = :lightblue)
+
+  chi_spectrum_re = Observable(Vector{Float64}(undef,n_memory))
+  chi_spectrum_re[] .= 0
+  chi_spectrum_im = Observable(Vector{Float64}(undef,n_memory))
+  chi_spectrum_im[] .= 0
+  lines!(ax_spectrum,spectrum_axis[spectrum_ix],chi_spectrum_re,color = :red)
+  lines!(ax_spectrum,spectrum_axis[spectrum_ix],chi_spectrum_im,color = :red,linestyle = :dash)
+
+  lambda_spectrum_re = Observable(Vector{Float64}(undef,n_memory))
+  lambda_spectrum_re[] .= 0
+  lambda_spectrum_im = Observable(Vector{Float64}(undef,n_memory))
+  lambda_spectrum_im[] .= 0
+  lines!(ax_spectrum,spectrum_axis[spectrum_ix],lambda_spectrum_re,color = :lightblue)
+  lines!(ax_spectrum,spectrum_axis[spectrum_ix],lambda_spectrum_im,color = :lightblue,linestyle = :dash)
+
+  response_spectrum_re = Observable(Vector{Float64}(undef,n_memory))
+  response_spectrum_re[] .= 0
+  response_spectrum_im = Observable(Vector{Float64}(undef,n_memory))
+  response_spectrum_im[] .= 0
+  lines!(ax_spectrum,spectrum_axis[spectrum_ix],response_spectrum_re,color = :blue)
+  lines!(ax_spectrum,spectrum_axis[spectrum_ix],response_spectrum_im,color = :blue,linestyle = :dash)
+
+  reference_spectrum_re = Observable(Vector{Float64}(undef,n_memory))
+  reference_spectrum_re[] .= 0
+  reference_spectrum_im = Observable(Vector{Float64}(undef,n_memory))
+  reference_spectrum_im[] .= 0
+  lines!(ax_spectrum,spectrum_axis[spectrum_ix],reference_spectrum_re,color = :orange)
+  lines!(ax_spectrum,spectrum_axis[spectrum_ix],reference_spectrum_im,color = :orange,linestyle = :dash)
 
   on(corr_selector.selection; update = true, priority = -1) do ci
     # Update labels on joystick
@@ -277,7 +365,6 @@ function sim_AC_applied(sys,chi_model,dt_sim,measperiod)
 
       # Apply field
       λ = control_abs[] * cos(control_phase[] + control_frequency[] * t)
-      static_field = [0,0,-1]
       total_field = static_field .+ λ * perturbation_field_vector[]
 
       set_external_field!(sys,static_field) # Update system
@@ -294,12 +381,24 @@ function sim_AC_applied(sys,chi_model,dt_sim,measperiod)
       if mod(i,measperiod) == 0
         push!(λs[],λ) # Update input graph
 
+        lambda_spectrum = fft(λs[])
+        lambda_spectrum_re[] .= real(lambda_spectrum[spectrum_ix])
+        lambda_spectrum_im[] .= imag(lambda_spectrum[spectrum_ix])
+
         # Actual magnetization (per site)
         mag_hat = mag_unit_vector[]
         out_ref = magnetization_along_axis(mag_hat,sys.dipoles)
         out_resp = magnetization_along_axis(mag_hat,sys_response.dipoles)
         push!(output_reference[],out_ref)
         push!(output_response[],out_resp)
+
+        reference_spectrum = fft(output_reference[])
+        reference_spectrum_re[] .= real(reference_spectrum[spectrum_ix])
+        reference_spectrum_im[] .= imag(reference_spectrum[spectrum_ix])
+        
+        response_spectrum = fft(output_response[])
+        response_spectrum_re[] .= real(response_spectrum[spectrum_ix])
+        response_spectrum_im[] .= imag(response_spectrum[spectrum_ix])
 
         # Linear Response prediction of magnetization (per site)
         zbuf .= 0
@@ -310,6 +409,11 @@ function sim_AC_applied(sys,chi_model,dt_sim,measperiod)
         zbuf .*= control_fudge[] * chi_model[corr_selector.selection[]...]
         ifft!(zbuf)
         output_chi[] .= control_fudge[] * real(ifft(chi_model[corr_selector.selection[]...])[1:n_memory])
+
+        chi_spectrum = fft(output_chi[])
+        chi_spectrum_re[] .= real(chi_spectrum[spectrum_ix])
+        chi_spectrum_im[] .= imag(chi_spectrum[spectrum_ix])
+
         predicted = real(zbuf[1:n_memory])
         output_predicted[] .= predicted .+ output_reference[]
         #push!(output_predicted[],real(zbuf[1:n_memory]))
@@ -329,6 +433,16 @@ function sim_AC_applied(sys,chi_model,dt_sim,measperiod)
         notify(output_response)
         notify(output_predicted)
         notify(output_chi)
+
+        notify(chi_spectrum_re)
+        notify(chi_spectrum_im)
+        notify(lambda_spectrum_re)
+        notify(lambda_spectrum_im)
+        notify(response_spectrum_re)
+        notify(response_spectrum_im)
+        notify(reference_spectrum_re)
+        notify(reference_spectrum_im)
+
         current_dipoles[] .= sys.dipoles
         current_dipoles_responding[] .= sys_response.dipoles
         notify(current_dipoles)

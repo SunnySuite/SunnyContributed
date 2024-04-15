@@ -131,7 +131,8 @@ function record_L_int_range_sweep(params,data)
   ax = Axis(f[1,1],xlabel = "[H,H,0]",ylabel = "meV")
   dat_nonan = copy(dat[])
   dat_nonan[isnan.(dat_nonan)] .= 0
-  hm = heatmap!(ax,bcs[1],bcs[4],dat,colormap = :jet1,colorrange = extrema(dat_nonan[:]))
+  hm = heatmap!(ax,bcs[1],bcs[4],map(x -> log10.(abs.(x)),dat),colormap = :jet1,colorrange = (-3,-2))
+  #hm = heatmap!(ax,bcs[1],bcs[4],dat,colormap = :jet1,colorrange = extrema(dat_nonan[:]))
   Colorbar(f[1,2],hm)
   #record(f,"test.mp4") do io
   display(f)

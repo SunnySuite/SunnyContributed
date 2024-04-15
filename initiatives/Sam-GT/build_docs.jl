@@ -10,3 +10,7 @@ cd("..")
 cd("realspace")
 Literate.markdown("cooperative_chain.jl", "../docs"; execute = true, documenter = false)
 cd("..")
+
+cd("inverse-toolkit")
+Literate.markdown("fitting_tutorial.jl", "../docs"; execute = true, documenter = false)
+cd("..")
