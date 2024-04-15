@@ -163,8 +163,7 @@ end
 ![](bin_effect_tutorial-11.png)
 
 However, when we use `Sunny.intensities_bin_centers` to evaluate a spin wave model on those
-exact same histogram parameters, there is no dependence on the bin size, except for a uniform increase in
-intensity due to spreading the same intensity over a larger transverse bin:
+exact same histogram parameters, there is no dependence on the bin size:
 
 ````julia
 f = Figure()
