@@ -46,27 +46,25 @@ function y_quantity(stored,n,M,mDagger;betaOmega)
     if n > 0
       for M0 = 0:(2n)
         for md = 0:M0
-          println()
-          println("Calculating: Y$n$M0$md")
-          #println("M = $M0")
-          #println("m† = $md")
+          #println()
+          #println("Calculating: Y$n$M0$md")
 
           # These are not valid
           if (md > n) || ((M0 - md) > n)
-            println("[[invalid Y object]]")
-            println()
+            #println("[[invalid Y object]]")
+            #println()
             continue
           end
 
           harmonic = M0 - 2md
-          println("harmonic = $harmonic")
+          #println("harmonic = $harmonic")
 
           # Don't need to worry about explicitly skipping any early
           # terms in the sum; the polynomial caclulation below will kill
           # those terms automatically!
           #
           #n_skip_sum = n - M0 - md
-          #println("n_skip_sum = $n_skip_sum (NYI)")
+          ##println("n_skip_sum = $n_skip_sum (NYI)")
 
           max_deg = 8
           poly = zeros(max_deg)
@@ -96,36 +94,36 @@ function y_quantity(stored,n,M,mDagger;betaOmega)
             end
           end
 
-          println("n-trajectory: $n_traj")
+          #println("n-trajectory: $n_traj")
           factors = sort(n_traj)[1:2:end]
           for j = 1:length(factors)
             poly .= factors[j] .* poly .+ [0 ; poly[1:max_deg-1]]
             #println("poly = $poly")
           end
 
-          nB = bose(betaOmega)
-          xvar = exp(betaOmega)
-          xPows = OffsetArray([xvar ^ k for k = 0:maximum(length(eulerian_poly(max_deg-1)))],-1)
+          nB = bose(BigFloat(betaOmega))
+          xvar = exp(BigFloat(betaOmega))
+          xPows = OffsetArray([BigFloat(xvar) ^ k for k = 0:maximum(length(eulerian_poly(max_deg-1)))],-1)
 
-          print("Boson number (n) → ")
+          #print("Boson number (n) → ")
           leading = true
           for p = 0:(max_deg-1)
             ps = ["","n","n²","n³","n⁴","n⁵","n⁶","n⁷","n⁸","n⁹"][p+1]
             a = poly[p+1]
             if !iszero(a)
               if a > 0
-                !leading && print(" + ")
+                #!leading && print(" + ")
               else
-                print(" - ")
+                #print(" - ")
               end
               if p == 0 || a != 1.0
-                print("$(Sunny.number_to_math_string(abs(a);digits = 2))")
+                #print("$(Sunny.number_to_math_string(abs(a);digits = 2))")
               end
-              print(ps)
+              #print(ps)
               leading = false
             end
           end
-          println()
+          #println()
 
           #println("xPows = $xPows")
 
@@ -145,7 +143,7 @@ function y_quantity(stored,n,M,mDagger;betaOmega)
             #println("tot = $tot")
           end
           stored[n,M0,md,-n_order:n_order] .= 0
-          stored[n,M0,md,harmonic] = tot
+          stored[n,M0,md,harmonic] = Float64(tot)
 
         end
       end
@@ -317,7 +315,7 @@ function finite_spin_wave_Vmats(sys; polyatomic = true)
   formula = intensity_formula(swt,:full;kernel = delta_function_kernel)
 
   Hs = zeros(ComplexF64,size(formula.calc_intensity.H)...,comm_ixs.indices...)
-  Vs = zeros(ComplexF64,na,nf,2,na,nf,2,comm_ixs.indices...)
+  Vs = zeros(ComplexF64,na,nf,2,na*nf,2,comm_ixs.indices...)
   disps = zeros(Float64,size(formula.calc_intensity.H,1)÷2,comm_ixs.indices...)
 
   for i in comm_ixs
@@ -333,7 +331,7 @@ function finite_spin_wave_Vmats(sys; polyatomic = true)
 
     disps[:,i] .= Sunny.bogoliubov!(formula.calc_intensity.V,Hmat)
 
-    Vs[:,:,:,:,:,:,i] .= reshape(formula.calc_intensity.V,na,nf,2,na,nf,2)
+    Vs[:,:,:,:,:,i] .= reshape(formula.calc_intensity.V,na,nf,2,na*nf,2)
 
     #formula.calc_intensity(swt,Sunny.Vec3(k_comm))
   end
@@ -414,8 +412,7 @@ function render_one_over_S_spectrum(sys;beta = 1.0)
     atom_n = n
     δ = sys.crystal.positions[atom_n] - sys.crystal.positions[atom_m]
     #println("m = $m, n = $n, δ = $δ")
-    
-    phases = exp.(-(2pi * im) .* map(k -> δ⋅k,ks))
+    phases = exp.((2pi * im) .* map(k -> δ⋅k,ks))
 
     @assert size(one_magnon_c,6) == 1
     @assert size(one_magnon_c,9) == 1
@@ -432,10 +429,6 @@ function render_one_over_S_spectrum(sys;beta = 1.0)
     # Syy
     S_local[xs,ys,zs,:,m,n,:,2,2] .+= 2 * s * sum([[1,-1][i] * [1,-1][j] * one_magnon_c[:,:,:,:,m,1,i,n,1,j,:,2] for i = 1:2, j = 1:2])/(-4)
 
-    #Sxx[xs,ys,zs,:,m,n,:] .+= 2 * s * sum([one_magnon_c[:,:,:,:,(i * N) + m,(j * N) + n,:,2] for i = 0:1, j = 0:1])/4
-    #Syy[xs,ys,zs,:,m,n,:] .+= 2 * s * sum([[1,-1][i] * [1,-1][j] * one_magnon_c[:,:,:,:,(i - 1) * N + m,(j - 1) * N + n,:,2] for i = 1:2, j = 1:2])/(-4)
-
-
     # For c_{1,aa} and c_{aa,1}, our inference of the total momentum k will always have placed everything
     # in k = 0:
     @assert abs(sum(one_magnon_c[:,:,:,:,:,:,:,:,:,:,:,1]) - sum(one_magnon_c[1,1,1,:,:,:,:,:,:,:,:,1])) < 1e-12
@@ -443,13 +436,10 @@ function render_one_over_S_spectrum(sys;beta = 1.0)
 
     # SSF is always band #1 ???
     S_local[xs,ys,zs,1,m,n,:,3,3] .= s * s * prod([nx,ny,nz]) * ssf[:,:,:,:]
-    #Szz[xs,ys,zs,1,m,n,:] .= s * s * prod([nx,ny,nz]) * ssf[:,:,:,:] .* phases
 
     S_local[xs,ys,zs,:,m,n,:,3,3] .+= -s * one_magnon_c[:,:,:,:,m,1,2,n,1,1,:,1]
     S_local[xs,ys,zs,:,m,n,:,3,3] .+= -s * one_magnon_c[:,:,:,:,m,1,2,n,1,1,:,3]
 
-    #Szz[xs,ys,zs,:,m,n,:] .+= -s * one_magnon_c[:,:,:,:,N+m,n,:,1]
-    #Szz[xs,ys,zs,:,m,n,:] .+= -s * one_magnon_c[:,:,:,:,N+m,n,:,3]
     S_local[xs,ys,zs,:,m,n,:,:,:] .*= phases
   end
 
@@ -462,6 +452,46 @@ function render_one_over_S_spectrum(sys;beta = 1.0)
   end
 
   S_local, S_global
+end
+
+function sunny_swt_spectrum(sys;polyatomic = true)
+  all_repeats = allequal([sys.dipoles[i,:] for i = Sunny.eachcell(sys)]) && allequal([sys.coherents[i,:] for i = Sunny.eachcell(sys)])
+  if !all_repeats
+    @warn "Not all unit cells in the system have the same spin data! Collapsing to first unit cell anyway"
+  end
+
+  sys_collapsed = Sunny.reshape_supercell_aux(sys, (1,1,1), Sunny.cell_shape(sys))
+  swt = SpinWaveTheory(sys_collapsed)
+
+  na = Sunny.natoms(sys.crystal)
+  nf = 1 #nf = sys.Ns[1] - 1
+
+  if polyatomic
+    # Find polyatomic required number of unit cells:
+    ΔRs = [map(x -> iszero(x) ? Inf : x,abs.(sys.crystal.positions[i] - sys.crystal.positions[j])) for i = 1:na, j = 1:na]
+    nbzs = round.(Int64,max.([1,1,1],1 ./ minimum(ΔRs)))
+  else
+    nbzs = [1,1,1]
+  end
+
+  comm_ixs = CartesianIndices(ntuple(i -> sys.latsize[i] .* nbzs[i],3))
+  ks_comm = [Sunny.Vec3((i.I .- 1) ./ sys.latsize) for i = comm_ixs]
+
+  formula = intensity_formula(swt,:full;kernel = delta_function_kernel)
+
+
+  # kx, ky, kz; [band]; m,n (sublattice); harmonic; xyz, xyz
+  Nx,Ny,Nz = sys.latsize .* nbzs
+  S = zeros(ComplexF64,Nx,Ny,Nz,na*nf,3,3)
+  disps = zeros(Float64,size(formula.calc_intensity.H,1)÷2,comm_ixs.indices...)
+  for ix = 1:Nx, iy = 1:Ny, iz = 1:Nz
+    band_structure = formula.calc_intensity(swt,ks_comm[ix,iy,iz])
+    for band = 1:length(band_structure.dispersion)
+      disps[band,ix,iy,iz] = band_structure.dispersion[band]
+      S[ix,iy,iz,band,:,:] .= band_structure.intensity[band]
+    end
+  end
+  disps, S
 end
 
 function raster_spec(spec,disps,dE,npos,i,j)
@@ -485,13 +515,13 @@ function raster_spec(spec,disps,dE,npos,i,j)
   raster
 end
 
-function grid_it_2d(sys)
-  Sloc, Sglob = render_one_over_S_spectrum(sys; beta = 8.0)
+function grid_it_2d(sys;beta = 8.0)
+  Sloc, Sglob = render_one_over_S_spectrum(sys; beta)
   Hs, Vs, disps = finite_spin_wave_Vmats(sys;polyatomic = false)
   f = Figure()
   display(f)
   for i = 1:3, j = 1:3
-    s = log10.(abs.(raster_spec(Sloc,disps,0.2,50,i,j)[:,1,1,:]))
+    s = log10.(abs.(raster_spec(Sglob,disps,0.4,20,i,j)[:,1,1,:]))
     ax = Axis(f[i,(j - 1) * 2 + 1])
     hm = heatmap!(ax,s,colorrange = (-8,2))
     Colorbar(f[i,(j-1)*2+2],hm)
@@ -543,19 +573,19 @@ function zero_magnon_sector(Hs,Vs,cryst;betaOmega)
   # Namely, it's the C_{1,1} correlator.
   yy = empty_y_matrix()
   yobj = wick_to_y_object(yy,wickify([]),wickify([]);betaOmega)
-  nx,ny,nz = size(Vs)[7:9]
+  nx,ny,nz = size(Vs)[6:8]
   ssf = zeros(ComplexF64,nx,ny,nz,length(yobj))
   ssf[1,1,1,:] .= yobj[-2:2]
   ssf
 end
 
 function one_magnon_sector(Hs,Vs,cryst;betaOmega)
-  nx,ny,nz = size(Vs)[7:9]
+  nx,ny,nz = size(Vs)[6:8]
 
   na = size(Vs,1)
   nf = size(Vs,2)
 
-  It = diagm([repeat([1],N); repeat([-1],N)])
+  #It = diagm([repeat([1],N); repeat([-1],N)])
 
   # Fix phases! This implements "commutes with dagger" property
   #=
@@ -572,40 +602,15 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
   end
   =#
 
-  Vs_fix = copy(Vs)
-  for ix = 1:nx, iy = 1:ny, iz = 1:nz
-    Vhere = view(Vs_fix,:,:,:,:,:,1,ix,iy,iz)
-    Vthere = view(Vs_fix,:,:,:,:,:,2,mod1(nx-(ix-1)+1,nx),mod1(ny-(iy-1)+1,ny),mod1(nz-(iz-1)+1,nz))
-    for fix_a = 1:na, fix_f = 1:nf
-      # Replace the negative energy modes at the opposite Q with equivalent
-      # ones that are phase-matched to the positive energy modes at this Q
-      #=
-      println()
-      println("Replacing:")
-      display(view(Vthere,:,:,1,fix_a,fix_f))
-      println("with")
-      display(conj.(Vhere[:,:,2,fix_a,fix_f]))
-      println("divisor::")
-      display(angle.(view(Vthere,:,:,1,fix_a,fix_f) ./conj.(Vhere[:,:,2,fix_a,fix_f])))
-      println("and")
-      display(view(Vthere,:,:,2,fix_a,fix_f))
-      println("with")
-      display(conj.(Vhere[:,:,1,fix_a,fix_f]))
-      println("divisor::")
-      display(angle.(view(Vthere,:,:,2,fix_a,fix_f) ./conj.(Vhere[:,:,1,fix_a,fix_f])))
-      =#
-      view(Vthere,:,:,1,fix_a,fix_f) .= conj.(Vhere[:,:,2,fix_a,fix_f])
-      view(Vthere,:,:,2,fix_a,fix_f) .= conj.(Vhere[:,:,1,fix_a,fix_f])
-    end
-  end
+  Vs_fix = phase_fix_Vs(Vs)
 
   # One-magnon correlators have exactly two boson operators.
   # This means that they can have at most one distinct wavevector (at the level
   # of a-bosons) and at most one distinct eigenmode (at the level of b-bosons)
 
   # One Y matrix for each oscillator; only need ω > 0 to cover all oscillators
-  Y_storage = Array{OffsetArray{ComplexF64}}(undef,nx,ny,nz,N)
-  for ix = 1:nx, iy = 1:ny, iz = 1:nz, i = 1:N
+  Y_storage = Array{OffsetArray{ComplexF64}}(undef,nx,ny,nz,na*nf)
+  for ix = 1:nx, iy = 1:ny, iz = 1:nz, i = 1:na*nf
     Y_storage[ix,iy,iz,i] = empty_y_matrix()
   end
 
@@ -619,8 +624,6 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
   # The exactly one distinict wavevector of the one-magnon sector
   for x1 = 1:nx, y1 = 1:ny, z1 = 1:nz
     println("=== Working on k = $((x1,y1,z1)) ===")
-
-    Vk1 = Vs_fix[:,:,:,:,:,:,x1,y1,z1]
 
     # We have that a1 = ∑ᵢT_1i bi.
     # So C_{ai,aj} = ∑_mn T_im T_jn C_{bm,bn}, but only m=n contributes
@@ -642,12 +645,19 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
         #println()
         println("Inferring k2 ...")
         x2,y2,z2 = momentum_conserving_index(ks,[iDag,jDag],(nx,ny,nz)).I
-        Vk2 = Vs_fix[:,:,:,:,:,:,x2,y2,z2]
 
-        k1 = (x1,y1,z1,m)
-        k2 = (x2,y2,z2,m) # Only m = n contributes!
-        omgc = one_magnon_gas_correlator((nx,ny,nz),N,k1,k2;betaOmega = betaOmega[m,x1,y1,z1], Y = Y_storage[x1,y1,z1,m])
-        @assert sum(abs.(imag(omgc))) < 1e-12
+        ak1 = iDag == 1 ? (mod1((nx + 1) - (x1 - 1),nx),mod1((ny + 1) - (y1 - 1),ny),mod1((nz + 1) - (z1 - 1),nz)) : (x1,y1,z1)
+        ak2 = jDag == 1 ? (mod1((nx + 1) - (x2 - 1),nx),mod1((ny + 1) - (y2 - 1),ny),mod1((nz + 1) - (z2 - 1),nz)) : (x2,y2,z2)
+
+        println("ak1 → $ak1 and ak2 → $ak2")
+
+        Vk1 = Vs_fix[:,:,:,:,:,ak1[1],ak1[2],ak1[3]]
+        Vk2 = Vs_fix[:,:,:,:,:,ak2[1],ak2[2],ak2[3]]
+
+               #mirror_mode = (na*nf)-(m-1)
+        #k2_mirror = (x2,y2,z2,mirror_mode) # Only m = n contributes!
+        #omgc .+= one_magnon_gas_correlator((nx,ny,nz),na*nf,k1,k2_mirror;betaOmega = betaOmega[m,x1,y1,z1], Y = Y_storage[x1,y1,z1,m])
+        #@assert sum(abs.(imag(omgc))) < 1e-12
 
         #println(cryst.positions[[i,j]])
         #ks = [[x1,y1,z1],[x2,y2,z2]]
@@ -659,13 +669,11 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
         #println("Sublat phase:")
         #println(sublattice_phase)
         
-        i_ix = (iDag * N) + i
-        j_ix = (jDag * N) + j
         for partition = 1:3
           # Infer total k based on momenta left of the comma
           ks = [[x1,y1,z1],[x2,y2,z2]][1:partition-1]
           left_daggers = [iDag,jDag][1:partition-1]
-          push!(left_daggers,1)
+          push!(left_daggers,0)
           #println(ks)
           #println(left_daggers)
 
@@ -687,27 +695,57 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
             kraw = ([[x1,y1,z1],[x2,y2,z2]][term] .- 1) ./ [nx,ny,nz]
             ksigned = (-1)^(1 - [iDag,jDag][term]) * kraw
             sublattice_phase *= exp(2 * pi * im * δ⋅ksigned)
+            #println("δ → $δ")
+            #println("kraw → $kraw")
+            #println("ksigned → $ksigned")
           end
+          #sublattice_phase = 1.0 + 0im
           #println("Sublattice phase: $sublattice_phase")
-              println(" k1 = $([x1,y1,z1]), k2 = $([x2,y2,z2]), i = $i, j = $j")
+              println(" k1 = $([x1,y1,z1]), k2 = $([x2,y2,z2]), i = $i, j = $j, total_k = $total_k")
 
           # Loop over dagger configuration of bb
           for left = [0,1], right = [0,1]
-            a = (left * N) + m
-            b = (right * N) + m
             #println("Index: $((total_k,m,i_ix,j_ix)) with a = $a, b = $b, partition = $partition")
             #println("Vk1: $(Vk1[i_ix,a])")
             #println("Vk2: $(Vk2[j_ix,b])")
             #println("omgc: $(omgc[a,b,:,partition])")
             #println("Value: $(Vk1[i_ix,a] * Vk2[j_ix,b] * omgc[a,b,:,partition])")
-            val = sublattice_phase * Vk1[i,1,iDag+1,m,1,left+1] * Vk2[j,1,jDag+1,m,1,right+1] * omgc[a,b,:,partition]
-            if sum(abs.(val)) > 1e-12
-              println("!! Finite contribution: eigenmodes $a and $b to HP bosons $i_ix and $j_ix")
-              println("   Vk1: $(Vk1[i,1,iDag+1,m,1,left+1])")
-              println("   Vk2: $(Vk2[j,1,jDag+1,m,1,right+1])")
+
+            # ak expands to both bk and [b-k]†
+            bk1 = xor(left,iDag) == 1 ? (mod1((nx + 1) - (x1 - 1),nx),mod1((ny + 1) - (y1 - 1),ny),mod1((nz + 1) - (z1 - 1),nz),m) : (x1,y1,z1,m)
+            bk2 = xor(right,jDag) == 1 ? (mod1((nx + 1) - (x2 - 1),nx),mod1((ny + 1) - (y2 - 1),ny),mod1((nz + 1) - (z2 - 1),nz),m) : (x2,y2,z2,m)
+
+            println("lr; $left $right; bk1 = $bk1 and bk2 = $bk2")
+            #k2 = (x2,y2,z2,m)
+            #if left == right
+              #(x2,y2,z2,m)
+            #else
+              ##(mod1((nx + 1) - (x2 - 1),nx),mod1((ny + 1) - (y2 - 1),ny),mod1((nz + 1) - (z2 - 1),nz),mirr2 ? m : (na*nf) - (m-1))
+              #(x2,y2,z2,(na*nf) - (m-1))
+            #end
+            n = bk2[4]
+
+            a = (left * na*nf) + m
+            b = (right * na*nf) + n
+
+            #k1 = (x1,y1,z1,m)
+            #k2 = (x2,y2,z2,n)
+            omgc = one_magnon_gas_correlator((nx,ny,nz),na*nf,bk1,bk2;betaOmega = betaOmega[m,x1,y1,z1], Y = nothing)#Y_storage[x1,y1,z1,m])
+            @assert sum(abs.(imag(omgc))) < 1e-12
+
+            display(findall(abs.(omgc) .> 1e-5))
+            println("a,b: $a, $b")
+
+
+            val = sublattice_phase * omgc[a,b,:,partition]
+            if sum(abs.(val)) > 1e-12 && !iszero(omgc[a,b,4,partition]) 
+              println("!! Allowed contribution: eigenmodes ($m,$left) and ($n,$right) to HP bosons ($i,$iDag) and ($j,$jDag)")
+              println("   Vk1: $(Vk1[i,1,iDag+1,m,left+1]) ($i 1 $iDag $m $left)")
+              println("   Vk2: $(Vk2[j,1,jDag+1,n,right+1]) ($j 1 $jDag $n $right)")
+              println("   omgc: $(omgc[a,b,:,partition])")
               println("   Sublattice phase: $sublattice_phase")
             end
-            correlator[total_k,m,i,1,iDag+1,j,1,jDag+1,:,partition] .+= sublattice_phase * Vk1[i,1,iDag+1,m,1,left+1] * Vk2[j,1,jDag+1,m,1,right+1] * omgc[a,b,:,partition]
+            correlator[total_k,m,i,1,iDag+1,j,1,jDag+1,:,partition] .+= sublattice_phase * Vk1[i,1,iDag+1,m,left+1] * Vk2[j,1,jDag+1,n,right+1] * omgc[a,b,:,partition]
           end
         end
       end
@@ -858,14 +896,30 @@ function one_magnon_gas_correlator(ns,N,label_i,label_j;betaOmega, Y = nothing)
     for i = 1:3
       label_j_reversed_k[i] = mod1((ns[i] + 1) - (label_j[i]-1),ns[i])
     end
-    #println(collect(label_i))
-    #println(label_j_reversed_k)
+
+    # Modes are organized as:
     #
+    #                  † or not axis (energy axis)
+    #                    ^
+    #                    |
+    #     b(-k),( )      |      b(+k),( )
+    #                    |
+    #   -----------------+-----------------> k axis
+    #                    |
+    #     b(-k),(†)      |      b(+k),(†)
+    #                    |
     #
-    # If they have the same dagger, e.g. (ak1,ak2), then it's verboten to have (k1 + k2) nonzero;
-    # that is to say that (k1 = -k2) is required. If the daggers are opposite, e.g. (ak1†,ak2),
-    # then instead (k1 = k2) is required.
-    if left == right ? !(collect(label_i) == label_j_reversed_k) : !(label_i == label_j)
+    # where k is the wavevector parameterizing the momentum-space SWT hamiltonian.
+    #
+    # Since a boson operator at (-k,-ω) belongs to the same eigenmode as the
+    # same operator at (+k,+ω), we have the following rules for determining whether
+    # two operators belong to the same mode:
+    #
+    # If they have the same dagger, e.g. (bk1,bk2), then they're the same mode when k1 = k2.
+    # If they have opposite dagger status, e.g. (bk1,bk2†), then they're the same mode when k1 = -k2
+    #
+    #if left == right ? !(label_i == label_j) : !(collect(label_i) == label_j_reversed_k)
+    if !(label_i == label_j)
       println("Verboten! because more than one distinct eigenmode (max 1 allowed)")
       continue
     end
@@ -921,4 +975,73 @@ function to_lab_displacements(swt;q = [0.1,0,0])
     ylims!(ax,-1,1)
   end
   display(f)
+end
+
+function speak_bogo_coeffs(Vs)
+  num_site = size(Vs,1)
+  nf = size(Vs,2)
+  @assert num_site * nf == size(Vs,4)
+  for ix = CartesianIndices((size(Vs,6),size(Vs,7),size(Vs,8)))
+    for a_site = 1:num_site, a_flavor = 1:nf, aDag = 1:2
+      print("$(nf > 1 ? a_flavor : "")a$a_site$(aDag == 2 ? "†" : " ") = ")
+      started = false
+      for band = 1:(num_site * nf), bDag = 1:2
+        x = Vs[a_site,a_flavor,aDag,band,bDag,ix]
+        if iszero(round(x;digits = 12))
+          continue
+        end
+        if started
+          print(" + ")
+        end
+        print("(")
+        print(Sunny.number_to_simple_string(real(x);digits = 3))
+        print(" + ")
+        print(Sunny.number_to_simple_string(imag(x);digits = 3))
+        print("i)b$band$(bDag == 2 ? "†" : " ")")
+        started = true
+      end
+      println()
+    end
+    println()
+  end
+end
+
+function phase_fix_Vs(Vs)
+  nx = size(Vs,6)
+  ny = size(Vs,7)
+  nz = size(Vs,8)
+
+  na = size(Vs,1)
+  nf = size(Vs,2)
+
+  Vs_fix = copy(Vs)
+  for ix = 1:nx, iy = 1:ny, iz = 1:nz, mode = 1:na*nf
+    Vhere = view(Vs_fix,:,:,:,:,:,ix,iy,iz)
+
+    mirror_ix = mod1(nx-(ix-1)+1,nx)
+    mirror_iy = mod1(ny-(iy-1)+1,ny)
+    mirror_iz = mod1(nz-(iz-1)+1,nz)
+    mirror_mode = (na*nf)-(mode-1)
+
+    Vthere = view(Vs_fix,:,:,:,:,:,mirror_ix,mirror_iy,mirror_iz)
+    for fix_a = 1:na, fix_f = 1:nf
+      # Replace the negative energy modes at the opposite Q with equivalent
+      # ones that are phase-matched to the positive energy modes at this Q
+      @assert is_phase_rotation(view(Vthere,:,:,2,mirror_mode,2),conj.(Vhere[:,:,1,mode,1]))
+      view(Vthere,:,:,2,mirror_mode,2) .= conj.(Vhere[:,:,1,mode,1]) # Copy a  = ... b to a† = ... b†
+      @assert is_phase_rotation(view(Vthere,:,:,1,mirror_mode,2),conj.(Vhere[:,:,2,mode,1]))
+      view(Vthere,:,:,1,mirror_mode,2) .= conj.(Vhere[:,:,2,mode,1]) # Copy a† = ... b to a  = ... b†
+    end
+  end
+
+  # Reverse the order of the † eigenmodes so that they are in the same order as the non-† modes:
+  Vs_fix[:,:,:,1:(na*nf),2,:,:,:] .= Vs_fix[:,:,:,(na*nf):-1:1,2,:,:,:]
+
+  Vs_fix
+end
+
+function is_phase_rotation(a,b)
+  finite_a_ix = abs.(a) .> 1e-8
+  angles = angle.(b[finite_a_ix] ./ a[finite_a_ix])
+  all(isapprox.(angles,sum(angles)/length(angles);atol = 1e-8))
 end
