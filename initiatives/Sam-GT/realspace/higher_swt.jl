@@ -2,6 +2,7 @@ using LinearAlgebra
 using OffsetArrays
 using StaticArrays
 using FFTW
+using SparseArrays
 
 RasterSpectrum{N} = SVector{N,ComplexF64}
 
@@ -367,11 +368,118 @@ function finite_spin_wave_Vmats(sys; polyatomic = true)
   Hs, Vs, disps, swt.data.local_rotations
 end
 
-function render_one_over_S_spectrum(sys;beta = 1.0)
+function blit_one_over_S_spectrum(sys,dE,npos;beta = 1.0,two_magnon = false)
+  Hs, Vs, disps, Us = finite_spin_wave_Vmats(sys;polyatomic = false)
+  ssf = zero_magnon_sector(Hs,Vs,sys.crystal;betaOmega = beta * 0.0)
+  one_magnon_canvas = blit_one_magnon(Hs,Vs,sys.crystal,disps,dE,npos;betaOmega = beta * disps)
+
+  if two_magnon
+    two_magnon_c = two_magnon_sector(Hs,Vs,sys.crystal;betaOmega = beta * disps)
+  end
+
+  # Find polyatomic required number of unit cells:
+  na = Sunny.natoms(sys.crystal)
+  ΔRs = [map(x -> iszero(x) ? Inf : x,abs.(sys.crystal.positions[i] - sys.crystal.positions[j])) for i = 1:na, j = 1:na]
+  nbzs = round.(Int64,max.([1,1,1],1 ./ minimum(ΔRs)))
+
+  # The limited range of wave vectors that is suitable for
+  # each individual sublattice
+  nx,ny,nz = sys.latsize
+
+  # The full range of wave vectors that will be in the output!
+  Nx,Ny,Nz = sys.latsize .* nbzs
+
+  comm_ixs = CartesianIndices((Nx,Ny,Nz))
+  ks_comm = [Sunny.Vec3((i.I .- 1) ./ sys.latsize) for i = comm_ixs]
+
+  # TODO: treat frequencies correctly; not "harmonics", bin it instead!
+  # 1/S expansion
+  s = (sys.Ns[1]-1) / 2
+
+  na = size(Vs,1)
+  nf = size(Vs,2)
+
+  # kx, ky, kz; m,n (sublattice); xyz, xyz ; energy
+  S_local = zeros(ComplexF64,Nx,Ny,Nz,na,na,3,3,2npos+1)
+
+  for m = 1:na, n = 1:na, bzx = 1:nbzs[1], bzy = 1:nbzs[2], bzz = 1:nbzs[3]
+    # The indices of the BZ being computed right now
+    xs = (1:nx) .+ (bzx - 1) * nx
+    ys = (1:ny) .+ (bzy - 1) * ny
+    zs = (1:nz) .+ (bzz - 1) * nz
+
+    ks = [([x,y,z] .- 1) ./ [nx,ny,nz] for x = xs, y = ys, z = zs]
+
+    # The sublattice distance offset for this (m,n) flavor pair
+    atom_m = m
+    atom_n = n
+    δ = sys.crystal.positions[atom_n] - sys.crystal.positions[atom_m]
+    #println("m = $m, n = $n, δ = $δ")
+    phases = exp.(-(2pi * im) .* map(k -> δ⋅k,ks))
+
+    @assert size(one_magnon_canvas,5) == 1
+    @assert size(one_magnon_canvas,8) == 1
+
+    # Sxx
+    S_local[xs,ys,zs,m,n,1,1,:] .+= 2 * s * sum([one_magnon_canvas[:,:,:,m,1,i,n,1,j,2,:] for i = 1:2, j = 1:2])/4
+
+    # Sxy
+    S_local[xs,ys,zs,m,n,1,2,:] .+= 2 * s * sum([[1,-1][j] * one_magnon_canvas[:,:,:,m,1,i,n,1,j,2,:] for i = 1:2, j = 1:2])/(4 * im)
+
+    # Syx
+    S_local[xs,ys,zs,m,n,2,1,:] .+= 2 * s * sum([[1,-1][i] * one_magnon_canvas[:,:,:,m,1,i,n,1,j,2,:] for i = 1:2, j = 1:2])/(4 * im)
+
+    # Syy
+    S_local[xs,ys,zs,m,n,2,2,:] .+= 2 * s * sum([[1,-1][i] * [1,-1][j] * one_magnon_canvas[:,:,:,m,1,i,n,1,j,2,:] for i = 1:2, j = 1:2])/(-4)
+
+    # SSF is at zero energy!
+    S_local[xs,ys,zs,m,n,3,3,npos+1] .= s * s * prod([nx,ny,nz]) * sum(ssf,dims=4)
+
+    S_local[xs,ys,zs,m,n,3,3,:] .+= -s * one_magnon_canvas[:,:,:,m,1,2,n,1,1,1,:]
+    S_local[xs,ys,zs,m,n,3,3,:] .+= -s * one_magnon_canvas[:,:,:,m,1,2,n,1,1,3,:]
+
+    #=
+    if two_magnon
+      for dm = 1:(na*nf) # temporary hack for stacked two magnon
+        # Sxx
+
+        # i       j
+        # (a + a†)(a†aa + a†a†a) → 
+        S_local[xs,ys,zs,dm,m,n,:,1,1] .+= -sum([two_magnon_c[:,:,:,dm,dm,m,1,i,n,1,[2,2][j],n,1,j,n,1,[1,1][j],:,2] for i = 1:2, j = 1:2])/8
+
+        # i             j
+        # (a†aa + a†a†a)(a + a†) → 
+        S_local[xs,ys,zs,dm,m,n,:,1,1] .+= -sum([two_magnon_c[:,:,:,dm,dm,m,1,[2,2][i],m,1,i,m,1,[1,1][i],n,1,j,:,4] for i = 1:2, j = 1:2])/8
+
+        # TODO: other than Sxx
+      end
+    end
+    =#
+
+    S_local[xs,ys,zs,m,n,:,:,:] .*= phases
+  end
+
+  S_global = 0 .* copy(S_local)
+  #display(Us[1])
+  #display(Us[2])
+
+  for i = 1:3, j = 1:3, k = 1:3, l = 1:3, m = 1:na, n = 1:na
+    S_global[:,:,:,m,n,i,j,:] .+= Us[m][i,k] * Us[n][j,l] * S_local[:,:,:,m,n,k,l,:]
+  end
+
+  S_local, S_global
+end
+
+
+function render_one_over_S_spectrum(sys;beta = 1.0,two_magnon = false)
   Hs, Vs, disps, Us = finite_spin_wave_Vmats(sys;polyatomic = false)
   ssf = zero_magnon_sector(Hs,Vs,sys.crystal;betaOmega = beta * 0.0)
   #corr_a_mat, c_1_aa, c_aa_1 = one_magnon_sector(Hs,Vs;betaOmega = beta * disps)
-  one_magnon_c = one_magnon_sector(Hs,Vs,sys.crystal;betaOmega = beta * disps)
+  one_magnon_c = tabulate_one_magnon(Hs,Vs,sys.crystal;betaOmega = beta * disps)
+
+  if two_magnon
+    two_magnon_c = two_magnon_sector(Hs,Vs,sys.crystal;betaOmega = beta * disps)
+  end
 
 
   # Find polyatomic required number of unit cells:
@@ -440,6 +548,22 @@ function render_one_over_S_spectrum(sys;beta = 1.0)
     S_local[xs,ys,zs,:,m,n,:,3,3] .+= -s * one_magnon_c[:,:,:,:,m,1,2,n,1,1,:,1]
     S_local[xs,ys,zs,:,m,n,:,3,3] .+= -s * one_magnon_c[:,:,:,:,m,1,2,n,1,1,:,3]
 
+    if two_magnon
+      for dm = 1:(na*nf) # temporary hack for stacked two magnon
+        # Sxx
+
+        # i       j
+        # (a + a†)(a†aa + a†a†a) → 
+        S_local[xs,ys,zs,dm,m,n,:,1,1] .+= -sum([two_magnon_c[:,:,:,dm,dm,m,1,i,n,1,[2,2][j],n,1,j,n,1,[1,1][j],:,2] for i = 1:2, j = 1:2])/8
+
+        # i             j
+        # (a†aa + a†a†a)(a + a†) → 
+        S_local[xs,ys,zs,dm,m,n,:,1,1] .+= -sum([two_magnon_c[:,:,:,dm,dm,m,1,[2,2][i],m,1,i,m,1,[1,1][i],n,1,j,:,4] for i = 1:2, j = 1:2])/8
+
+        # TODO: other than Sxx
+      end
+    end
+
     S_local[xs,ys,zs,:,m,n,:,:,:] .*= phases
   end
 
@@ -492,6 +616,54 @@ function sunny_swt_spectrum(sys;polyatomic = true)
     end
   end
   disps, S
+end
+
+function validate_one_magnon_sector(sys;beta = 85.0)
+  disps_sunny, S_sunny = sunny_swt_spectrum(sys)
+  S = render_one_over_S_spectrum(sys;beta)
+  S_summed = sum(S[2],dims=[5,6])[:,:,:,:,1,1,4,:,:] # perform sublattice sum and extract one-magnon band
+
+  is_valid = true
+  max_deviation = 0
+  for nx = 1:size(S_sunny,1), ny = 1:size(S_sunny,2), nz = 1:size(S_sunny,3), band = 1:size(S_sunny,4), i = 1:3, j = 1:3
+    spec_sunny = real(S_sunny[nx,ny,nz,band,i,j])
+    spec_one_magnon = 2real(S_summed[nx,ny,nz,band,i,j])
+    diff = spec_one_magnon-spec_sunny
+    if abs(diff) > 1e-12
+      is_valid = false
+      println()
+      printstyled("Deviation",color = :red)
+      println(" from Sunny LSWT detected at C$("xyz"[i])$("xyz"[j]){k → [$nx,$ny,$nz]} band $band:")
+      println("  Expected: $spec_sunny")
+      deviation = (spec_one_magnon-spec_sunny)/spec_sunny
+      println("    Actual: $spec_one_magnon\t ($(Sunny.number_to_simple_string(deviation*100,digits = 5))% off from expected)")
+      if abs(deviation) > abs(max_deviation)
+        max_deviation = deviation
+      end
+    end
+  end
+
+  if is_valid
+    printstyled("Unqualified pass!",color = :green)
+    println()
+  else
+    if abs(max_deviation) < 0.01
+      printstyled("Qualifed pass; maximum deviation <1%",color = :yellow)
+      println()
+      println("  Worst deviation: $(Sunny.number_to_simple_string(max_deviation*100,digits = 5))% off from expected")
+    else
+      printstyled("Substantial deviation from Sunny LSWT:",color = :red)
+      println()
+      println("  Worst deviation: $(Sunny.number_to_simple_string(max_deviation*100,digits = 5))% off from expected")
+    end
+  end
+
+  swt = SpinWaveTheory(Sunny.reshape_supercell_aux(sys, (1,1,1), Sunny.cell_shape(sys)))
+  mag_correction = Sunny.magnetization_lswt_correction(swt;atol = 1e-6)
+  na = size(S[2],5)
+  n_cell = prod(sys.latsize)
+  println("Magnetization correction from Sunny: $mag_correction (per site)")
+  println("                         Calculated: $((sum(S[1][1,1,1,1,:,:,3,3,3]) - na * na * n_cell) / (na*n_cell))) (per site)")
 end
 
 function raster_spec(spec,disps,dE,npos,i,j)
@@ -581,7 +753,7 @@ function zero_magnon_sector(Hs,Vs,cryst;betaOmega)
   ssf
 end
 
-function one_magnon_sector(Hs,Vs,cryst;betaOmega)
+function one_magnon_sector(f,Hs,Vs,cryst;betaOmega)
   nx,ny,nz = size(Vs)[6:8]
 
   na = size(Vs,1)
@@ -589,9 +761,6 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
 
   # Fix phases! This implements "commutes with dagger" property
   Vs_fix = phase_fix_Vs(Vs)
-
-  # One-magnon correlators have exactly two boson operators.
-  # This means that exactly one eigenmode (b-boson) participates in the correlator.
 
   # One Y matrix for each oscillator; only need ω > 0 to cover all oscillators
   Y_storage = Array{OffsetArray{ComplexF64}}(undef,nx,ny,nz,na*nf)
@@ -607,42 +776,60 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
   # - The "partition number" which tells the position of the comma: ,aa ; a,a ; aa,
   correlator = zeros(ComplexF64,nx,ny,nz,na*nf,na,nf,2,na,nf,2,size(empty_y_matrix(),4),3)
 
-  # The exactly one distinict wavevector of the one-magnon sector
+  # Loop over the momentum of the first operator in the correlation
   for x1 = 1:nx, y1 = 1:ny, z1 = 1:nz
-    println("=== Working on k = $((x1,y1,z1)) ===")
+    #println("=== Working on k1 = $((x1,y1,z1)) ===")
 
-    # Loop over a-boson flavor and dagger configuration
-    for i = 1:na, j = 1:na, iDag = [0,1], jDag = [0,1]
+    # Loop over a-boson dagger configuration (0 = no dagger, 1 = dagger)
+    for iDag = [0,1], jDag = [0,1]
       if any(isnan.(correlator))
         error("Nan")
       end
 
-      #print("::: C_")
-      #show_bitstring([iDag,jDag];b = 'a')
-      #println()
-
       # Infer k2 based on momentum conservation for a-bosons.
       # This requires translational symmetry between unit cells, and
-      # the constraint is specifically: ∑ ±ki = 0, with - sign for non-dagger
-      # a-boson and + sign for dagger a-boson.
+      # the constraint is specifically: ∑ ±ki = 0, with signs
+      # depending on the dagger configuration:
+      #   - sign for non-dagger a-boson or
+      #   + sign for dagger a-boson.
       ks = [[x1,y1,z1]]
-      #println()
-      #println("Inferring k2 ...")
       x2,y2,z2 = momentum_conserving_index(ks,[iDag,jDag],(nx,ny,nz)).I
 
-      # Because of how the modes are stored (grouped by which wavevector of
-      # spin wave hamiltonian is used to compute the coefficient, rather than
-      # by the momentum of the a-boson), we sometimes need to grab the data
-      # from the opposite value of k. Specifically, a-bosons with similar fourier
-      # coefficients are stored next to each other, e.g. a{k} and [a{-k}]† are adjacent
-      # because they are both ∼ exp(ikR) while a{k} and its dagger-conjugate [a{k}]† are
-      # distant because [a{k}]† ∼ exp(-ikR).
-      ak1 = iDag == 1 ? (mod1((nx + 1) - (x1 - 1),nx),mod1((ny + 1) - (y1 - 1),ny),mod1((nz + 1) - (z1 - 1),nz)) : (x1,y1,z1)
-      ak2 = jDag == 1 ? (mod1((nx + 1) - (x2 - 1),nx),mod1((ny + 1) - (y2 - 1),ny),mod1((nz + 1) - (z2 - 1),nz)) : (x2,y2,z2)
+      # Perform the Bogoliubov expansion, which writes a-bosons in terms
+      # of b-bosons. Schemtically:
+      #
+      #   a{k} = α b{k} + β [b{-k}]†
+      # 
+      # The coefficients in the expansion are stored in tables. There
+      # is one table for each flavor/sublattice of a-boson and for
+      # each momentum k of the lattice of unit cells. All operators
+      # appearing in the same table have the same fourier transform coefficients
+      # (in this example, they all expand as X{k} ∼ exp(ik⋅Rj) X{j}).
+      #
+      # exp(ikR)|  b{k}  | [b{-k}]†
+      # --------+--------+----------+
+      #   a{k}  |   α    |    β
+      # --------+--------+----------+
+      # [a{-k}]†|   γ    |    δ
+      #
+      # In order to expand each of a{±k} and [a{±k}]†, the table for exp(-ikR) is
+      # also needed. It can be obtained for free by conjugating the existing table:
+      #
+      # exp(-ikR)|  b{-k} | [b{k}]†
+      # ---------+--------+----------+
+      #   a{-k}  |   δ*   |    γ*
+      # ---------+--------+----------+
+      # [a{k}]†  |   β*   |    α*
+      #
+      # or by directly computing the Bogoliubov transform at -k, as is done here.
+      #
+      # Which table we need to consult depends on the dagger configuration [iDag,jDag].
+      # For example, a{k} needs the exp(ikR) table, but [a{k}]† needs the exp(i(-k)R) table:
+      negate_momentum(k,n) = ntuple(i -> mod1((n[i] + 1) - (k[i] - 1),n[i]),length(n))
+      table_for_k1 = iDag == 1 ? negate_momentum((x1,y1,z1),(nx,ny,nz)) : (x1,y1,z1)
+      table_for_k2 = jDag == 1 ? negate_momentum((x2,y2,z2),(nx,ny,nz)) : (x2,y2,z2)
 
-      #println("ak1 → $ak1 and ak2 → $ak2")
-
-      # These are the coefficients in the expansion
+      # Explicitly for reference, these are the coefficients in the expansion
       #
       #   ak1{site i,flavor f} = ∑_m Vk1[i,f,1,m,1] b{k1,mode m} + Vk1[i,f,1,m,2] [b{-k1,mode m}]†
       #
@@ -651,35 +838,50 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
       #   [ak1{site i,flavor f}]† = ∑_m Vk1[i,f,2,m,1] [b{k1,mode m}]† + Vk1[i,f,2,m,2] b{-k1,mode m}
       #
       # for dagger a-bosons.
-      Vk1 = Vs_fix[:,:,:,:,:,ak1[1],ak1[2],ak1[3]]
-      Vk2 = Vs_fix[:,:,:,:,:,ak2[1],ak2[2],ak2[3]]
+      Vk1 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k1))
+      Vk2 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k2))
 
+      # Loop over the possible partitions of the operators in the correlator:
+      #
+      #   C{1,aa} ; C{a,a} ; C{aa,1}
+      #
       for partition = 1:3
         # Infer total k based on momenta left of the comma.
-        # This constraint arises from the sum inside the fourier transform C(Δ) → C(k).
-        ks = [[x1,y1,z1],[x2,y2,z2]][1:partition-1]
-        left_daggers = [iDag,jDag][1:partition-1]
-        push!(left_daggers,0)
+        # This constraint arises from the sum inside the fourier transform C(Δ) → C(k):
+        #
+        #   ∑_iΔ exp(ikΔ) C{(…)i,(…)i+Δ} = C_{(…)-k,(…)k}
+        #                                     └───┘
+        #                           this part has momentum -k
 
-        #println()
-        #println("Inferring total k ...")
-        total_k = momentum_conserving_index(ks,left_daggers,(nx,ny,nz))
-        #println(total_k)
-        #println()
+        # Momenta and dagger configuration of that part:
+        ks_part = [[x1,y1,z1],[x2,y2,z2]][1:partition-1]
+        daggers_part = [iDag,jDag][1:partition-1]
+
+        # Infer what momentum should be added to the left of the comma to reach zero
+        push!(daggers_part,0) # Gives the correct sign for k
+        total_k = momentum_conserving_index(ks_part,daggers_part,(nx,ny,nz))
 
         # Loop over dagger configuration of bb and mode label m
         for left = [0,1], right = [0,1], m = 1:(na*nf)
 
-          # ak expands to both bk and [b-k]†:
-          bk1 = xor(left,iDag) == 1 ? (mod1((nx + 1) - (x1 - 1),nx),mod1((ny + 1) - (y1 - 1),ny),mod1((nz + 1) - (z1 - 1),nz),m) : (x1,y1,z1,m)
-          bk2 = xor(right,jDag) == 1 ? (mod1((nx + 1) - (x2 - 1),nx),mod1((ny + 1) - (y2 - 1),ny),mod1((nz + 1) - (z2 - 1),nz),m) : (x2,y2,z2,m)
+          # Given that a{k} expands to include both b{k} and [b{-k}]† (see tables above),
+          # we need to compute which eigenmode (i.e. which k label) we end up with in each term.
+          # This is important because the one-magnon-gas-correlator only applies to b-bosons
+          # which *belong to the same eigenmode*.
+          #
+          # The answer is that we need to negate the momentum one time each time we encounter
+          # a dagger in the expansion (at either the a-boson or b-boson level).
+          bk1 = xor(left,iDag) == 1 ? negate_momentum((x1,y1,z1),(nx,ny,nz)) : (x1,y1,z1)
+          bk2 = xor(right,jDag) == 1 ? negate_momentum((x2,y2,z2),(nx,ny,nz)) : (x2,y2,z2)
 
-          n = bk2[4]
+          # Optimization: Only contributes if they come from the same eigenmode!
+          if bk1 != bk2
+            continue
+          end
 
-          a = (left * na*nf) + m
-          b = (right * na*nf) + n
-
-          omgc = one_magnon_gas_correlator((nx,ny,nz),na*nf,bk1,bk2;betaOmega = betaOmega[m,x1,y1,z1], Y = Y_storage[bk1[1],bk1[2],bk1[3],m])
+          left_mode = (bk1[1],bk1[2],bk1[3],m)
+          right_mode = (bk2[1],bk2[2],bk2[3],m)
+          omgc = one_magnon_gas_correlator(left_mode,right_mode,left,right,partition;betaOmega = betaOmega[m,x1,y1,z1], Y = Y_storage[bk1[1],bk1[2],bk1[3],m])
           @assert sum(abs.(imag(omgc))) < 1e-12
 
 
@@ -703,15 +905,210 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
           end
           =#
 
-          correlator[total_k,m,i,1,iDag+1,j,1,jDag+1,:,partition] .+= Vk1[i,1,iDag+1,m,left+1] * Vk2[j,1,jDag+1,n,right+1] * omgc[a,b,:,partition]
+          n = m
+          for i = 1:na, j =1:na
+            contrib = Vk1[i,1,iDag+1,m,left+1] * Vk2[j,1,jDag+1,n,right+1] * omgc
+            f(contrib, total_k, m, i, iDag, j, jDag, partition)
+            #view(correlator,total_k,m,i,1,iDag+1,j,1,jDag+1,:,partition) .+= Vk1[i,1,iDag+1,m,left+1] * Vk2[j,1,jDag+1,n,right+1] * omgc
+          end
         end
       end
     end
   end
 
-  #correlator_a_matrix, correlator_1_aa, correlator_aa_1
   correlator
 end
+
+function tabulate_one_magnon(Hs,Vs,cryst;betaOmega)
+  nx,ny,nz = size(Vs)[6:8]
+
+  na = size(Vs,1)
+  nf = size(Vs,2)
+
+  # The correlations are labelled by:
+  # - The total momentum (transfer), labelled by [nx,ny,nz]
+  # - The band number of the specific eigenmode (there is exactly one)
+  # - The site, flavor and dagger configuration of the two a-bosons being correlated
+  # - The harmonic of the eigenmode
+  # - The "partition number" which tells the position of the comma: ,aa ; a,a ; aa,
+  correlator = zeros(ComplexF64,nx,ny,nz,na*nf,na,nf,2,na,nf,2,size(empty_y_matrix(),4),3)
+
+  one_magnon_sector(Hs,Vs,cryst;betaOmega) do contribution, total_k, m, i, iDag, j, jDag, partition
+    view(correlator,total_k,m,i,1,iDag+1,j,1,jDag+1,:,partition) .+= contribution
+  end
+  correlator
+end
+
+function blit_one_magnon(Hs,Vs,cryst,disps,dE,npos;betaOmega)
+  nx,ny,nz = size(Vs)[6:8]
+
+  na = size(Vs,1)
+  nf = size(Vs,2)
+
+  # The canvas only retains information about:
+  # - The total momentum [nx,ny,nz]
+  # - The a-bosons being correlated
+  # - The partition number
+  # - The energy *bin* the contribution should end up in
+  canvas = zeros(ComplexF64,nx,ny,nz,na,nf,2,na,nf,2,3,2npos+1)
+
+  one_magnon_sector(Hs,Vs,cryst;betaOmega) do contribution, total_k, m, i, iDag, j, jDag, partition
+    n_harmonic = length(contribution)
+    for h = 1:n_harmonic
+      harmonic = h - (n_harmonic ÷ 2) - 1
+      E = harmonic * disps[m,total_k]
+      bin = 1 + floor(Int64,E/dE + (npos + 1/2))
+      if bin < 1 || bin > 2npos + 1
+        println("Outside bin range!")
+        continue
+      end
+      canvas[total_k,i,1,iDag+1,j,1,jDag+1,partition,bin] += contribution[h]
+    end
+  end
+  canvas
+end
+
+function two_magnon_sector(Hs,Vs,cryst;betaOmega)
+  nx,ny,nz = size(Vs)[6:8]
+
+  na = size(Vs,1)
+  nf = size(Vs,2)
+
+  # Fix phases! This implements "commutes with dagger" property
+  Vs_fix = phase_fix_Vs(Vs)
+
+  # One Y matrix for each oscillator; only need ω > 0 to cover all oscillators
+  Y_storage = Array{OffsetArray{ComplexF64}}(undef,nx,ny,nz,na*nf)
+  for ix = 1:nx, iy = 1:ny, iz = 1:nz, i = 1:na*nf
+    Y_storage[ix,iy,iz,i] = empty_y_matrix()
+  end
+
+  # The correlations are labelled by:
+  # - The total momentum (transfer), labelled by [nx,ny,nz]
+  # - The band number of the specific eigenmodes (there are always two but they may coincide)
+  # - The site, flavor and dagger configuration of the four a-bosons being correlated
+  # - The harmonic of the eigenmode
+  # - The "partition number" which tells the position of the comma: ,aa ; a,a ; aa,
+  correlator = zeros(ComplexF64,nx,ny,nz,na*nf,na*nf,na,nf,2,na,nf,2,na,nf,2,na,nf,2,size(empty_y_matrix(),4),5)
+
+  # Loop over the known momenta
+  for x1 = 1:nx, y1 = 1:ny, z1 = 1:nz, x2 = 1:nx, y2 = 1:ny, z2 = 1:nz, x3 = 1:nx, y3 = 1:ny, z3 = 1:nz
+    # Loop over a-boson dagger configuration
+    for iDag = [0,1], jDag = [0,1], kDag = [0,1], lDag = [0,1]
+      if any(isnan.(correlator))
+        error("Nan")
+      end
+
+      # Infer remaining momenta based on momentum conservation for a-bosons.
+      ks = [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]]
+      x4,y4,z4 = momentum_conserving_index(ks,[iDag,jDag,kDag,lDag],(nx,ny,nz)).I
+
+      # Which table we need to consult depends on the dagger configuration
+      # [iDag,jDag,kDag,lDag]
+      negate_momentum(k,n) = ntuple(i -> mod1((n[i] + 1) - (k[i] - 1),n[i]),length(n))
+      table_for_k1 = iDag == 1 ? negate_momentum((x1,y1,z1),(nx,ny,nz)) : (x1,y1,z1)
+      table_for_k2 = jDag == 1 ? negate_momentum((x2,y2,z2),(nx,ny,nz)) : (x2,y2,z2)
+      table_for_k3 = kDag == 1 ? negate_momentum((x3,y3,z3),(nx,ny,nz)) : (x3,y3,z3)
+      table_for_k4 = lDag == 1 ? negate_momentum((x4,y4,z4),(nx,ny,nz)) : (x4,y4,z4)
+
+      Vk1 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k1))
+      Vk2 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k2))
+      Vk3 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k3))
+      Vk4 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k4))
+
+      # Loop over the possible partitions of the operators in the correlator:
+      #
+      #   C{1,aaaa} ; C{a,aaa} ; C{aa,aa} ; C{aaa,a} ; C{aaaa,1}
+      #
+      for partition = 1:5
+        # Infer total k based on momenta left of the comma.
+        ks_part = [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3],[x4,y4,z4]][1:partition-1]
+        daggers_part = [iDag,jDag,kDag,lDag][1:partition-1]
+        push!(daggers_part,0) # Gives the correct sign for k
+        total_k = momentum_conserving_index(ks_part,daggers_part,(nx,ny,nz))
+
+        # Loop over dagger configuration of bb
+        for bd1 = [0,1], bd2 = [0,1], bd3 = [0,1], bd4 = [0,1]
+
+          # Given that a{k} expands to include both b{k} and [b{-k}]† (see tables above),
+          # we need to compute which eigenmode (i.e. which k label) we end up with in each term.
+          # This is important because the one-magnon-gas-correlator only applies to b-bosons
+          # which *belong to the same eigenmode*.
+          #
+          # The answer is that we need to negate the momentum one time each time we encounter
+          # a dagger in the expansion (at either the a-boson or b-boson level).
+          bk1 = xor(bd1,iDag) == 1 ? negate_momentum((x1,y1,z1),(nx,ny,nz)) : (x1,y1,z1)
+          bk2 = xor(bd2,jDag) == 1 ? negate_momentum((x2,y2,z2),(nx,ny,nz)) : (x2,y2,z2)
+          bk3 = xor(bd3,kDag) == 1 ? negate_momentum((x3,y3,z3),(nx,ny,nz)) : (x3,y3,z3)
+          bk4 = xor(bd4,lDag) == 1 ? negate_momentum((x4,y4,z4),(nx,ny,nz)) : (x4,y4,z4)
+
+          bks = [bk1,bk2,bk3,bk4]
+          bds = [bd1,bd2,bd3,bd4]
+
+          # Evaluate mode label coincidences:
+          class_1 = [1]
+          class_1_k = bk1
+          for j = 2:4
+            if bk1 == bks[j]
+              push!(class_1,j)
+            end
+          end
+
+          unsorted = setdiff([1,2,3,4],class_1)
+          class_2 = if length(unsorted) > 0
+            class_2 = [unsorted[1]]
+
+            for j = unsorted[2:end]
+              push!(class_2,j)
+            end
+            class_2
+          else
+            []
+          end
+
+          unsorted = setdiff(setdiff([1,2,3,4],class_1),class_2)
+          if length(unsorted) > 0
+            # Selection rule: Just by looking at k, we find there
+            # are more than two modes participating, but this is verboten!
+            continue
+          end
+
+          # Two cases
+          if length(class_2) == 0
+            # Case: Everything was class_1
+
+            # Loop over mode identity for class_1
+            for m = 1:(na*nf)
+              Y_storage = empty_y_matrix()
+              L = bds[1:partition-1]
+              R = bds[partition:end]
+              y = wick_to_y_object(Y_storage, wickify(L), wickify(R); betaOmega = betaOmega[m,class_1_k...])[-2:2]
+              for i = 1:na, j = 1:na, k = 1:na, l = 1:na
+                y *= Vk1[i,1,iDag+1,m,bd1+1]
+                y *= Vk2[j,1,jDag+1,m,bd2+1]
+                y *= Vk3[k,1,kDag+1,m,bd3+1]
+                y *= Vk4[l,1,lDag+1,m,bd4+1]
+                view(correlator,total_k,m,m,i,1,iDag+1,j,1,jDag+1,k,1,kDag+1,l,1,lDag+1,:,partition) .+= y
+              end
+            end
+          else
+            # Case: Both class_1 and class_2 present
+            
+            class_2_k = bks[class_2[1]]
+            # Loop over mode identities for the two classes
+            for m = 1:(na*nf), n = 1:(na*nf)
+              # TODO
+            end
+          end
+        end
+      end
+    end
+  end
+
+  correlator
+end
+
+
 
 function two_magnon_sector(Hs,Vs;betaOmega)
   nx,ny,nz = size(Vs)[3:5]
@@ -834,67 +1231,25 @@ function two_magnon_sector(Hs,Vs;betaOmega)
 end
 
 # Computes C_{bi bj}
-function one_magnon_gas_correlator(ns,N,label_i,label_j;betaOmega, Y = nothing)
+function one_magnon_gas_correlator(label_i,label_j,left,right,partition;betaOmega, Y = nothing)
+
   ix,iy,iz,m = label_i
   jx,jy,jz,n = label_j
-  nx,ny,nz = ns
-  It = diagm([repeat([1],N); repeat([-1],N)])
+  #nx,ny,nz = ns
 
   # This function computes C_{bb}. There is at most one distinct eigenmode in play
   # because there are two boson operators. So if we are asked for something else,
   # that correlator is zero:
-  Y_storage = isnothing(Y) ? empty_y_matrix() : Y
-  gas_correlator = zeros(ComplexF64,2N,2N,size(Y_storage,4),3)
-  # Loop over dagger configuration
-  for left = [0,1], right = [0,1]
-    #print("  OMGC $label_i $(left == 1 ? "(†)" : "( )") and $label_j $(right == 1 ? "(†)" : "( )") → ")
-    label_j_reversed_k = collect(label_j)
-    for i = 1:3
-      label_j_reversed_k[i] = mod1((ns[i] + 1) - (label_j[i]-1),ns[i])
-    end
-
-    # Modes are organized as:
-    #
-    #                  † or not axis (energy axis)
-    #                    ^
-    #                    |
-    #     b(-k),( )      |      b(+k),( )
-    #                    |
-    #   -----------------+-----------------> k axis
-    #                    |
-    #     b(-k),(†)      |      b(+k),(†)
-    #                    |
-    #
-    # where k is the wavevector parameterizing the momentum-space SWT hamiltonian.
-    #
-    # Since a boson operator at (-k,-ω) belongs to the same eigenmode as the
-    # same operator at (+k,+ω), we have the following rules for determining whether
-    # two operators belong to the same mode:
-    #
-    # If they have the same dagger, e.g. (bk1,bk2), then they're the same mode when k1 = k2.
-    # If they have opposite dagger status, e.g. (bk1,bk2†), then they're the same mode when k1 = -k2
-    #
-    #if left == right ? !(label_i == label_j) : !(collect(label_i) == label_j_reversed_k)
-    if !(label_i == label_j)
-      #println("Verboten! because more than one distinct eigenmode (max 1 allowed)")
-      continue
-    end
-
-    #println("Allowed!")
-
-    # Loop over position of comma
-    for partition = 1:3
-      L = [left,right][1:partition-1]
-      R = [left,right][partition:end]
-      y = wick_to_y_object(Y_storage, wickify(L), wickify(R); betaOmega)
-
-      ix_L = (left * N) + m
-      ix_R = (right * N) + n
-      gas_correlator[ix_L,ix_R,:,partition] = y[-2:2]
-    end
+  if !(label_i == label_j)
+    println("Verboten! because more than one distinct eigenmode (max 1 allowed)")
+    println("  requested: $label_i and $label_j")
+    return [0,0,0,0,0]
   end
+  Y_storage = isnothing(Y) ? empty_y_matrix() : Y
 
-  gas_correlator
+  L = [left,right][1:partition-1]
+  R = [left,right][partition:end]
+  wick_to_y_object(Y_storage, wickify(L), wickify(R); betaOmega)[-2:2]
 end
 
 
@@ -1000,4 +1355,117 @@ function is_phase_rotation(a,b)
   finite_a_ix = abs.(a) .> 1e-8
   angles = angle.(b[finite_a_ix] ./ a[finite_a_ix])
   all(isapprox.(angles,sum(angles)/length(angles);atol = 1e-8))
+end
+
+function interactive_example()
+  cryst = Crystal(I(3),[[0,0,0],[1/2,0,0]],1)
+  n_cell = 16
+  na = 2
+  sys = System(cryst,(n_cell,1,1),[SpinInfo(1,S=1,g=2),SpinInfo(2,S=1,g=2)],:dipole)
+  set_exchange!(sys,1.0,Bond(2,1,[1,0,0]))
+  set_exchange!(sys,1.0,Bond(1,2,[0,0,0]))
+  set_onsite_coupling!(sys, S -> -S[3]^2, 1)
+  for i = 1:n_cell
+    sys.dipoles[i,1,1,2] = [0,0,-1]
+  end
+  
+  S0 = render_one_over_S_spectrum(sys;beta = 85.0)
+  Sloc = S0[1]
+  Sglob = S0[2]
+
+  Hs, Vs, disps = finite_spin_wave_Vmats(sys;polyatomic = false)
+
+  f = Figure()
+  display(f)
+  nE = 30
+  dE = 0.2
+  trS = Observable(zeros(ComplexF64,size(Sglob,1),2nE+1))
+  for i = 1:3
+    trS[] .+= raster_spec(Sglob,disps,dE,nE,i,i)[:,1,1,:]
+  end
+  qs = ((1:size(Sglob,1)) .- 1) ./ sys.latsize[1]
+  es = -(nE*dE):dE:(nE*dE)
+  ax = Axis(f[1,1],xlabel = "Momentum",ylabel = "Energy")
+  hm = heatmap!(ax,qs,es,map(x -> log10.(abs.(x)),trS),colorrange = (-8,2))
+  function filter_it(x)
+    if !(real(x) < 0 || abs(imag(x)) > 1e-5)
+      NaN
+    else
+      1.0
+    end
+  end
+  heatmap!(ax,qs,es,map(x -> filter_it.(x),trS),colorrange = (0,1),colormap = :jet1)
+  Colorbar(f[1,2],hm)
+
+  sg = SliderGrid(f[2,1],
+    (label = "kT", range = -4:0.01:2, startvalue = -2, format = x -> "$(Sunny.number_to_simple_string(10. ^ x; digits = 2))"),
+    (label = "Frame", range = 0:1e-3:1, startvalue = 1.0, format = x -> "$(Sunny.number_to_simple_string(x; digits = 3))")
+   )
+
+  kT = Observable(1/85)
+  hlines!(ax,map(x -> -x,kT),color = :black)
+  frame = Observable(1.)
+  tgs_sublat = Matrix{Observable{Bool}}(undef,na,na)
+  tgs_tr = Vector{Observable{Bool}}(undef,3)
+
+  Hs, Vs, disps, Us = finite_spin_wave_Vmats(sys;polyatomic = false)
+  function redraw()
+    Sloc, Sglob = blit_one_over_S_spectrum(sys,dE,nE;beta = 1/kT[])
+    Sglob .= 0
+    for m = 1:na, n = 1:na
+      if !tgs_sublat[min(m,n),max(m,n)][]
+        continue
+      end
+      Um = exp(frame[] * log(Us[m]))
+      Un = exp(frame[] * log(Us[n]))
+      for i = 1:3, j = 1:3, k = 1:3, l = 1:3
+        Sglob[:,:,:,m,n,i,j,:] .+= Um[i,k] * Un[j,l] * Sloc[:,:,:,m,n,k,l,:]
+      end
+    end
+    trS[] .= 0
+    for i = 1:3
+      if !tgs_tr[i][]
+        continue
+      end
+      # Sublattice sum and trace
+      trS[] .+= sum(Sglob,dims=[4,5])[:,1,1,1,1,i,i,:]
+    end
+    notify(trS)
+  end
+
+  gl = GridLayout(f[3,1],tellwidth = false)
+  gl1 = GridLayout(gl[1,1])
+  for m = 1:na, n = 1:na
+    if n >= m
+      tog = Toggle(gl1[m,n])
+      tgs_sublat[m,n] = tog.active
+      on(tog.active) do e
+        redraw()
+      end
+    end
+  end
+
+  gl2 = GridLayout(gl[1,2])
+  for m = 1:3
+    tog = Toggle(gl2[m,m];buttoncolor = :red)
+    tgs_tr[m] = tog.active
+    on(tog.active) do e
+      redraw()
+    end
+  end
+
+
+
+  on(sg.sliders[1].value;update = true) do logkT
+    kT[] = 10^logkT
+    redraw()
+  end
+
+  on(sg.sliders[2].value;update = true) do fr
+    frame[] = fr
+    redraw()
+  end
+
+
+  nothing
 end
