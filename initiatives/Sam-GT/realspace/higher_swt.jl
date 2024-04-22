@@ -331,7 +331,7 @@ function finite_spin_wave_Vmats(sys; polyatomic = true)
 
     disps[:,i] .= Sunny.bogoliubov!(formula.calc_intensity.V,Hmat)
 
-    Vs[:,:,:,:,:,i] .= reshape(formula.calc_intensity.V,na,nf,2,na*nf,2)
+    Vs[:,:,:,:,:,i] .= copy(reshape(formula.calc_intensity.V,na,nf,2,na*nf,2))
 
     #formula.calc_intensity(swt,Sunny.Vec3(k_comm))
   end
@@ -405,14 +405,14 @@ function render_one_over_S_spectrum(sys;beta = 1.0)
     ys = (1:ny) .+ (bzy - 1) * ny
     zs = (1:nz) .+ (bzz - 1) * nz
 
-    ks = [([x,y,z] .- 1) ./ sys.latsize for x = xs, y = ys, z = zs]
+    ks = [([x,y,z] .- 1) ./ [nx,ny,nz] for x = xs, y = ys, z = zs]
 
     # The sublattice distance offset for this (m,n) flavor pair
     atom_m = m
     atom_n = n
     δ = sys.crystal.positions[atom_n] - sys.crystal.positions[atom_m]
     #println("m = $m, n = $n, δ = $δ")
-    phases = exp.((2pi * im) .* map(k -> δ⋅k,ks))
+    phases = exp.(-(2pi * im) .* map(k -> δ⋅k,ks))
 
     @assert size(one_magnon_c,6) == 1
     @assert size(one_magnon_c,9) == 1
@@ -521,7 +521,7 @@ function grid_it_2d(sys;beta = 8.0)
   f = Figure()
   display(f)
   for i = 1:3, j = 1:3
-    s = log10.(abs.(raster_spec(Sglob,disps,0.4,20,i,j)[:,1,1,:]))
+    s = log10.(abs.(raster_spec(Sglob,disps,0.1,80,i,j)[:,1,1,:]))
     ax = Axis(f[i,(j - 1) * 2 + 1])
     hm = heatmap!(ax,s,colorrange = (-8,2))
     Colorbar(f[i,(j-1)*2+2],hm)
@@ -538,6 +538,7 @@ function momentum_conserving_index(ks,daggers,ns)
   momentum_so_far = sum(dagger_signs[1:end-1] .* map(k -> k .- 1,ks);init = [0,0,0])
   I = mod1.(1 .- momentum_so_far * dagger_signs[end],[nx,ny,nz])
 
+  #=
   freqs = fftfreq.(ns)
   push!(ks,I)
   println("Momentum conservation:")
@@ -565,6 +566,7 @@ function momentum_conserving_index(ks,daggers,ns)
       #println()
     #end
   end
+  =#
   CartesianIndex(tuple(I...))
 end
 
@@ -678,7 +680,7 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
           #println(left_daggers)
 
           #println()
-          println("Inferring total k ...")
+          #println("Inferring total k ...")
           total_k = momentum_conserving_index(ks,left_daggers,(nx,ny,nz))
           #println(total_k)
           #println()
@@ -699,9 +701,14 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
             #println("kraw → $kraw")
             #println("ksigned → $ksigned")
           end
-          #sublattice_phase = 1.0 + 0im
+
+          #if m == 2 ### TODO: WTF ????
+            #sublattice_phase *= -1
+          #end
+
+          sublattice_phase = 1.0 + 0im
           #println("Sublattice phase: $sublattice_phase")
-              println(" k1 = $([x1,y1,z1]), k2 = $([x2,y2,z2]), i = $i, j = $j, total_k = $total_k")
+              #println(" k1 = $([x1,y1,z1]), k2 = $([x2,y2,z2]), i = $i, j = $j, total_k = $total_k")
 
           # Loop over dagger configuration of bb
           for left = [0,1], right = [0,1]
@@ -715,7 +722,7 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
             bk1 = xor(left,iDag) == 1 ? (mod1((nx + 1) - (x1 - 1),nx),mod1((ny + 1) - (y1 - 1),ny),mod1((nz + 1) - (z1 - 1),nz),m) : (x1,y1,z1,m)
             bk2 = xor(right,jDag) == 1 ? (mod1((nx + 1) - (x2 - 1),nx),mod1((ny + 1) - (y2 - 1),ny),mod1((nz + 1) - (z2 - 1),nz),m) : (x2,y2,z2,m)
 
-            println("lr; $left $right; bk1 = $bk1 and bk2 = $bk2")
+            #println("lr; $left $right; bk1 = $bk1 and bk2 = $bk2")
             #k2 = (x2,y2,z2,m)
             #if left == right
               #(x2,y2,z2,m)
@@ -733,17 +740,26 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
             omgc = one_magnon_gas_correlator((nx,ny,nz),na*nf,bk1,bk2;betaOmega = betaOmega[m,x1,y1,z1], Y = nothing)#Y_storage[x1,y1,z1,m])
             @assert sum(abs.(imag(omgc))) < 1e-12
 
-            display(findall(abs.(omgc) .> 1e-5))
-            println("a,b: $a, $b")
+            #display(findall(abs.(omgc) .> 1e-5))
+            #println("a,b: $a, $b")
 
 
-            val = sublattice_phase * omgc[a,b,:,partition]
-            if sum(abs.(val)) > 1e-12 && !iszero(omgc[a,b,4,partition]) 
-              println("!! Allowed contribution: eigenmodes ($m,$left) and ($n,$right) to HP bosons ($i,$iDag) and ($j,$jDag)")
+            val = sublattice_phase * omgc[a,b,:,partition]* Vk1[i,1,iDag+1,m,left+1] * Vk2[j,1,jDag+1,n,right+1]
+            if sum(abs.(val)) > 1e-12 && !iszero(omgc[a,b,4,partition]) && m == 2 && left == 0 && right == 1 && total_k.I[1] == 3 && i == 2 && j == 1
+              println("!! Finite contribution: eigenmodes ($m,$left) and ($n,$right) to HP bosons ($i,$iDag) and ($j,$jDag)")
               println("   Vk1: $(Vk1[i,1,iDag+1,m,left+1]) ($i 1 $iDag $m $left)")
               println("   Vk2: $(Vk2[j,1,jDag+1,n,right+1]) ($j 1 $jDag $n $right)")
               println("   omgc: $(omgc[a,b,:,partition])")
               println("   Sublattice phase: $sublattice_phase")
+              kt = [0,0,0.]
+              for L = 1:3
+                kt[L] = fftfreq([nx,ny,nz][L],1)[total_k.I[L]]
+              end
+              println(kt)
+              gp = exp.((2pi * im) .* (cryst.positions[j] - cryst.positions[i])⋅kt)
+              println("   Greater phase: $gp")
+
+              println("   term: $(sublattice_phase * Vk1[i,1,iDag+1,m,left+1] * Vk2[j,1,jDag+1,n,right+1] * omgc[a,b,:,partition] * gp)")
             end
             correlator[total_k,m,i,1,iDag+1,j,1,jDag+1,:,partition] .+= sublattice_phase * Vk1[i,1,iDag+1,m,left+1] * Vk2[j,1,jDag+1,n,right+1] * omgc[a,b,:,partition]
           end
@@ -891,7 +907,7 @@ function one_magnon_gas_correlator(ns,N,label_i,label_j;betaOmega, Y = nothing)
   gas_correlator = zeros(ComplexF64,2N,2N,size(Y_storage,4),3)
   # Loop over dagger configuration
   for left = [0,1], right = [0,1]
-    print("  OMGC $label_i $(left == 1 ? "(†)" : "( )") and $label_j $(right == 1 ? "(†)" : "( )") → ")
+    #print("  OMGC $label_i $(left == 1 ? "(†)" : "( )") and $label_j $(right == 1 ? "(†)" : "( )") → ")
     label_j_reversed_k = collect(label_j)
     for i = 1:3
       label_j_reversed_k[i] = mod1((ns[i] + 1) - (label_j[i]-1),ns[i])
@@ -920,11 +936,11 @@ function one_magnon_gas_correlator(ns,N,label_i,label_j;betaOmega, Y = nothing)
     #
     #if left == right ? !(label_i == label_j) : !(collect(label_i) == label_j_reversed_k)
     if !(label_i == label_j)
-      println("Verboten! because more than one distinct eigenmode (max 1 allowed)")
+      #println("Verboten! because more than one distinct eigenmode (max 1 allowed)")
       continue
     end
 
-    println("Allowed!")
+    #println("Allowed!")
 
     # Loop over position of comma
     for partition = 1:3
