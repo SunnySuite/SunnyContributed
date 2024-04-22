@@ -521,7 +521,7 @@ function grid_it_2d(sys;beta = 8.0)
   f = Figure()
   display(f)
   for i = 1:3, j = 1:3
-    s = log10.(abs.(raster_spec(Sglob,disps,0.1,80,i,j)[:,1,1,:]))
+    s = log10.(abs.(raster_spec(Sglob,disps,0.4,30,i,j)[:,1,1,:]))
     ax = Axis(f[i,(j - 1) * 2 + 1])
     hm = heatmap!(ax,s,colorrange = (-8,2))
     Colorbar(f[i,(j-1)*2+2],hm)
@@ -587,28 +587,11 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
   na = size(Vs,1)
   nf = size(Vs,2)
 
-  #It = diagm([repeat([1],N); repeat([-1],N)])
-
   # Fix phases! This implements "commutes with dagger" property
-  #=
-  Vs_fix = copy(Vs)
-  for ix = 1:nx, iy = 1:ny, iz = 1:nz
-    V = view(Vs_fix,:,:,:,:,:,:,ix,iy,iz)
-    for fix_a = 1:na, fix_f = 1:nf
-      # Make first entry in each mode real in first half of columns
-      view(V,:,:,:,fix_a,fix_f,1) .*= exp(-im * angle(V[1,1,1,fix_a,fix_f,1]))
-
-      # Make first entry in *second half* of each mode real in second half
-      view(V,:,:,:,fix_a,fix_f,2) .*= exp(-im * angle(V[1,1,2,fix_a,fix_f,2]))
-    end
-  end
-  =#
-
   Vs_fix = phase_fix_Vs(Vs)
 
   # One-magnon correlators have exactly two boson operators.
-  # This means that they can have at most one distinct wavevector (at the level
-  # of a-bosons) and at most one distinct eigenmode (at the level of b-bosons)
+  # This means that exactly one eigenmode (b-boson) participates in the correlator.
 
   # One Y matrix for each oscillator; only need ω > 0 to cover all oscillators
   Y_storage = Array{OffsetArray{ComplexF64}}(undef,nx,ny,nz,na*nf)
@@ -616,157 +599,114 @@ function one_magnon_sector(Hs,Vs,cryst;betaOmega)
     Y_storage[ix,iy,iz,i] = empty_y_matrix()
   end
 
-  # Correlations C_{...ai...aj...} broken down by:
-  # - The ix,iy,iz,m label of the one distinct eigenmode
-  # - The sublattice, flavor, and dagger configurations of a-boson being correlated
+  # The correlations are labelled by:
+  # - The total momentum (transfer), labelled by [nx,ny,nz]
+  # - The band number of the specific eigenmode (there is exactly one)
+  # - The site, flavor and dagger configuration of the two a-bosons being correlated
   # - The harmonic of the eigenmode
-  # - The partition number
+  # - The "partition number" which tells the position of the comma: ,aa ; a,a ; aa,
   correlator = zeros(ComplexF64,nx,ny,nz,na*nf,na,nf,2,na,nf,2,size(empty_y_matrix(),4),3)
 
   # The exactly one distinict wavevector of the one-magnon sector
   for x1 = 1:nx, y1 = 1:ny, z1 = 1:nz
     println("=== Working on k = $((x1,y1,z1)) ===")
 
-    # We have that a1 = ∑ᵢT_1i bi.
-    # So C_{ai,aj} = ∑_mn T_im T_jn C_{bm,bn}, but only m=n contributes
-
-    # Loop over eigenmodes (flavor of b boson) at this k
-    for m = 1:(na*nf)
+    # Loop over a-boson flavor and dagger configuration
+    for i = 1:na, j = 1:na, iDag = [0,1], jDag = [0,1]
       if any(isnan.(correlator))
         error("Nan")
       end
-      # Loop over a-boson flavor and dagger configuration
-      for i = 1:na, j = 1:na, iDag = [0,1], jDag = [0,1]
 
-        print("::: C_")
-        show_bitstring([iDag,jDag];b = 'a')
-        println()
+      #print("::: C_")
+      #show_bitstring([iDag,jDag];b = 'a')
+      #println()
 
-        # Infer k2 based on daggers
-        ks = [[x1,y1,z1]]
+      # Infer k2 based on momentum conservation for a-bosons.
+      # This requires translational symmetry between unit cells, and
+      # the constraint is specifically: ∑ ±ki = 0, with - sign for non-dagger
+      # a-boson and + sign for dagger a-boson.
+      ks = [[x1,y1,z1]]
+      #println()
+      #println("Inferring k2 ...")
+      x2,y2,z2 = momentum_conserving_index(ks,[iDag,jDag],(nx,ny,nz)).I
+
+      # Because of how the modes are stored (grouped by which wavevector of
+      # spin wave hamiltonian is used to compute the coefficient, rather than
+      # by the momentum of the a-boson), we sometimes need to grab the data
+      # from the opposite value of k. Specifically, a-bosons with similar fourier
+      # coefficients are stored next to each other, e.g. a{k} and [a{-k}]† are adjacent
+      # because they are both ∼ exp(ikR) while a{k} and its dagger-conjugate [a{k}]† are
+      # distant because [a{k}]† ∼ exp(-ikR).
+      ak1 = iDag == 1 ? (mod1((nx + 1) - (x1 - 1),nx),mod1((ny + 1) - (y1 - 1),ny),mod1((nz + 1) - (z1 - 1),nz)) : (x1,y1,z1)
+      ak2 = jDag == 1 ? (mod1((nx + 1) - (x2 - 1),nx),mod1((ny + 1) - (y2 - 1),ny),mod1((nz + 1) - (z2 - 1),nz)) : (x2,y2,z2)
+
+      #println("ak1 → $ak1 and ak2 → $ak2")
+
+      # These are the coefficients in the expansion
+      #
+      #   ak1{site i,flavor f} = ∑_m Vk1[i,f,1,m,1] b{k1,mode m} + Vk1[i,f,1,m,2] [b{-k1,mode m}]†
+      #
+      # for non-dagger a-bosons, or
+      #
+      #   [ak1{site i,flavor f}]† = ∑_m Vk1[i,f,2,m,1] [b{k1,mode m}]† + Vk1[i,f,2,m,2] b{-k1,mode m}
+      #
+      # for dagger a-bosons.
+      Vk1 = Vs_fix[:,:,:,:,:,ak1[1],ak1[2],ak1[3]]
+      Vk2 = Vs_fix[:,:,:,:,:,ak2[1],ak2[2],ak2[3]]
+
+      for partition = 1:3
+        # Infer total k based on momenta left of the comma.
+        # This constraint arises from the sum inside the fourier transform C(Δ) → C(k).
+        ks = [[x1,y1,z1],[x2,y2,z2]][1:partition-1]
+        left_daggers = [iDag,jDag][1:partition-1]
+        push!(left_daggers,0)
+
         #println()
-        println("Inferring k2 ...")
-        x2,y2,z2 = momentum_conserving_index(ks,[iDag,jDag],(nx,ny,nz)).I
+        #println("Inferring total k ...")
+        total_k = momentum_conserving_index(ks,left_daggers,(nx,ny,nz))
+        #println(total_k)
+        #println()
 
-        ak1 = iDag == 1 ? (mod1((nx + 1) - (x1 - 1),nx),mod1((ny + 1) - (y1 - 1),ny),mod1((nz + 1) - (z1 - 1),nz)) : (x1,y1,z1)
-        ak2 = jDag == 1 ? (mod1((nx + 1) - (x2 - 1),nx),mod1((ny + 1) - (y2 - 1),ny),mod1((nz + 1) - (z2 - 1),nz)) : (x2,y2,z2)
+        # Loop over dagger configuration of bb and mode label m
+        for left = [0,1], right = [0,1], m = 1:(na*nf)
 
-        println("ak1 → $ak1 and ak2 → $ak2")
+          # ak expands to both bk and [b-k]†:
+          bk1 = xor(left,iDag) == 1 ? (mod1((nx + 1) - (x1 - 1),nx),mod1((ny + 1) - (y1 - 1),ny),mod1((nz + 1) - (z1 - 1),nz),m) : (x1,y1,z1,m)
+          bk2 = xor(right,jDag) == 1 ? (mod1((nx + 1) - (x2 - 1),nx),mod1((ny + 1) - (y2 - 1),ny),mod1((nz + 1) - (z2 - 1),nz),m) : (x2,y2,z2,m)
 
-        Vk1 = Vs_fix[:,:,:,:,:,ak1[1],ak1[2],ak1[3]]
-        Vk2 = Vs_fix[:,:,:,:,:,ak2[1],ak2[2],ak2[3]]
+          n = bk2[4]
 
-               #mirror_mode = (na*nf)-(m-1)
-        #k2_mirror = (x2,y2,z2,mirror_mode) # Only m = n contributes!
-        #omgc .+= one_magnon_gas_correlator((nx,ny,nz),na*nf,k1,k2_mirror;betaOmega = betaOmega[m,x1,y1,z1], Y = Y_storage[x1,y1,z1,m])
-        #@assert sum(abs.(imag(omgc))) < 1e-12
+          a = (left * na*nf) + m
+          b = (right * na*nf) + n
 
-        #println(cryst.positions[[i,j]])
-        #ks = [[x1,y1,z1],[x2,y2,z2]]
-        #println(ks)
-        #println([iDag,jDag])
-        #println([exp((-1)^(1-dag) * 2π * im * δ⋅((k .- 1)./[nx,ny,nz])) for (δ,k,dag) in zip(cryst.positions[[i,j]],ks,[iDag,jDag])])
-        #sublattice_phase = prod([exp((-1)^(1-dag) * 2π * im * δ⋅((k .- 1)./[nx,ny,nz])) for (δ,k,dag) in zip(cryst.positions[[i,j]],ks,[iDag,jDag])])
-
-        #println("Sublat phase:")
-        #println(sublattice_phase)
-        
-        for partition = 1:3
-          # Infer total k based on momenta left of the comma
-          ks = [[x1,y1,z1],[x2,y2,z2]][1:partition-1]
-          left_daggers = [iDag,jDag][1:partition-1]
-          push!(left_daggers,0)
-          #println(ks)
-          #println(left_daggers)
-
-          #println()
-          #println("Inferring total k ...")
-          total_k = momentum_conserving_index(ks,left_daggers,(nx,ny,nz))
-          #println(total_k)
-          #println()
-
-          # Compute sublattice phase, which depends on the partition:
-          sublattice_phase = 1.0 + 0im
-          for term = 1:2
-            #if term < partition
-              #println("left")
-            #else
-              #println("right")
-            #end
-            δ = cryst.positions[term < partition ? i : j]
-            kraw = ([[x1,y1,z1],[x2,y2,z2]][term] .- 1) ./ [nx,ny,nz]
-            ksigned = (-1)^(1 - [iDag,jDag][term]) * kraw
-            sublattice_phase *= exp(2 * pi * im * δ⋅ksigned)
-            #println("δ → $δ")
-            #println("kraw → $kraw")
-            #println("ksigned → $ksigned")
-          end
-
-          #if m == 2 ### TODO: WTF ????
-            #sublattice_phase *= -1
-          #end
-
-          sublattice_phase = 1.0 + 0im
-          #println("Sublattice phase: $sublattice_phase")
-              #println(" k1 = $([x1,y1,z1]), k2 = $([x2,y2,z2]), i = $i, j = $j, total_k = $total_k")
-
-          # Loop over dagger configuration of bb
-          for left = [0,1], right = [0,1]
-            #println("Index: $((total_k,m,i_ix,j_ix)) with a = $a, b = $b, partition = $partition")
-            #println("Vk1: $(Vk1[i_ix,a])")
-            #println("Vk2: $(Vk2[j_ix,b])")
-            #println("omgc: $(omgc[a,b,:,partition])")
-            #println("Value: $(Vk1[i_ix,a] * Vk2[j_ix,b] * omgc[a,b,:,partition])")
-
-            # ak expands to both bk and [b-k]†
-            bk1 = xor(left,iDag) == 1 ? (mod1((nx + 1) - (x1 - 1),nx),mod1((ny + 1) - (y1 - 1),ny),mod1((nz + 1) - (z1 - 1),nz),m) : (x1,y1,z1,m)
-            bk2 = xor(right,jDag) == 1 ? (mod1((nx + 1) - (x2 - 1),nx),mod1((ny + 1) - (y2 - 1),ny),mod1((nz + 1) - (z2 - 1),nz),m) : (x2,y2,z2,m)
-
-            #println("lr; $left $right; bk1 = $bk1 and bk2 = $bk2")
-            #k2 = (x2,y2,z2,m)
-            #if left == right
-              #(x2,y2,z2,m)
-            #else
-              ##(mod1((nx + 1) - (x2 - 1),nx),mod1((ny + 1) - (y2 - 1),ny),mod1((nz + 1) - (z2 - 1),nz),mirr2 ? m : (na*nf) - (m-1))
-              #(x2,y2,z2,(na*nf) - (m-1))
-            #end
-            n = bk2[4]
-
-            a = (left * na*nf) + m
-            b = (right * na*nf) + n
-
-            #k1 = (x1,y1,z1,m)
-            #k2 = (x2,y2,z2,n)
-            omgc = one_magnon_gas_correlator((nx,ny,nz),na*nf,bk1,bk2;betaOmega = betaOmega[m,x1,y1,z1], Y = nothing)#Y_storage[x1,y1,z1,m])
-            @assert sum(abs.(imag(omgc))) < 1e-12
-
-            #display(findall(abs.(omgc) .> 1e-5))
-            #println("a,b: $a, $b")
+          omgc = one_magnon_gas_correlator((nx,ny,nz),na*nf,bk1,bk2;betaOmega = betaOmega[m,x1,y1,z1], Y = Y_storage[bk1[1],bk1[2],bk1[3],m])
+          @assert sum(abs.(imag(omgc))) < 1e-12
 
 
-            val = sublattice_phase * omgc[a,b,:,partition]* Vk1[i,1,iDag+1,m,left+1] * Vk2[j,1,jDag+1,n,right+1]
-            if sum(abs.(val)) > 1e-12 && !iszero(omgc[a,b,4,partition]) && m == 2 && left == 0 && right == 1 && total_k.I[1] == 3 && i == 2 && j == 1
-              println("!! Finite contribution: eigenmodes ($m,$left) and ($n,$right) to HP bosons ($i,$iDag) and ($j,$jDag)")
-              println("   Vk1: $(Vk1[i,1,iDag+1,m,left+1]) ($i 1 $iDag $m $left)")
-              println("   Vk2: $(Vk2[j,1,jDag+1,n,right+1]) ($j 1 $jDag $n $right)")
-              println("   omgc: $(omgc[a,b,:,partition])")
-              println("   Sublattice phase: $sublattice_phase")
-              kt = [0,0,0.]
-              for L = 1:3
-                kt[L] = fftfreq([nx,ny,nz][L],1)[total_k.I[L]]
-              end
-              println(kt)
-              gp = exp.((2pi * im) .* (cryst.positions[j] - cryst.positions[i])⋅kt)
-              println("   Greater phase: $gp")
-
-              println("   term: $(sublattice_phase * Vk1[i,1,iDag+1,m,left+1] * Vk2[j,1,jDag+1,n,right+1] * omgc[a,b,:,partition] * gp)")
+          #=
+          val = omgc[a,b,:,partition]* Vk1[i,1,iDag+1,m,left+1] * Vk2[j,1,jDag+1,n,right+1]
+          if sum(abs.(val)) > 1e-12 && !iszero(omgc[a,b,4,partition]) && m == 2 && left == 0 && right == 1 && total_k.I[1] == 3 && i == 2 && j == 1
+            println("!! Finite contribution: eigenmodes ($m,$left) and ($n,$right) to HP bosons ($i,$iDag) and ($j,$jDag)")
+            println("   Vk1: $(Vk1[i,1,iDag+1,m,left+1]) ($i 1 $iDag $m $left)")
+            println("   Vk2: $(Vk2[j,1,jDag+1,n,right+1]) ($j 1 $jDag $n $right)")
+            println("   omgc: $(omgc[a,b,:,partition])")
+            #println("   Sublattice phase: $sublattice_phase")
+            kt = [0,0,0.]
+            for L = 1:3
+              kt[L] = fftfreq([nx,ny,nz][L],1)[total_k.I[L]]
             end
-            correlator[total_k,m,i,1,iDag+1,j,1,jDag+1,:,partition] .+= sublattice_phase * Vk1[i,1,iDag+1,m,left+1] * Vk2[j,1,jDag+1,n,right+1] * omgc[a,b,:,partition]
+            println(kt)
+            gp = exp.((2pi * im) .* (cryst.positions[j] - cryst.positions[i])⋅kt)
+            println("   Greater phase: $gp")
+
+            println("   term: $(sublattice_phase * Vk1[i,1,iDag+1,m,left+1] * Vk2[j,1,jDag+1,n,right+1] * omgc[a,b,:,partition] * gp)")
           end
+          =#
+
+          correlator[total_k,m,i,1,iDag+1,j,1,jDag+1,:,partition] .+= Vk1[i,1,iDag+1,m,left+1] * Vk2[j,1,jDag+1,n,right+1] * omgc[a,b,:,partition]
         end
       end
     end
-    println()
   end
 
   #correlator_a_matrix, correlator_1_aa, correlator_aa_1
