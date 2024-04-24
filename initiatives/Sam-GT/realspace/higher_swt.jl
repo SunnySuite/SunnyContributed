@@ -3,22 +3,16 @@ using OffsetArrays
 using StaticArrays
 using FFTW
 using SparseArrays
-
-RasterSpectrum{N} = SVector{N,ComplexF64}
-
-struct BandSpectrum
-  energy
-  intensity
-end
+using ProgressMeter
 
 bose(x) = 1/(exp(x) - 1)
 
 function empty_y_matrix(;n_order = 2)
-  NaN .* OffsetArray(Array{Float64}(undef,n_order+1,2n_order + 1,2n_order + 1, 2n_order + 1),-1,-1,-1,-(n_order+1))
+  #NaN .* OffsetArray(Array{Float64}(undef,n_order+1,2n_order + 1,2n_order + 1, 2n_order + 1),-1,-1,-1,-(n_order+1))
+  NaN .* OffsetArray(Array{Float64}(undef,n_order+1,2n_order + 1,2n_order + 1),-1,-1,-1)
 end
 
-eulerian_polys = [[1],[1,1],[1,4,1],[1,11,11,1],[1,26,66,26,1],[1,57,302,302,57,1]]
-
+eulerian_polys = Vector{Int64}[[1],[1,1],[1,4,1],[1,11,11,1],[1,26,66,26,1],[1,57,302,302,57,1]]
 function eulerian_poly(n)
   while n > length(eulerian_polys)
     this_N = length(eulerian_polys) + 1
@@ -30,18 +24,45 @@ function eulerian_poly(n)
     end
     push!(eulerian_polys,poly)
   end
-  eulerian_polys[n]
+  p = eulerian_polys[n] :: Vector{Int64} # Required for type stability :(
+  p
 end
 
-function y_quantity(stored,n,M,mDagger;betaOmega)
-  n_order = size(stored,1) - 1
-  if any(isnan.(stored[n,M,mDagger,-n_order:n_order]))
+# A "Y quantity" is a normal-ordered correlator between harmonic oscillator
+# bosons b and b† of the form:
+#
+#                        M operators on left
+#                          ┌─────┴─────┐
+#                          │  m† of b† │
+#                          ┌──┴──┐     │
+#   Y{n,M,m†} = ∑_{μ,k} <μ|b†...b† b...b|k><k|b†...b† b...b|μ>
+#                          └───────────────────┬──────────┘
+#                                        2n total operators
+#
+#                        × exp(-β Eμ)/Z × δ_{ω = ω₀(M-2m†)}
+#
+# where Eμ is the energy of the base state |μ>, and ω₀ is the energy
+# of one b† boson excitation. Unless there are (n-m†) many b† operators
+# and (n-M-m†) b operators on the right, the Y-quantity will be zero due to
+# not returning |μ> to itself by the time <μ| is reached.
+#
+# [[ N.B.: If interactions are allowed, then the density matrix would no
+# longer be diagonal in the occupation number basis, and additional
+# considerations would be needed. ]]
+#
+# This function returns a list indexed by the integer (M-2m†) containing
+# the coefficient multiplying the delta-function. This result only depends
+# on the three integers n, M, m†, and the product βω₀ (because Eμ = ω₀<μ|b†b|μ>).
+y_quantity_harmonic(n,M,mDagger) = M - 2mDagger
+function y_quantity(stored,n::Int64,M::Int64,mDagger::Int64;betaOmega::Float64)
+
+  # Check if already computed
+  if isnan(stored[n,M,mDagger])
+    # If not, fill in the whole lookup table
     if n == 0
       @assert M == 0
       @assert mDagger == 0
-      stored[n,M,mDagger,-n_order:-1] .= 0
-      stored[n,M,mDagger,0] = 1
-      stored[n,M,mDagger,1:n_order] .= 0
+      stored[n,M,mDagger] = 1
     end
 
     if n > 0
@@ -50,33 +71,24 @@ function y_quantity(stored,n,M,mDagger;betaOmega)
           #println()
           #println("Calculating: Y$n$M0$md")
 
-          # These are not valid
+          # These are not valid/out of bounds and need to be skipped
           if (md > n) || ((M0 - md) > n)
             #println("[[invalid Y object]]")
             #println()
             continue
           end
 
-          harmonic = M0 - 2md
-          #println("harmonic = $harmonic")
-
-          # Don't need to worry about explicitly skipping any early
-          # terms in the sum; the polynomial caclulation below will kill
-          # those terms automatically!
+          # The string b†...b†b...b|k><k|b†...b†b...b, when acting on an
+          # occupation number state |n>, gives rise to a sequence of intermediate
+          # states with varying occupation numbers. The eigenvalue of |n> depends
+          # on these intermediate occupation numbers, so we trace out the trajectory
+          # of intermediate n values (relative to the starting value) here.
           #
-          #n_skip_sum = n - M0 - md
-          ##println("n_skip_sum = $n_skip_sum (NYI)")
-
-          max_deg = 8
-          poly = zeros(max_deg)
-
-          poly[1] = 1 # Constant 1 to start with
-          incld = 0
+          # More specifically, for each operator making
+          # a transition |n> → |n±1>, we record max(n,n±1), since that
+          # operator contributes a factor √max(n,n±1) to the overall eigenvalue.
           curr_n = 0
           n_traj = Int64[]
-
-          # Build up the polynomial (in the occupation number of the current site)
-          # from the string b†...b†b...b|k><k|b†...b†b...b
           for (sz_create,sz_destroy) = [(n-md,n-M0+md),(md,M0-md)]
             #println()
             #println("Going down!")
@@ -95,68 +107,76 @@ function y_quantity(stored,n,M,mDagger;betaOmega)
             end
           end
 
-          #println("n-trajectory: $n_traj")
-          factors = sort(n_traj)[1:2:end]
-          for j = 1:length(factors)
-            poly .= factors[j] .* poly .+ [0 ; poly[1:max_deg-1]]
-            #println("poly = $poly")
+          # The n-trajectory has two of each entry, since it
+          # needs to return back to the original number by the end.
+          # Thus, when we sort, it will have the form:
+          #
+          #   n_traj = [A,A,B,B,C,C,...]
+          #
+          # and we get all intermediate occupation numbers
+          # in sorted order by only picking every other element
+          # of n_traj.
+          sort!(n_traj)
+          factors = view(n_traj,1:2:(2n))
+
+          # Iteratively build the eigenvalue starting from `p(n) = 1' using:
+          # 
+          #   p(n) → (n + a) p(n)
+          #
+          # where `a' is one of the intermediate occupation numbers
+          # relative to n. Notice that if the state is ever annihilated,
+          # we naturally get a factor (n - n) = 0, so those terms
+          # are avoided!
+          poly = zeros(n+1)
+          poly[1] = 1 # Constant 1 to start with
+          for j = 1:n # Iteratively include factors
+            for l = (n+1):-1:2
+              poly[l] = factors[j] * poly[l] + poly[l-1]
+            end
+            poly[1] = factors[j] * poly[1]
           end
 
-          nB = bose(BigFloat(betaOmega))
-          xvar = exp(BigFloat(betaOmega))
-          xPows = OffsetArray([BigFloat(xvar) ^ k for k = 0:maximum(length(eulerian_poly(max_deg-1)))],-1)
-
-          #print("Boson number (n) → ")
-          leading = true
-          for p = 0:(max_deg-1)
-            ps = ["","n","n²","n³","n⁴","n⁵","n⁶","n⁷","n⁸","n⁹"][p+1]
-            a = poly[p+1]
-            if !iszero(a)
-              if a > 0
-                #!leading && print(" + ")
-              else
-                #print(" - ")
+          # It can be shown that the Y-quantity equals:
+          #
+          #   ∑_p cp nB^p * (Ap0 + Ap1 exp(βω) + Ap2 exp(2βω) + ... + Ap{p-1} exp((p-1)βω))
+          # 
+          # where Apk is the k-th coefficient of the Eulerian polynomial A_p.
+          # However, exp((p-1)βω) can be very large, and nB^p very small,
+          # so we instead compute
+          #
+          #   ∑_p cp ∑_{k=0,…,p-1} Apk [exp(kβω) nB^p]
+          #
+          # iwth the term in brackets being actually computed as
+          #
+          #   exp log [exp(kβω) nB^p] = exp(kβω - p log(exp(βω) - 1))
+          #
+          # to avoid dramatic loss of precision.
+          tot = 0.0
+          for p = 0:n
+            cp = poly[p+1]
+            if p == 0
+              tot += cp
+            else
+              Ap = eulerian_poly(p)
+              for k = 0:(p-1)
+                term = exp(k*betaOmega - p * log(exp(betaOmega) - 1))
+                Apk = Ap[k+1]
+                tot += cp * Apk * term
               end
-              if p == 0 || a != 1.0
-                #print("$(Sunny.number_to_math_string(abs(a);digits = 2))")
-              end
-              #print(ps)
-              leading = false
             end
           end
-          #println()
-
-          #println("xPows = $xPows")
-
-          tot = 0
-          for p = 0:(max_deg-1)
-            #println("p = $p")
-            if p == 0 # Constant term
-              tot += poly[p+1]
-            else # Series sum of n^p
-              #println("  Euler = $(eulerian_poly(p))")
-
-              # Only requires up to x^(p-1)
-              e_sum = sum(eulerian_poly(p) .* xPows[0:(p-1)])
-              #println(e_sum)
-              tot += poly[p+1] * nB^p * e_sum
-            end
-            #println("tot = $tot")
-          end
-          stored[n,M0,md,-n_order:n_order] .= 0
-          stored[n,M0,md,harmonic] = Float64(tot)
-
+          stored[n,M0,md] = tot
         end
       end
     end
   end
 
-  if any(isnan.(stored[n,M,mDagger,-n_order:n_order]))
-    display(stored[n,M,mDagger,:])
+  if any(isnan.(stored[n,M,mDagger]))
+    display(stored[n,M,mDagger])
     error("Y quantity computation failed! n = $n, M = $M, m† = $mDagger")
   end
 
-  return stored[n,M,mDagger,:]
+  return stored[n,M,mDagger]
 end
 
 
@@ -180,7 +200,7 @@ end
 function wick_to_y_object(stored,wick_A,wick_B;betaOmega, verbose = false)
   a_terms = findall(.!iszero.(wick_A))
   b_terms = findall(.!iszero.(wick_B))
-  tot = 0 * y_quantity(stored,0,0,0;betaOmega)
+  tot = zeros(Float64,-2:2) #0 * y_quantity(stored,0,0,0;betaOmega)
   for at = a_terms, bt = b_terms
     n_create_a = at.I[1] - 1
     n_destroy_a = at.I[2] - 1
@@ -220,7 +240,8 @@ function wick_to_y_object(stored,wick_A,wick_B;betaOmega, verbose = false)
     println(")")
     =#
 
-    tot += wick_A[at] * wick_B[bt] * y_quantity(stored,n,M,m_dagger;betaOmega)
+    harmonic = y_quantity_harmonic(n,M,m_dagger)
+    tot[harmonic] += wick_A[at] * wick_B[bt] * y_quantity(stored,n,M,m_dagger;betaOmega)
     if any(isnan.(tot))
       display(stored)
       display(tot)
@@ -333,37 +354,7 @@ function finite_spin_wave_Vmats(sys; polyatomic = true)
     disps[:,i] .= Sunny.bogoliubov!(formula.calc_intensity.V,Hmat)
 
     Vs[:,:,:,:,:,i] .= copy(reshape(formula.calc_intensity.V,na,nf,2,na*nf,2))
-
-    #formula.calc_intensity(swt,Sunny.Vec3(k_comm))
   end
-
-  #=
-  sys_periodic = repeat_periodically(sys_collapsed,sys.latsize)
-
-  isc = instant_correlations(sys_periodic)
-  add_sample!(isc,sys_periodic)
-
-  params = unit_resolution_binning_parameters(isc)
-  params.binend[1:3] .+= nbzs .- 1
-
-  is_static = intensities_binned(isc,params,intensity_formula(isc,:full))[1]
-
-  enhanced_nbands = Sunny.nbands(swt) + 1
-  is_type = typeof(bs[1]).parameters[2]
-  enhanced_bs = Array{Sunny.BandStructure{enhanced_nbands,is_type}}(undef,size(bs)...)
-  for i = comm_ixs
-    x = bs[i]
-    enhanced_dispersion = SVector{enhanced_nbands,Float64}([0., x.dispersion...])
-    enhanced_intensity = SVector{enhanced_nbands,is_type}([is_static[i], (x.intensity ./ prod(sys.latsize))...])
-    enhanced_bs[i] = Sunny.BandStructure{enhanced_nbands,is_type}(enhanced_dispersion,enhanced_intensity)
-  end
-
-  is_swt = map(x -> sum(x.intensity),bs) / prod(sys.latsize)
-
-  is_all = is_static + is_swt
-
-  enhanced_bs, is_all, sys_periodic
-  =#
 
   Hs, Vs, disps, swt.data.local_rotations
 end
@@ -374,7 +365,7 @@ function blit_one_over_S_spectrum(sys,dE,npos;beta = 1.0,two_magnon = false)
   one_magnon_canvas = blit_one_magnon(Hs,Vs,sys.crystal,disps,dE,npos;betaOmega = beta * disps)
 
   if two_magnon
-    two_magnon_c = two_magnon_sector(Hs,Vs,sys.crystal;betaOmega = beta * disps)
+    two_magnon_canvas = blit_two_magnon(Hs,Vs,sys.crystal,disps,dE,npos;betaOmega = beta * disps)
   end
 
   # Find polyatomic required number of unit cells:
@@ -438,23 +429,44 @@ function blit_one_over_S_spectrum(sys,dE,npos;beta = 1.0,two_magnon = false)
     S_local[xs,ys,zs,m,n,3,3,:] .+= -s * one_magnon_canvas[:,:,:,m,1,2,n,1,1,1,:]
     S_local[xs,ys,zs,m,n,3,3,:] .+= -s * one_magnon_canvas[:,:,:,m,1,2,n,1,1,3,:]
 
-    #=
     if two_magnon
-      for dm = 1:(na*nf) # temporary hack for stacked two magnon
-        # Sxx
+      # Sxx
+      # i       j
+      # (a + a†)(a†aa + a†a†a) → 
+      S_local[xs,ys,zs,m,n,1,1,:] .+= -sum([two_magnon_canvas[:,:,:,m,1,i,n,1,[2,2][j],n,1,j,n,1,[1,1][j],2,:] for i = 1:2, j = 1:2])/8
+      # i             j
+      # (a†aa + a†a†a)(a + a†) → 
+      S_local[xs,ys,zs,m,n,1,1,:] .+= -sum([two_magnon_canvas[:,:,:,m,1,[2,2][i],m,1,i,m,1,[1,1][i],n,1,j,4,:] for i = 1:2, j = 1:2])/8
 
-        # i       j
-        # (a + a†)(a†aa + a†a†a) → 
-        S_local[xs,ys,zs,dm,m,n,:,1,1] .+= -sum([two_magnon_c[:,:,:,dm,dm,m,1,i,n,1,[2,2][j],n,1,j,n,1,[1,1][j],:,2] for i = 1:2, j = 1:2])/8
+      # Sxy
+      # i       j
+      # (a + a†)(a†aa - a†a†a) → 
+      S_local[xs,ys,zs,m,n,1,2,:] .+= -sum([[1,-1][j] * two_magnon_canvas[:,:,:,m,1,i,n,1,[2,2][j],n,1,j,n,1,[1,1][j],2,:] for i = 1:2, j = 1:2])/(8im)
+      # i             j
+      # (a†aa + a†a†a)(a - a†) → 
+      S_local[xs,ys,zs,m,n,1,2,:] .+= -sum([[1,-1][j] * two_magnon_canvas[:,:,:,m,1,[2,2][i],m,1,i,m,1,[1,1][i],n,1,j,4,:] for i = 1:2, j = 1:2])/(8im)
 
-        # i             j
-        # (a†aa + a†a†a)(a + a†) → 
-        S_local[xs,ys,zs,dm,m,n,:,1,1] .+= -sum([two_magnon_c[:,:,:,dm,dm,m,1,[2,2][i],m,1,i,m,1,[1,1][i],n,1,j,:,4] for i = 1:2, j = 1:2])/8
+      # Syx
+      # i       j
+      # (a - a†)(a†aa + a†a†a) → 
+      S_local[xs,ys,zs,m,n,2,1,:] .+= -sum([[1,-1][i] * two_magnon_canvas[:,:,:,m,1,i,n,1,[2,2][j],n,1,j,n,1,[1,1][j],2,:] for i = 1:2, j = 1:2])/(8im)
+      # i             j
+      # (a†aa - a†a†a)(a + a†) → 
+      S_local[xs,ys,zs,m,n,2,1,:] .+= -sum([[1,-1][i] * two_magnon_canvas[:,:,:,m,1,[2,2][i],m,1,i,m,1,[1,1][i],n,1,j,4,:] for i = 1:2, j = 1:2])/(8im)
 
-        # TODO: other than Sxx
-      end
+      # Syy
+      # i       j
+      # (a - a†)(a†aa - a†a†a) → 
+      S_local[xs,ys,zs,m,n,2,2,:] .+= -sum([[1,-1][i] * [1,-1][j] * two_magnon_canvas[:,:,:,m,1,i,n,1,[2,2][j],n,1,j,n,1,[1,1][j],2,:] for i = 1:2, j = 1:2])/(-8)
+      # i             j
+      # (a†aa - a†a†a)(a - a†) → 
+      S_local[xs,ys,zs,m,n,2,2,:] .+= -sum([[1,-1][i] * [1,-1][j] * two_magnon_canvas[:,:,:,m,1,[2,2][i],m,1,i,m,1,[1,1][i],n,1,j,4,:] for i = 1:2, j = 1:2])/(-8)
+
+      # Szz
+      # i     j
+      # (-a†a)(-a†a)
+      S_local[xs,ys,zs,m,n,3,3,:] .+= two_magnon_canvas[:,:,:,m,1,2,m,1,1,n,1,2,n,1,1,3,:]
     end
-    =#
 
     S_local[xs,ys,zs,m,n,:,:,:] .*= phases
   end
@@ -825,7 +837,6 @@ function one_magnon_sector(f,Hs,Vs,cryst;betaOmega)
       #
       # Which table we need to consult depends on the dagger configuration [iDag,jDag].
       # For example, a{k} needs the exp(ikR) table, but [a{k}]† needs the exp(i(-k)R) table:
-      negate_momentum(k,n) = ntuple(i -> mod1((n[i] + 1) - (k[i] - 1),n[i]),length(n))
       table_for_k1 = iDag == 1 ? negate_momentum((x1,y1,z1),(nx,ny,nz)) : (x1,y1,z1)
       table_for_k2 = jDag == 1 ? negate_momentum((x2,y2,z2),(nx,ny,nz)) : (x2,y2,z2)
 
@@ -968,7 +979,44 @@ function blit_one_magnon(Hs,Vs,cryst,disps,dE,npos;betaOmega)
   canvas
 end
 
-function two_magnon_sector(Hs,Vs,cryst;betaOmega)
+function blit_two_magnon(Hs,Vs,cryst,disps,dE,npos;betaOmega)
+  nx,ny,nz = size(Vs)[6:8]
+
+  na = size(Vs,1)
+  nf = size(Vs,2)
+
+  # The canvas only retains information about:
+  # - The total momentum [nx,ny,nz]
+  # - The a-bosons being correlated
+  # - The partition number
+  # - The energy *bin* the contribution should end up in
+  canvas = zeros(ComplexF64,nx,ny,nz,na,nf,2,na,nf,2,na,nf,2,na,nf,2,5,2npos+1)
+
+  two_magnon_sector(Hs,Vs,cryst;betaOmega) do contribution, total_k, m, n, table_1, table_2, i, iDag, j, jDag, k, kDag, l, lDag, partition
+    n_harmonic = size(contribution,1)
+    @assert n_harmonic == size(contribution,2)
+    for h1 = 1:n_harmonic, h2 = 1:n_harmonic
+      harmonic1 = h1 - (n_harmonic ÷ 2) - 1
+      harmonic2 = h2 - (n_harmonic ÷ 2) - 1
+      E = harmonic1 * disps[m,CartesianIndex(table_1)] 
+      E += harmonic2 * disps[n,CartesianIndex(table_2)] 
+      if harmonic1 != 0 && harmonic2 != 0
+        #println("Energy math: $(harmonic1 * disps[m,CartesianIndex(table_1)]) + $(harmonic2 * disps[n,CartesianIndex(table_2)]) = $E")
+      end
+      bin = 1 + floor(Int64,E/dE + (npos + 1/2))
+      if bin < 1 || bin > 2npos + 1
+        println("Outside bin range!")
+        continue
+      end
+      canvas[total_k,i,1,iDag+1,j,1,jDag+1,k,1,kDag+1,l,1,lDag+1,partition,bin] += contribution[h1,h2]
+    end
+  end
+  canvas
+end
+
+
+
+function two_magnon_sector(f,Hs,Vs,cryst;betaOmega)
   nx,ny,nz = size(Vs)[6:8]
 
   na = size(Vs,1)
@@ -989,123 +1037,167 @@ function two_magnon_sector(Hs,Vs,cryst;betaOmega)
   # - The site, flavor and dagger configuration of the four a-bosons being correlated
   # - The harmonic of the eigenmode
   # - The "partition number" which tells the position of the comma: ,aa ; a,a ; aa,
-  correlator = zeros(ComplexF64,nx,ny,nz,na*nf,na*nf,na,nf,2,na,nf,2,na,nf,2,na,nf,2,size(empty_y_matrix(),4),5)
+  #correlator = zeros(ComplexF64,nx,ny,nz,na*nf,na*nf,na,nf,2,na,nf,2,na,nf,2,na,nf,2,size(empty_y_matrix(),4),size(empty_y_matrix(),4),5)
 
+  prog = Progress((nx*ny*nz)^2,"Wavevectors")
   # Loop over the known momenta
-  for x1 = 1:nx, y1 = 1:ny, z1 = 1:nz, x2 = 1:nx, y2 = 1:ny, z2 = 1:nz, x3 = 1:nx, y3 = 1:ny, z3 = 1:nz
-    # Loop over a-boson dagger configuration
-    for iDag = [0,1], jDag = [0,1], kDag = [0,1], lDag = [0,1]
-      if any(isnan.(correlator))
-        error("Nan")
-      end
+  for x1 = 1:nx, y1 = 1:ny, z1 = 1:nz, x2 = 1:nx, y2 = 1:ny, z2 = 1:nz
+    next!(prog)
 
-      # Infer remaining momenta based on momentum conservation for a-bosons.
-      ks = [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]]
-      x4,y4,z4 = momentum_conserving_index(ks,[iDag,jDag,kDag,lDag],(nx,ny,nz)).I
+    # Optimization: there can only be a maximum of two classes of momenta overall in the correlator!
+    # So if k1 and k2 are in different classes,
+    k1_k2_different_class = ((x1,y1,z1) != (x2,y2,z2)) && ((x1,y1,z1) != negate_momentum((x2,y2,z2),(nx,ny,nz)))
+    # then the possible values for k3 are
+    possible_k3 = if k1_k2_different_class
+      # the possible momenta ±k1 and ±k2 in the existing classes
+      [(x1,y1,z1),(x2,y2,z2),negate_momentum((x1,y1,z1),(nx,ny,nz)),negate_momentum((x2,y2,z2),(nx,ny,nz))]
+    else
+      # or if k1 and k2 are in the same class, then k3 can be anything
+      [(x3,y3,z3) for x3 = 1:nx, y3 = 1:ny, z3 = 1:nz]
+    end
 
-      # Which table we need to consult depends on the dagger configuration
-      # [iDag,jDag,kDag,lDag]
-      negate_momentum(k,n) = ntuple(i -> mod1((n[i] + 1) - (k[i] - 1),n[i]),length(n))
-      table_for_k1 = iDag == 1 ? negate_momentum((x1,y1,z1),(nx,ny,nz)) : (x1,y1,z1)
-      table_for_k2 = jDag == 1 ? negate_momentum((x2,y2,z2),(nx,ny,nz)) : (x2,y2,z2)
-      table_for_k3 = kDag == 1 ? negate_momentum((x3,y3,z3),(nx,ny,nz)) : (x3,y3,z3)
-      table_for_k4 = lDag == 1 ? negate_momentum((x4,y4,z4),(nx,ny,nz)) : (x4,y4,z4)
+    for (x3,y3,z3) in possible_k3
+      # Loop over a-boson dagger configuration
+      for iDag = [0,1], jDag = [0,1], kDag = [0,1], lDag = [0,1]
+        #if any(isnan.(correlator))
+          #error("Nan")
+        #end
 
-      Vk1 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k1))
-      Vk2 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k2))
-      Vk3 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k3))
-      Vk4 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k4))
+        # Infer remaining momenta based on momentum conservation for a-bosons.
+        ks = [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]]
+        x4,y4,z4 = momentum_conserving_index(ks,[iDag,jDag,kDag,lDag],(nx,ny,nz)).I
 
-      # Loop over the possible partitions of the operators in the correlator:
-      #
-      #   C{1,aaaa} ; C{a,aaa} ; C{aa,aa} ; C{aaa,a} ; C{aaaa,1}
-      #
-      for partition = 1:5
-        # Infer total k based on momenta left of the comma.
-        ks_part = [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3],[x4,y4,z4]][1:partition-1]
-        daggers_part = [iDag,jDag,kDag,lDag][1:partition-1]
-        push!(daggers_part,0) # Gives the correct sign for k
-        total_k = momentum_conserving_index(ks_part,daggers_part,(nx,ny,nz))
+        # Which table we need to consult depends on the dagger configuration
+        # [iDag,jDag,kDag,lDag]
+        table_for_k1 = iDag == 1 ? negate_momentum((x1,y1,z1),(nx,ny,nz)) : (x1,y1,z1)
+        table_for_k2 = jDag == 1 ? negate_momentum((x2,y2,z2),(nx,ny,nz)) : (x2,y2,z2)
+        table_for_k3 = kDag == 1 ? negate_momentum((x3,y3,z3),(nx,ny,nz)) : (x3,y3,z3)
+        table_for_k4 = lDag == 1 ? negate_momentum((x4,y4,z4),(nx,ny,nz)) : (x4,y4,z4)
 
-        # Loop over dagger configuration of bb
-        for bd1 = [0,1], bd2 = [0,1], bd3 = [0,1], bd4 = [0,1]
+        Vk1 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k1))
+        Vk2 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k2))
+        Vk3 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k3))
+        Vk4 = view(Vs_fix,:,:,:,:,:,CartesianIndex(table_for_k4))
 
-          # Given that a{k} expands to include both b{k} and [b{-k}]† (see tables above),
-          # we need to compute which eigenmode (i.e. which k label) we end up with in each term.
-          # This is important because the one-magnon-gas-correlator only applies to b-bosons
-          # which *belong to the same eigenmode*.
-          #
-          # The answer is that we need to negate the momentum one time each time we encounter
-          # a dagger in the expansion (at either the a-boson or b-boson level).
-          bk1 = xor(bd1,iDag) == 1 ? negate_momentum((x1,y1,z1),(nx,ny,nz)) : (x1,y1,z1)
-          bk2 = xor(bd2,jDag) == 1 ? negate_momentum((x2,y2,z2),(nx,ny,nz)) : (x2,y2,z2)
-          bk3 = xor(bd3,kDag) == 1 ? negate_momentum((x3,y3,z3),(nx,ny,nz)) : (x3,y3,z3)
-          bk4 = xor(bd4,lDag) == 1 ? negate_momentum((x4,y4,z4),(nx,ny,nz)) : (x4,y4,z4)
+        # Loop over the possible partitions of the operators in the correlator:
+        #
+        #   C{1,aaaa} ; C{a,aaa} ; C{aa,aa} ; C{aaa,a} ; C{aaaa,1}
+        #
+        for partition = 1:5
+          # Infer total k based on momenta left of the comma.
+          ks_part = [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3],[x4,y4,z4]][1:partition-1]
+          daggers_part = [iDag,jDag,kDag,lDag][1:partition-1]
+          push!(daggers_part,0) # Gives the correct sign for k
+          total_k = momentum_conserving_index(ks_part,daggers_part,(nx,ny,nz))
 
-          bks = [bk1,bk2,bk3,bk4]
-          bds = [bd1,bd2,bd3,bd4]
+          # Loop over dagger configuration of bb
+          for bd1 = [0,1], bd2 = [0,1], bd3 = [0,1], bd4 = [0,1]
 
-          # Evaluate mode label coincidences:
-          class_1 = [1]
-          class_1_k = bk1
-          for j = 2:4
-            if bk1 == bks[j]
-              push!(class_1,j)
-            end
-          end
+            # Given that a{k} expands to include both b{k} and [b{-k}]† (see tables above),
+            # we need to compute which eigenmode (i.e. which k label) we end up with in each term.
+            # This is important because the one-magnon-gas-correlator only applies to b-bosons
+            # which *belong to the same eigenmode*.
+            #
+            # The answer is that we need to negate the momentum one time each time we encounter
+            # a dagger in the expansion (at either the a-boson or b-boson level).
+            bk1 = xor(bd1,iDag) == 1 ? negate_momentum((x1,y1,z1),(nx,ny,nz)) : (x1,y1,z1)
+            bk2 = xor(bd2,jDag) == 1 ? negate_momentum((x2,y2,z2),(nx,ny,nz)) : (x2,y2,z2)
+            bk3 = xor(bd3,kDag) == 1 ? negate_momentum((x3,y3,z3),(nx,ny,nz)) : (x3,y3,z3)
+            bk4 = xor(bd4,lDag) == 1 ? negate_momentum((x4,y4,z4),(nx,ny,nz)) : (x4,y4,z4)
 
-          unsorted = setdiff([1,2,3,4],class_1)
-          class_2 = if length(unsorted) > 0
-            class_2 = [unsorted[1]]
+            bks = [bk1,bk2,bk3,bk4]
+            bds = [bd1,bd2,bd3,bd4]
 
-            for j = unsorted[2:end]
-              push!(class_2,j)
-            end
-            class_2
-          else
-            []
-          end
-
-          unsorted = setdiff(setdiff([1,2,3,4],class_1),class_2)
-          if length(unsorted) > 0
-            # Selection rule: Just by looking at k, we find there
-            # are more than two modes participating, but this is verboten!
-            continue
-          end
-
-          # Two cases
-          if length(class_2) == 0
-            # Case: Everything was class_1
-
-            # Loop over mode identity for class_1
-            for m = 1:(na*nf)
-              Y_storage = empty_y_matrix()
-              L = bds[1:partition-1]
-              R = bds[partition:end]
-              y = wick_to_y_object(Y_storage, wickify(L), wickify(R); betaOmega = betaOmega[m,class_1_k...])[-2:2]
-              for i = 1:na, j = 1:na, k = 1:na, l = 1:na
-                y *= Vk1[i,1,iDag+1,m,bd1+1]
-                y *= Vk2[j,1,jDag+1,m,bd2+1]
-                y *= Vk3[k,1,kDag+1,m,bd3+1]
-                y *= Vk4[l,1,lDag+1,m,bd4+1]
-                view(correlator,total_k,m,m,i,1,iDag+1,j,1,jDag+1,k,1,kDag+1,l,1,lDag+1,:,partition) .+= y
+            # Evaluate mode label coincidences:
+            class_1 = [1]
+            class_1_k = bk1
+            for j = 2:4
+              if bk1 == bks[j]
+                push!(class_1,j)
               end
             end
-          else
-            # Case: Both class_1 and class_2 present
-            
-            class_2_k = bks[class_2[1]]
-            # Loop over mode identities for the two classes
-            for m = 1:(na*nf), n = 1:(na*nf)
-              # TODO
+
+            unsorted = setdiff([1,2,3,4],class_1)
+            class_2 = if length(unsorted) > 0
+              class_2 = [unsorted[1]]
+
+              for j = unsorted[2:end]
+                push!(class_2,j)
+              end
+              class_2
+            else
+              []
+            end
+
+            unsorted = setdiff(setdiff([1,2,3,4],class_1),class_2)
+            if length(unsorted) > 0
+              # Selection rule: Just by looking at k, we find there
+              # are more than two modes participating, but this is verboten!
+              continue
+            end
+
+            # Two cases
+            if length(class_2) == 0
+              # Case: Everything was class_1
+
+              # Loop over mode identity for class_1
+              for m = 1:(na*nf)
+                L = bds[1:partition-1]
+                R = bds[partition:end]
+                y = wick_to_y_object(Y_storage[class_1_k...,m], wickify(L), wickify(R); betaOmega = betaOmega[m,class_1_k...])[-2:2]
+                for i = 1:na, j = 1:na, k = 1:na, l = 1:na
+                  y *= Vk1[i,1,iDag+1,m,bd1+1]
+                  y *= Vk2[j,1,jDag+1,m,bd2+1]
+                  y *= Vk3[k,1,kDag+1,m,bd3+1]
+                  y *= Vk4[l,1,lDag+1,m,bd4+1]
+                  #view(correlator,total_k,m,m,i,1,iDag+1,j,1,jDag+1,k,1,kDag+1,l,1,lDag+1,:,:,partition) .+= y * y'
+                  tables = [table_for_k1, table_for_k2, table_for_k3, table_for_k4]
+                  f(y * y', total_k, m, m, class_1_k, class_1_k, i, iDag, j, jDag, k, kDag, l, lDag, partition)
+                end
+              end
+            else
+              # Case: Both class_1 and class_2 present
+              
+              class_2_k = bks[class_2[1]]
+              # Loop over mode identities for the two classes
+              for m = 1:(na*nf), n = 1:(na*nf)
+                # Class 1
+                L = bds[1:partition-1][class_1[class_1 .< partition]]
+                R = bds[partition:end][class_1[class_1 .>= partition] .- (partition-1)]
+                wL = wickify(L)
+                wR = wickify(R)
+                y_1 = wick_to_y_object(Y_storage[class_1_k...,m], wL, wR; betaOmega = betaOmega[m,class_1_k...])[-2:2]
+
+                # Class 2
+                L = bds[1:partition-1][class_2[class_2 .< partition]]
+                R = bds[partition:end][class_2[class_2 .>= partition] .- (partition-1)]
+                y_2 = wick_to_y_object(Y_storage[class_2_k...,n], wickify(L), wickify(R); betaOmega = betaOmega[n,class_2_k...])[-2:2]
+                #println()
+                #println("ks → $bk1 $bk2 $bk3 $bk4")
+                #println("ds → $bd1 $bd2 $bd3 $bd4")
+                #println("m = $m, n = $n; class_1 = $class_1, class_2 = $class_2, partition = $partition")
+                #println("y1: $y_1")
+                #println("y2: $y_2")
+                for i = 1:na, j = 1:na, k = 1:na, l = 1:na
+                  y  = Vk1[i,1,iDag+1,in(class_1,1) ? m : n,bd1+1]
+                  y *= Vk2[j,1,jDag+1,in(class_1,2) ? m : n,bd2+1]
+                  y *= Vk3[k,1,kDag+1,in(class_1,3) ? m : n,bd3+1]
+                  y *= Vk4[l,1,lDag+1,in(class_1,4) ? m : n,bd4+1]
+                  tables = [table_for_k1, table_for_k2, table_for_k3, table_for_k4]
+                  f(y * y_1 * y_2', total_k, m, n, class_1_k, class_2_k, i, iDag, j, jDag, k, kDag, l, lDag, partition)
+                  #view(correlator,total_k,m,n,i,1,iDag+1,j,1,jDag+1,k,1,kDag+1,l,1,lDag+1,:,:,partition) .+= y * y_1 * y_2'
+                end
+              end
             end
           end
         end
       end
     end
   end
+  finish!(prog)
 
-  correlator
+  #correlator
+  nothing
 end
 
 
@@ -1231,7 +1323,7 @@ function two_magnon_sector(Hs,Vs;betaOmega)
 end
 
 # Computes C_{bi bj}
-function one_magnon_gas_correlator(label_i,label_j,left,right,partition;betaOmega, Y = nothing)
+function one_magnon_gas_correlator(label_i,label_j,left,right,partition;betaOmega, Y = nothing, classical = false)
 
   ix,iy,iz,m = label_i
   jx,jy,jz,n = label_j
@@ -1245,11 +1337,33 @@ function one_magnon_gas_correlator(label_i,label_j,left,right,partition;betaOmeg
     println("  requested: $label_i and $label_j")
     return [0,0,0,0,0]
   end
-  Y_storage = isnothing(Y) ? empty_y_matrix() : Y
 
-  L = [left,right][1:partition-1]
-  R = [left,right][partition:end]
-  wick_to_y_object(Y_storage, wickify(L), wickify(R); betaOmega)[-2:2]
+  if classical
+    # TODO: verify
+    if partition == 2
+      if left == 0 && right == 1
+        [0,0,0,1/betaOmega,0]
+      elseif left == 1 && right == 0
+        [0,1/betaOmega,0,0,0]
+      else
+        [0,0,0,0,0]
+      end
+    else
+      if left == 0 && right == 1
+        [0,0,1/betaOmega,0,0]
+      elseif left == 1 && right == 0
+        [0,0,1/betaOmega,0,0]
+      else
+        [0,0,0,0,0]
+      end
+    end
+  else
+    Y_storage = isnothing(Y) ? empty_y_matrix() : Y
+
+    L = [left,right][1:partition-1]
+    R = [left,right][partition:end]
+    wick_to_y_object(Y_storage, wickify(L), wickify(R); betaOmega)[-2:2]
+  end
 end
 
 
@@ -1317,6 +1431,19 @@ function speak_bogo_coeffs(Vs)
   end
 end
 
+function guide_dispersion!(disps)
+  for j = 1:size(disps,1)
+    lines!(disps[j,:,1,1],color = :black,linestyle = :dash)
+    lines!(-disps[j,:,1,1],color = :black,linestyle = :dash)
+  end
+  for j = 1:size(disps,1), l = 1:size(disps,1)
+    lines!(disps[j,:,1,1] + disps[l,:,1,1], color = :blue,linestyle = :dash)
+    lines!(disps[j,:,1,1] - disps[l,:,1,1], color = :blue,linestyle = :dash)
+    lines!(-disps[j,:,1,1] - disps[l,:,1,1], color = :blue,linestyle = :dash)
+  end
+end
+
+negate_momentum(k,n) = ntuple(i -> mod1((n[i] + 1) - (k[i] - 1),n[i]),3)
 function phase_fix_Vs(Vs)
   nx = size(Vs,6)
   ny = size(Vs,7)
@@ -1469,3 +1596,4 @@ function interactive_example()
 
   nothing
 end
+
