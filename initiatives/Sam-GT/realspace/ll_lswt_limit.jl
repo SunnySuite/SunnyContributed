@@ -1,13 +1,16 @@
-using Sunny, LinearAlgebra, StaticArrays, GLMakie
+using Sunny, LinearAlgebra, StaticArrays, GLMakie, Statistics
 
 # Setup system
+#cryst = Crystal(I(3),[[0,0,0]],1)
 cryst = Crystal(I(3),[[0,0,0],[0.5,0.5,0.5]],1)
-sys = System(cryst,(1,1,2),[SpinInfo(1,S=1,g=2),SpinInfo(2,S=1,g=2)],:dipole)
+sys = System(cryst,(1,1,2),[SpinInfo(1,S=5/2,g=2),SpinInfo(2,S=5/2,g=2)],:dipole)
+#sys = System(cryst,(1,1,2),[SpinInfo(1,S=5/2,g=2)],:dipole)
 
 B_z_ext = 2.3
 set_external_field!(sys,[0,0,B_z_ext])
 set_exchange!(sys,-1.,Bond(1,1,[0,0,1]))
 set_exchange!(sys,-1.,Bond(1,2,[0,0,0]))
+
 #set_exchange!(sys,1.,Bond(2,2,[0,0,1]))
 #set_onsite_coupling!(sys,S -> -0.1 * S[3]^2,1)
 #set_onsite_coupling!(sys,S -> -0.1 * S[3]^2,2)
@@ -63,10 +66,11 @@ function polyatomic_bzs(crystal)
 end
 
 # Establish the common set of binning parameters to use for all histograms
-dsc = dynamical_correlations(sys;Δt = 0.05,nω = 200,ωmax = 10.0,apply_g = false)
+dsc = dynamical_correlations(sys;Δt = 0.005,nω = 200,ωmax = 20.0,apply_g = false)
 common_params = unit_resolution_binning_parameters(dsc;negative_energies=true)
 common_params.binend[1:3] .+= 1
 common_params.binwidth[4] = 1.0
+#common_params.binstart[4] -= 0.2
 
 # Compute static structure factor
 isc = instant_correlations(sys;apply_g = false)
@@ -76,7 +80,7 @@ params_instant.binend[1:3] .+= 1
 is_static, counts = intensities_binned(isc,params_instant,intensity_formula(isc,:trace))
 
 function get_classical_intensities_at_temperature(kT)
-  dsc = dynamical_correlations(sys;Δt = 0.05,nω = 200,ωmax = 10.0,apply_g = false)
+  dsc = dynamical_correlations(sys;Δt = 0.005,nω = 200,ωmax = 20.0,apply_g = false)
   formula = intensity_formula(dsc,:full;kT = kT)
 
   langevin = Langevin(0.05,λ=0.3,kT=kT)
@@ -87,7 +91,11 @@ function get_classical_intensities_at_temperature(kT)
     add_sample!(dsc,sys)
   end
   is, counts = intensities_binned(dsc,common_params,formula)
-  is ./ counts # Why this division by counts?
+  # Fix the intensities_binned algorithm:
+  # It currently divides by numbins in the histogram as a proxy for number of
+  # modes in the classical calculation; but actually it should just divide by it directly.
+  # This is a problem when they are different numbers, like here!!
+  is .* common_params.numbins[4] ./ length(available_energies(dsc;negative_energies=true))
 end
 
 # Evalate spin wave theory
