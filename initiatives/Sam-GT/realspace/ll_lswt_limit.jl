@@ -113,7 +113,7 @@ for band = 1:size(disps_sw,1)
 end
 
 # Evaluate classical intensities at successively lower temperatures
-temps = 10 .^ range(1,-3,length = 10)
+temps = 10 .^ range(1,-6,length = 20)
 is_classicals = Array{Float64,4}[]
 for i = 1:length(temps)
   dat = get_classical_intensities_at_temperature(temps[i])
