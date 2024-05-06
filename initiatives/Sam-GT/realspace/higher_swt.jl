@@ -4,6 +4,7 @@ using StaticArrays
 using FFTW
 using SparseArrays
 using ProgressMeter
+using Sunny, GLMakie
 
 bose(x) = 1/(exp(x) - 1)
 
@@ -325,8 +326,7 @@ function finite_spin_wave_Vmats(sys; polyatomic = true)
 
   if polyatomic
     # Find polyatomic required number of unit cells:
-    ΔRs = [map(x -> iszero(x) ? Inf : x,abs.(sys.crystal.positions[i] - sys.crystal.positions[j])) for i = 1:na, j = 1:na]
-    nbzs = round.(Int64,max.([1,1,1],1 ./ minimum(ΔRs)))
+    nbzs = polyatomic_bzs(sys.crystal)
   else
     nbzs = [1,1,1]
   end
@@ -351,12 +351,24 @@ function finite_spin_wave_Vmats(sys; polyatomic = true)
     end
     Hs[:,:,i] .= Hmat
 
-    disps[:,i] .= Sunny.bogoliubov!(formula.calc_intensity.V,Hmat)
+    try
+      disps[:,i] .= Sunny.bogoliubov!(formula.calc_intensity.V,Hmat)
+    catch e
+      println("Failed to perform Bogoliubov transform at $k_comm")
+      display(e)
+    end
 
     Vs[:,:,:,:,:,i] .= copy(reshape(formula.calc_intensity.V,na,nf,2,na*nf,2))
   end
 
   Hs, Vs, disps, swt.data.local_rotations
+end
+
+function polyatomic_bzs(crystal)
+  na = Sunny.natoms(crystal)
+  iszero_symprec(x) = abs(x) < crystal.symprec
+  ΔRs = [map(x -> iszero_symprec(x) ? Inf : x,abs.(crystal.positions[i] - crystal.positions[j])) for i = 1:na, j = 1:na]
+  round.(Int64,max.([1,1,1],1 ./ minimum(ΔRs)))
 end
 
 function blit_one_over_S_spectrum(sys,dE,npos;beta = 1.0,two_magnon = false)
@@ -369,9 +381,7 @@ function blit_one_over_S_spectrum(sys,dE,npos;beta = 1.0,two_magnon = false)
   end
 
   # Find polyatomic required number of unit cells:
-  na = Sunny.natoms(sys.crystal)
-  ΔRs = [map(x -> iszero(x) ? Inf : x,abs.(sys.crystal.positions[i] - sys.crystal.positions[j])) for i = 1:na, j = 1:na]
-  nbzs = round.(Int64,max.([1,1,1],1 ./ minimum(ΔRs)))
+  nbzs = polyatomic_bzs(sys.crystal)
 
   # The limited range of wave vectors that is suitable for
   # each individual sublattice
@@ -433,39 +443,39 @@ function blit_one_over_S_spectrum(sys,dE,npos;beta = 1.0,two_magnon = false)
       # Sxx
       # i       j
       # (a + a†)(a†aa + a†a†a) → 
-      S_local[xs,ys,zs,m,n,1,1,:] .+= -sum([two_magnon_canvas[:,:,:,m,1,i,n,1,[2,2][j],n,1,j,n,1,[1,1][j],2,:] for i = 1:2, j = 1:2])/8
+      S_local[xs,ys,zs,m,n,1,1,:] .+= -sum([two_magnon_canvas[:,:,:,m,n,1,i,1,[2,2][j],1,j,1,[1,1][j],2,:] for i = 1:2, j = 1:2])/8
       # i             j
       # (a†aa + a†a†a)(a + a†) → 
-      S_local[xs,ys,zs,m,n,1,1,:] .+= -sum([two_magnon_canvas[:,:,:,m,1,[2,2][i],m,1,i,m,1,[1,1][i],n,1,j,4,:] for i = 1:2, j = 1:2])/8
+      S_local[xs,ys,zs,m,n,1,1,:] .+= -sum([two_magnon_canvas[:,:,:,m,n,1,[2,2][i],1,i,1,[1,1][i],1,j,4,:] for i = 1:2, j = 1:2])/8
 
       # Sxy
       # i       j
       # (a + a†)(a†aa - a†a†a) → 
-      S_local[xs,ys,zs,m,n,1,2,:] .+= -sum([[1,-1][j] * two_magnon_canvas[:,:,:,m,1,i,n,1,[2,2][j],n,1,j,n,1,[1,1][j],2,:] for i = 1:2, j = 1:2])/(8im)
+      S_local[xs,ys,zs,m,n,1,2,:] .+= -sum([[1,-1][j] * two_magnon_canvas[:,:,:,m,n,1,i,1,[2,2][j],1,j,1,[1,1][j],2,:] for i = 1:2, j = 1:2])/(8im)
       # i             j
       # (a†aa + a†a†a)(a - a†) → 
-      S_local[xs,ys,zs,m,n,1,2,:] .+= -sum([[1,-1][j] * two_magnon_canvas[:,:,:,m,1,[2,2][i],m,1,i,m,1,[1,1][i],n,1,j,4,:] for i = 1:2, j = 1:2])/(8im)
+      S_local[xs,ys,zs,m,n,1,2,:] .+= -sum([[1,-1][j] * two_magnon_canvas[:,:,:,m,n,1,[2,2][i],1,i,1,[1,1][i],1,j,4,:] for i = 1:2, j = 1:2])/(8im)
 
       # Syx
       # i       j
       # (a - a†)(a†aa + a†a†a) → 
-      S_local[xs,ys,zs,m,n,2,1,:] .+= -sum([[1,-1][i] * two_magnon_canvas[:,:,:,m,1,i,n,1,[2,2][j],n,1,j,n,1,[1,1][j],2,:] for i = 1:2, j = 1:2])/(8im)
+      S_local[xs,ys,zs,m,n,2,1,:] .+= -sum([[1,-1][i] * two_magnon_canvas[:,:,:,m,n,1,i,1,[2,2][j],1,j,1,[1,1][j],2,:] for i = 1:2, j = 1:2])/(8im)
       # i             j
       # (a†aa - a†a†a)(a + a†) → 
-      S_local[xs,ys,zs,m,n,2,1,:] .+= -sum([[1,-1][i] * two_magnon_canvas[:,:,:,m,1,[2,2][i],m,1,i,m,1,[1,1][i],n,1,j,4,:] for i = 1:2, j = 1:2])/(8im)
+      S_local[xs,ys,zs,m,n,2,1,:] .+= -sum([[1,-1][i] * two_magnon_canvas[:,:,:,m,n,1,[2,2][i],1,i,1,[1,1][i],1,j,4,:] for i = 1:2, j = 1:2])/(8im)
 
       # Syy
       # i       j
       # (a - a†)(a†aa - a†a†a) → 
-      S_local[xs,ys,zs,m,n,2,2,:] .+= -sum([[1,-1][i] * [1,-1][j] * two_magnon_canvas[:,:,:,m,1,i,n,1,[2,2][j],n,1,j,n,1,[1,1][j],2,:] for i = 1:2, j = 1:2])/(-8)
+      S_local[xs,ys,zs,m,n,2,2,:] .+= -sum([[1,-1][i] * [1,-1][j] * two_magnon_canvas[:,:,:,m,n,1,i,1,[2,2][j],1,j,1,[1,1][j],2,:] for i = 1:2, j = 1:2])/(-8)
       # i             j
       # (a†aa - a†a†a)(a - a†) → 
-      S_local[xs,ys,zs,m,n,2,2,:] .+= -sum([[1,-1][i] * [1,-1][j] * two_magnon_canvas[:,:,:,m,1,[2,2][i],m,1,i,m,1,[1,1][i],n,1,j,4,:] for i = 1:2, j = 1:2])/(-8)
+      S_local[xs,ys,zs,m,n,2,2,:] .+= -sum([[1,-1][i] * [1,-1][j] * two_magnon_canvas[:,:,:,m,n,1,[2,2][i],1,i,1,[1,1][i],1,j,4,:] for i = 1:2, j = 1:2])/(-8)
 
       # Szz
       # i     j
       # (-a†a)(-a†a)
-      S_local[xs,ys,zs,m,n,3,3,:] .+= two_magnon_canvas[:,:,:,m,1,2,m,1,1,n,1,2,n,1,1,3,:]
+      S_local[xs,ys,zs,m,n,3,3,:] .+= two_magnon_canvas[:,:,:,m,n,1,2,1,1,1,2,1,1,3,:]
     end
 
     S_local[xs,ys,zs,m,n,:,:,:] .*= phases
@@ -495,9 +505,7 @@ function render_one_over_S_spectrum(sys;beta = 1.0,two_magnon = false)
 
 
   # Find polyatomic required number of unit cells:
-  na = Sunny.natoms(sys.crystal)
-  ΔRs = [map(x -> iszero(x) ? Inf : x,abs.(sys.crystal.positions[i] - sys.crystal.positions[j])) for i = 1:na, j = 1:na]
-  nbzs = round.(Int64,max.([1,1,1],1 ./ minimum(ΔRs)))
+  nbzs = polyatomic_bzs(sys.crystal)
 
   # The limited range of wave vectors that is suitable for
   # each individual sublattice
@@ -604,8 +612,7 @@ function sunny_swt_spectrum(sys;polyatomic = true)
 
   if polyatomic
     # Find polyatomic required number of unit cells:
-    ΔRs = [map(x -> iszero(x) ? Inf : x,abs.(sys.crystal.positions[i] - sys.crystal.positions[j])) for i = 1:na, j = 1:na]
-    nbzs = round.(Int64,max.([1,1,1],1 ./ minimum(ΔRs)))
+    nbzs = polyatomic_bzs(sys.crystal)
   else
     nbzs = [1,1,1]
   end
@@ -716,10 +723,14 @@ end
 # list of wavevector indices in a momentum-conserving way.
 # The ks should be a list [[ix,iy,iz],[jx,jz,jz],…], and
 # daggers should be a bit string [0,1,1,0,…] with 1 for a†
-function momentum_conserving_index(ks,daggers,ns)
+function momentum_conserving_index(ks::Vector{Vector{Int64}},daggers::Vector{Int64},ns::Tuple{Int64,Int64,Int64})
   nx,ny,nz = ns
   dagger_signs = (-1) .^ daggers
-  momentum_so_far = sum(dagger_signs[1:end-1] .* map(k -> k .- 1,ks);init = [0,0,0])
+  momentum_so_far = Int64[0,0,0]
+  for i = 1:length(ks)
+    momentum_so_far .+= dagger_signs[i] * (ks[i] .- 1)
+  end
+  #momentum_so_far = sum(dagger_signs[1:end-1] .* map(k -> k .- 1,ks);init = [0,0,0])
   I = mod1.(1 .- momentum_so_far * dagger_signs[end],[nx,ny,nz])
 
   #=
@@ -751,7 +762,7 @@ function momentum_conserving_index(ks,daggers,ns)
     #end
   end
   =#
-  CartesianIndex(tuple(I...))
+  CartesianIndex(ntuple(i -> I[i],3))
 end
 
 function zero_magnon_sector(Hs,Vs,cryst;betaOmega)
@@ -963,6 +974,8 @@ function blit_one_magnon(Hs,Vs,cryst,disps,dE,npos;betaOmega)
   # - The energy *bin* the contribution should end up in
   canvas = zeros(ComplexF64,nx,ny,nz,na,nf,2,na,nf,2,3,2npos+1)
 
+  n_warn = 0
+
   one_magnon_sector(Hs,Vs,cryst;betaOmega) do contribution, total_k, m, i, iDag, j, jDag, partition
     n_harmonic = length(contribution)
     for h = 1:n_harmonic
@@ -970,7 +983,13 @@ function blit_one_magnon(Hs,Vs,cryst,disps,dE,npos;betaOmega)
       E = harmonic * disps[m,total_k]
       bin = 1 + floor(Int64,E/dE + (npos + 1/2))
       if bin < 1 || bin > 2npos + 1
-        println("Outside bin range!")
+        if n_warn < 15
+          n_warn = n_warn + 1
+          println("Outside bin range!")
+        elseif n_warn == 15
+          n_warn = n_warn + 1
+          println("Supressing further warnings...")
+        end
         continue
       end
       canvas[total_k,i,1,iDag+1,j,1,jDag+1,partition,bin] += contribution[h]
@@ -978,8 +997,57 @@ function blit_one_magnon(Hs,Vs,cryst,disps,dE,npos;betaOmega)
   end
   canvas
 end
-
 function blit_two_magnon(Hs,Vs,cryst,disps,dE,npos;betaOmega)
+  nx,ny,nz = size(Vs)[6:8]
+
+  na = size(Vs,1)
+  nf = size(Vs,2)
+
+  # The canvas only retains information about:
+  # - The total momentum [nx,ny,nz]
+  # - The TWO sites and FOUR flavors of a-bosons being correlated
+  # - The partition number
+  # - The energy *bin* the contribution should end up in
+  canvas = zeros(ComplexF64,nx,ny,nz,na,na,nf,2,nf,2,nf,2,nf,2,5,2npos+1)
+
+  n_warn = 0
+
+  two_magnon_sector(Hs,Vs,cryst;betaOmega) do contribution, total_k, m, n, table_1, table_2, i, iDag, j, jDag, k, kDag, l, lDag, partition
+    if !allequal([i,j,k,l][1:partition-1]) || !allequal([i,j,k,l][partition:end])
+      # This is a non-2 point correlator!!
+      return
+    end
+
+    # Open Q: what if partition is 1 or 5??
+    left_site = i
+    right_site = l
+
+    n_harmonic = size(contribution,1)
+    @assert n_harmonic == size(contribution,2)
+    for h1 = 1:n_harmonic, h2 = 1:n_harmonic
+      harmonic1 = h1 - (n_harmonic ÷ 2) - 1
+      harmonic2 = h2 - (n_harmonic ÷ 2) - 1
+      E = harmonic1 * disps[m,CartesianIndex(table_1)] 
+      E += harmonic2 * disps[n,CartesianIndex(table_2)] 
+      bin = 1 + floor(Int64,E/dE + (npos + 1/2))
+      if bin < 1 || bin > 2npos + 1
+        if n_warn < 15
+          n_warn = n_warn + 1
+          println("Outside bin range!")
+        elseif n_warn == 15
+          n_warn = n_warn + 1
+          println("Supressing further warnings...")
+        end
+        continue
+      end
+      canvas[total_k,left_site,right_site,1,iDag+1,1,jDag+1,1,kDag+1,1,lDag+1,partition,bin] += contribution[h1,h2]
+    end
+  end
+  canvas
+end
+
+
+function blit_four_point_correlator(Hs,Vs,cryst,disps,dE,npos;betaOmega)
   nx,ny,nz = size(Vs)[6:8]
 
   na = size(Vs,1)
@@ -992,6 +1060,8 @@ function blit_two_magnon(Hs,Vs,cryst,disps,dE,npos;betaOmega)
   # - The energy *bin* the contribution should end up in
   canvas = zeros(ComplexF64,nx,ny,nz,na,nf,2,na,nf,2,na,nf,2,na,nf,2,5,2npos+1)
 
+  n_warn = 0
+
   two_magnon_sector(Hs,Vs,cryst;betaOmega) do contribution, total_k, m, n, table_1, table_2, i, iDag, j, jDag, k, kDag, l, lDag, partition
     n_harmonic = size(contribution,1)
     @assert n_harmonic == size(contribution,2)
@@ -1000,12 +1070,15 @@ function blit_two_magnon(Hs,Vs,cryst,disps,dE,npos;betaOmega)
       harmonic2 = h2 - (n_harmonic ÷ 2) - 1
       E = harmonic1 * disps[m,CartesianIndex(table_1)] 
       E += harmonic2 * disps[n,CartesianIndex(table_2)] 
-      if harmonic1 != 0 && harmonic2 != 0
-        #println("Energy math: $(harmonic1 * disps[m,CartesianIndex(table_1)]) + $(harmonic2 * disps[n,CartesianIndex(table_2)]) = $E")
-      end
       bin = 1 + floor(Int64,E/dE + (npos + 1/2))
       if bin < 1 || bin > 2npos + 1
-        println("Outside bin range!")
+        if n_warn < 15
+          n_warn = n_warn + 1
+          println("Outside bin range!")
+        elseif n_warn == 15
+          n_warn = n_warn + 1
+          println("Supressing further warnings...")
+        end
         continue
       end
       canvas[total_k,i,1,iDag+1,j,1,jDag+1,k,1,kDag+1,l,1,lDag+1,partition,bin] += contribution[h1,h2]
@@ -1016,7 +1089,7 @@ end
 
 
 
-function two_magnon_sector(f,Hs,Vs,cryst;betaOmega)
+function two_magnon_sector(f::Function,Hs::Array{ComplexF64,5},Vs::Array{ComplexF64,8},cryst::Sunny.Crystal;betaOmega::Array{Float64,4})
   nx,ny,nz = size(Vs)[6:8]
 
   na = size(Vs,1)
@@ -1050,10 +1123,10 @@ function two_magnon_sector(f,Hs,Vs,cryst;betaOmega)
     # then the possible values for k3 are
     possible_k3 = if k1_k2_different_class
       # the possible momenta ±k1 and ±k2 in the existing classes
-      [(x1,y1,z1),(x2,y2,z2),negate_momentum((x1,y1,z1),(nx,ny,nz)),negate_momentum((x2,y2,z2),(nx,ny,nz))]
+      unique([(x1,y1,z1),(x2,y2,z2),negate_momentum((x1,y1,z1),(nx,ny,nz)),negate_momentum((x2,y2,z2),(nx,ny,nz))])
     else
       # or if k1 and k2 are in the same class, then k3 can be anything
-      [(x3,y3,z3) for x3 = 1:nx, y3 = 1:ny, z3 = 1:nz]
+      [(x3,y3,z3) for x3 = 1:nx for y3 = 1:ny for z3 = 1:nz]
     end
 
     for (x3,y3,z3) in possible_k3
@@ -1109,82 +1182,140 @@ function two_magnon_sector(f,Hs,Vs,cryst;betaOmega)
             bds = [bd1,bd2,bd3,bd4]
 
             # Evaluate mode label coincidences:
-            class_1 = [1]
-            class_1_k = bk1
+            class_1_count = 1
+            class_1_rep = bk1
+            class_1_mask = 0b0001
+
+            class_2_count = 0
+            class_2_rep = nothing
+            class_2_mask = 0b0000
             for j = 2:4
-              if bk1 == bks[j]
-                push!(class_1,j)
+              bkj = bks[j]
+              if bkj == class_1_rep
+                class_1_mask |= 0x1 << (j-1)
+                class_1_count += 1
+                continue
+              end
+              if isnothing(class_2_rep)
+                class_2_rep = bkj
+              end
+              if bkj == class_2_rep
+                class_2_mask |= 0x1 << (j-1)
+                class_2_count += 1
               end
             end
 
-            unsorted = setdiff([1,2,3,4],class_1)
-            class_2 = if length(unsorted) > 0
-              class_2 = [unsorted[1]]
-
-              for j = unsorted[2:end]
-                push!(class_2,j)
-              end
-              class_2
-            else
-              []
-            end
-
-            unsorted = setdiff(setdiff([1,2,3,4],class_1),class_2)
-            if length(unsorted) > 0
-              # Selection rule: Just by looking at k, we find there
-              # are more than two modes participating, but this is verboten!
+            # Optimization/selection rule: Can skip any time there is an odd
+            # number in a particular class (can't return to ground state):
+            if isodd(class_1_count) || isodd(class_2_count)
+              #println("Rejecting: ")
+              #println("class_1: $(bitstring(class_1_mask))")
+              #println("class_2: $(bitstring(class_2_mask))")
               continue
             end
 
+            if (class_1_mask | class_2_mask) != 0b1111
+              # Selection rule: Just by looking at k, we find there
+              # are more than two modes participating (since one of them remained unsorted),
+              # but this is verboten!
+              continue
+            end
+            #=
+            println()
+            println("Term: bks = $bks")
+            println("      bds = $bds")
+            println("      aks = $([[x1,y1,z1],[x2,y2,z2],[x3,y3,z3],[x4,y4,z4]])")
+            println("      ads = $([iDag,jDag,kDag,lDag])")
+            println("class_1: $(bitstring(class_1_mask))")
+            println("class_2: $(bitstring(class_2_mask))")
+            =#
+             
+
             # Two cases
-            if length(class_2) == 0
+            if class_2_count == 0
               # Case: Everything was class_1
 
+              #=
+            println()
+            println("Term: bks = $bks")
+            println("      bds = $bds")
+            println("      aks = $([[x1,y1,z1],[x2,y2,z2],[x3,y3,z3],[x4,y4,z4]])")
+            println("      ads = $([iDag,jDag,kDag,lDag])")
+            println("class_1: $(bitstring(class_1_mask))")
+            println("class_2: $(bitstring(class_2_mask))")
+              println("  ^ All class 1; class_1_k = $class_1_rep")
+              =#
               # Loop over mode identity for class_1
               for m = 1:(na*nf)
                 L = bds[1:partition-1]
                 R = bds[partition:end]
-                y = wick_to_y_object(Y_storage[class_1_k...,m], wickify(L), wickify(R); betaOmega = betaOmega[m,class_1_k...])[-2:2]
+                y = wick_to_y_object(Y_storage[class_1_rep...,m], wickify(L), wickify(R); betaOmega = betaOmega[m,class_1_rep...])[-2:2]
                 for i = 1:na, j = 1:na, k = 1:na, l = 1:na
                   y *= Vk1[i,1,iDag+1,m,bd1+1]
                   y *= Vk2[j,1,jDag+1,m,bd2+1]
                   y *= Vk3[k,1,kDag+1,m,bd3+1]
                   y *= Vk4[l,1,lDag+1,m,bd4+1]
-                  #view(correlator,total_k,m,m,i,1,iDag+1,j,1,jDag+1,k,1,kDag+1,l,1,lDag+1,:,:,partition) .+= y * y'
-                  tables = [table_for_k1, table_for_k2, table_for_k3, table_for_k4]
-                  f(y * y', total_k, m, m, class_1_k, class_1_k, i, iDag, j, jDag, k, kDag, l, lDag, partition)
+                  f(y * y', total_k, m, m, class_1_rep, class_1_rep, i, iDag, j, jDag, k, kDag, l, lDag, partition)
                 end
               end
             else
               # Case: Both class_1 and class_2 present
               
-              class_2_k = bks[class_2[1]]
               # Loop over mode identities for the two classes
               for m = 1:(na*nf), n = 1:(na*nf)
                 # Class 1
+                L1 = Ref(empty_wick())
+                R1 = Ref(empty_wick())
+                L2 = Ref(empty_wick())
+                R2 = Ref(empty_wick())
+                #=
+                println()
+                println()
+                println("Before:")
+                println("L1: $L1")
+                println("R1: $R1")
+                println("L2: $L2")
+                println("R2: $R2")
+                =#
+                for j = 4:-1:1
+                  #println()
+                  #println("j = $j")
+                  is_left = j < partition
+                  #println(is_left ? "Left" : "Right")
+                  #println(1 == 1 & (class_1_mask >> (j-1)))
+                  target = 1 == 1 & (class_1_mask >> (j-1)) ? (is_left ? L1 : R1) : (is_left ? L2 : R2)
+                  #println(target[])
+                  #println(bds[j])
+                  target[] = wick_append_left(bds[j],target[])
+                  #println(target[])
+                end
+                #=
+                println()
+                println("After:")
+                println("L1: $L1")
+                println("R1: $R1")
+                println("L2: $L2")
+                println("R2: $R2")
+                =#
+
+                #=
                 L = bds[1:partition-1][class_1[class_1 .< partition]]
                 R = bds[partition:end][class_1[class_1 .>= partition] .- (partition-1)]
                 wL = wickify(L)
                 wR = wickify(R)
-                y_1 = wick_to_y_object(Y_storage[class_1_k...,m], wL, wR; betaOmega = betaOmega[m,class_1_k...])[-2:2]
+                =#
+                y_1 = wick_to_y_object(Y_storage[class_1_rep...,m], L1[], R1[]; betaOmega = betaOmega[m,class_1_rep...])[-2:2]
 
                 # Class 2
-                L = bds[1:partition-1][class_2[class_2 .< partition]]
-                R = bds[partition:end][class_2[class_2 .>= partition] .- (partition-1)]
-                y_2 = wick_to_y_object(Y_storage[class_2_k...,n], wickify(L), wickify(R); betaOmega = betaOmega[n,class_2_k...])[-2:2]
-                #println()
-                #println("ks → $bk1 $bk2 $bk3 $bk4")
-                #println("ds → $bd1 $bd2 $bd3 $bd4")
-                #println("m = $m, n = $n; class_1 = $class_1, class_2 = $class_2, partition = $partition")
-                #println("y1: $y_1")
-                #println("y2: $y_2")
+                #L = bds[1:partition-1][class_2[class_2 .< partition]]
+                #R = bds[partition:end][class_2[class_2 .>= partition] .- (partition-1)]
+                y_2 = wick_to_y_object(Y_storage[class_1_rep...,n], L2[], R2[]; betaOmega = betaOmega[n,class_1_rep...])[-2:2]
                 for i = 1:na, j = 1:na, k = 1:na, l = 1:na
-                  y  = Vk1[i,1,iDag+1,in(class_1,1) ? m : n,bd1+1]
-                  y *= Vk2[j,1,jDag+1,in(class_1,2) ? m : n,bd2+1]
-                  y *= Vk3[k,1,kDag+1,in(class_1,3) ? m : n,bd3+1]
-                  y *= Vk4[l,1,lDag+1,in(class_1,4) ? m : n,bd4+1]
-                  tables = [table_for_k1, table_for_k2, table_for_k3, table_for_k4]
-                  f(y * y_1 * y_2', total_k, m, n, class_1_k, class_2_k, i, iDag, j, jDag, k, kDag, l, lDag, partition)
+                  y  = Vk1[i,1,iDag+1,(0b0001 == class_1_mask & 0b0001) ? m : n,bd1+1]
+                  y *= Vk2[j,1,jDag+1,(0b0010 == class_1_mask & 0b0010) ? m : n,bd2+1]
+                  y *= Vk3[k,1,kDag+1,(0b0100 == class_1_mask & 0b0100) ? m : n,bd3+1]
+                  y *= Vk4[l,1,lDag+1,(0b1000 == class_1_mask & 0b1000) ? m : n,bd4+1]
+                  f(y * y_1 * y_2', total_k, m, n, class_1_rep, class_2_rep, i, iDag, j, jDag, k, kDag, l, lDag, partition)
                   #view(correlator,total_k,m,n,i,1,iDag+1,j,1,jDag+1,k,1,kDag+1,l,1,lDag+1,:,:,partition) .+= y * y_1 * y_2'
                 end
               end
@@ -1431,10 +1562,13 @@ function speak_bogo_coeffs(Vs)
   end
 end
 
-function guide_dispersion!(disps)
+function guide_dispersion!(disps;blue = true)
   for j = 1:size(disps,1)
     lines!(disps[j,:,1,1],color = :black,linestyle = :dash)
     lines!(-disps[j,:,1,1],color = :black,linestyle = :dash)
+  end
+  if !blue
+    return
   end
   for j = 1:size(disps,1), l = 1:size(disps,1)
     lines!(disps[j,:,1,1] + disps[l,:,1,1], color = :blue,linestyle = :dash)
@@ -1465,9 +1599,13 @@ function phase_fix_Vs(Vs)
     for fix_a = 1:na, fix_f = 1:nf
       # Replace the negative energy modes at the opposite Q with equivalent
       # ones that are phase-matched to the positive energy modes at this Q
-      @assert is_phase_rotation(view(Vthere,:,:,2,mirror_mode,2),conj.(Vhere[:,:,1,mode,1]))
+      if !is_phase_rotation(view(Vthere,:,:,2,mirror_mode,2),conj.(Vhere[:,:,1,mode,1]))
+        @warn "Making non-simple change of variables; do you have degenerate bands?"
+      end
       view(Vthere,:,:,2,mirror_mode,2) .= conj.(Vhere[:,:,1,mode,1]) # Copy a  = ... b to a† = ... b†
-      @assert is_phase_rotation(view(Vthere,:,:,1,mirror_mode,2),conj.(Vhere[:,:,2,mode,1]))
+      if !is_phase_rotation(view(Vthere,:,:,1,mirror_mode,2),conj.(Vhere[:,:,2,mode,1]))
+        @warn "Making non-simple change of variables; do you have degenerate bands?"
+      end
       view(Vthere,:,:,1,mirror_mode,2) .= conj.(Vhere[:,:,2,mode,1]) # Copy a† = ... b to a  = ... b†
     end
   end
