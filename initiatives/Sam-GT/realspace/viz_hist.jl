@@ -11,9 +11,9 @@ function viz_qqq_path(params; kwargs...)
   hi = max.(0,ceil.(Int64,aabb_hi))
   scatter!(ax,map(x -> Point3f(lo .+ x.I .- 1),CartesianIndices(ntuple(i -> 1 + hi[i] - lo[i],3)))[:],color = :black)
   linesegments!(ax,[(Point3f(-1,0,0),Point3f(1,0,0)),(Point3f(0,-1,0),Point3f(0,1,0)),(Point3f(0,0,-1),Point3f(0,0,1))],color = :black)
-  text!(1.1,0,0;text ="H")
-  text!(0,1.1,0;text ="K")
-  text!(0,0,1.1;text ="L")
+  text!(1.1,0,0;text ="qx [R.L.U.]")
+  text!(0,1.1,0;text ="qy [R.L.U.]")
+  text!(0,0,1.1;text ="qz [R.L.U.]")
   display(f)
   ax
 end
