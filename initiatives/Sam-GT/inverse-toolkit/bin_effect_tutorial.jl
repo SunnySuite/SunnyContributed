@@ -9,12 +9,6 @@ using Sunny, GLMakie, LinearAlgebra
 # Load the prepared data (originally named `normData_LaSrCrO4_120meV_5K_no_symmetrize_skew.nxs`):
 if !(:params ∈ names(Main))
 params, data = load_nxs("../inverse-toolkit/data/LaSrCrO4_prepared.nxs")
-for i = 1:4
-  ## Adjust bin ends to lie within the last bin.
-  ## See documentation for BinningParameters for details
-  params.binend[i] -= params.binwidth[i]/2
-end
-println(size(data))
 end
 
 # Following the techniques described in the [Fitting Tutorial](fitting_tutorial.md), we

@@ -5,10 +5,6 @@ using Sunny, GLMakie
 # Load the prepared data (originally named `normData_LaSrCrO4_120meV_5K_no_symmetrize_skew.nxs`):
 if !(:params ∈ names(Main))
 params, data = load_nxs("../inverse-toolkit/data/LaSrCrO4_prepared.nxs")
-for i = 1:4
-  params.binend[i] -= params.binwidth[i]/2
-end
-println(size(data))
 end
 
 # The shape of the data is described by the histogram parameters:
