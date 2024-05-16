@@ -18,7 +18,7 @@ function viz_qqq_path(params; kwargs...)
   ax
 end
 
-function viz_qqq_path!(ax,params; background = nothing, line_alpha = 0.3,color = nothing,colorrange = nothing)
+function viz_qqq_path!(ax,params; background = nothing, line_alpha = 0.3,color = nothing,colorrange = nothing,bin_colors = [:red,:blue,:green],bin_line_width = 0.5)
   @assert iszero(params.covectors[1:3,4]) && iszero(params.covectors[4,1:3])
   bcs = axes_bincenters(params)
   bes = Sunny.axes_binedges(params)
@@ -46,7 +46,7 @@ function viz_qqq_path!(ax,params; background = nothing, line_alpha = 0.3,color =
 
     if !isempty(grid)
       segs = map(x -> (Point3f(M * x),Point3f(M * (x .+ offset))),grid[:])
-      linesegments!(ax,segs,color = [:red,:blue,:green][dir],linewidth = 0.5,alpha = line_alpha)
+      linesegments!(ax,segs,color = bin_colors[dir],linewidth = bin_line_width,alpha = line_alpha)
     end
 
     segs = map(x -> (Point3f(M * x),Point3f(M * (x .+ offset))),grid_sparse[:])

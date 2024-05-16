@@ -1,4 +1,4 @@
-using Sunny, GLMakie, HDF5
+using Sunny, GLMakie, HDF5, StaticArrays
 
 # The `.nxs` file exported from Mantid looks something like this:
 
@@ -23,12 +23,15 @@ display(params)
 #nothing#hide
 
 function intensities_binned_psf(sc::SampledCorrelations, params::BinningParameters, formula::Sunny.ClassicalIntensityFormula;
-    integrated_kernel = nothing, point_spread_function = nothing
+    integrated_kernel = nothing, point_spread_function = nothing, approach = :centers
 )
     (; binwidth, binstart, binend, covectors, numbins) = params
     return_type = typeof(formula).parameters[1]
     output_intensities = zeros(return_type,numbins...)
-    output_counts = zeros(Float64,numbins...)
+    output_intensities = MArray{Tuple{numbins[1],numbins[2],numbins[3],numbins[4]},return_type}(undef)
+    output_intensities .= 0
+    output_counts = MArray{Tuple{numbins[1],numbins[2],numbins[3],numbins[4]},Float64}(undef)
+    output_counts .= 0
     ωvals = Sunny.available_energies_including_zero(sc;negative_energies=true)
     q0vals = available_wave_vectors(sc;bzsize = (1,1,1))
 
@@ -43,13 +46,7 @@ function intensities_binned_psf(sc::SampledCorrelations, params::BinningParamete
     lower_aabb_cell = floor.(Int64,lower_aabb_q .* Ls .+ 1) 
     upper_aabb_cell = ceil.(Int64,upper_aabb_q .* Ls .+ 1)
 
-    k = MVector{3,Float64}(undef)
-    v = MVector{4,Float64}(undef)
-    q = view(v,1:3)
-    coords = MVector{4,Float64}(undef)
-    xyztBin = MVector{4,Int64}(undef)
-    xyzBin = view(xyztBin,1:3)
-
+    
     # Pre-compute discrete broadening kernel from continuous one provided
     if !isnothing(integrated_kernel)
 
@@ -75,125 +72,146 @@ function intensities_binned_psf(sc::SampledCorrelations, params::BinningParamete
         end
     end
 
+    all_q_scattering_source = CartesianIndices(Tuple(((:).(lower_aabb_cell,upper_aabb_cell))))
+
     # Pre-compute discrete point spread function from continuous one provided
-    if !isnothing(point_spread_function)
+    psf_kern_size = if !isnothing(point_spread_function)
 
         # Upgrade to 2-argument kernel if needed
-        psf_qdep = if point_spread_function isa Function
-          point_spread_function
-        else
-          q -> point_spread_function # Constant
-        end
+        is_constant_kernel = !(point_spread_function isa Function)
+        
+        # Find how many bins over a signal can be spread
+        # along each histogram axis.
+        bin_span = if is_constant_kernel
+          # Find the size for the single constant kernel
+          unique_bin_span = zeros(Float64,4)
 
-        @assert iszero(params.covectors[1:3,4]) && iszero(params.covectors[4,1:3])
-        hist_axes_psf = Array{SMatrix{3,3,Float64}}(undef,size(q0vals)...)
-        largest_bin_span = [0.,0,0]
-        for ix_q in CartesianIndices(q0vals)
-          hist_axes_psf[ix_q] = params.covectors[1:3,1:3] * psf_qdep(q0vals[ix_q])
-          for j = 1:3
-            largest_bin_span[j] = max(largest_bin_span[j],maximum(abs.(hist_axes_psf[ix_q][j,:]))/params.binwidth[j])
+          # Eigenvectors * √λ of point_spread_function give the 1σ spread distance.
+          # Here, we measure those displacements in terms of the histogram
+          # coordinates; the rows of hist_axes_psf label histogram axes,
+          # and the columns label point spread directions.
+          F = eigen(point_spread_function)
+          hist_axes_psf = params.covectors * F.vectors * sqrt.(diagm(F.values))
+          #hist_axes_psf = params.covectors * point_spread_function * inv(params.covectors)
+          for j = 1:4
+            # Find the maximum (along all spread directions) of the 1σ distance
+            # measured in bins
+            unique_bin_span[j] = maximum(abs.(hist_axes_psf[j,:]))/params.binwidth[j]
           end
+          unique_bin_span
+        else
+          # Need to evaluate psf at all scattering (q,w) sources to determine
+          # optimal size for kernel
+          hist_axes_psf = Array{SMatrix{4,4,Float64}}(undef,size(all_q_scattering_source)...,length(ωvals))
+          lower_aabb_cell_ix = CartesianIndex(lower_aabb_cell)
+          largest_bin_span = zeros(Float64,4)
+          for ix_q in all_q_scattering_source, ix_w in CartesianIndices(ωvals)
+            q = ((ix_q.I .- 1) ./ Ls) # q is in R.L.U.
+            iq = ix_q + (CartesianIndex(1,1,1) - lower_aabb_cell_ix)
+            hist_axes_psf[iq,ix_w] = params.covectors * point_spread_function(q,ωvals[ix_w])
+            for j = 1:4
+              largest_bin_span[j] = max(largest_bin_span[j],maximum(abs.(hist_axes_psf[iq,ix_w][j,:]))/params.binwidth[j])
+            end
+          end
+          largest_bin_span
         end
 
         sigma_tol = 4.0
-        psf_kern_span = ceil.(Int64,sigma_tol * largest_bin_span)
-        psf_kern_size = 1 .+ 2psf_kern_span
-        psf_kern_span_plus_one_ix = CartesianIndex(ntuple(i -> 1 + psf_kern_span[i],3))
-
-        psf_kerns = Array{Float64}(undef,psf_kern_size...,size(q0vals)...)
-        for ix_q_source in CartesianIndices(q0vals)
-            center_pt = params.covectors[1:3,1:3] * q0vals[ix_q_source]
-            center_bin = 1 .+ floor.(Int64,(center_pt .- params.binstart[1:3]) ./ params.binwidth[1:3])
-            psf_matrix = inv(hist_axes_psf[ix_q_source])
-            #psf_matrix = (hist_axes_psf[ix_q_source])
-            center_bin_ix = CartesianIndex(ntuple(i -> center_bin[i],3))
-            psf_kern_size_ix = CartesianIndex(ntuple(i -> psf_kern_size[i],3))
-            for kern_arr_ix = CartesianIndices(ntuple(i -> psf_kern_size[i],3))
-                
-                diff_ix = kern_arr_ix - psf_kern_span_plus_one_ix
-                
-                # Start and end points of the target bin
-                bin_ix = center_bin_ix + diff_ix
-                l = params.binstart[1:3] .+ collect(bin_ix.I .- 1) .* params.binwidth[1:3]
-                h = params.binstart[1:3] .+ collect(bin_ix.I) .* params.binwidth[1:3]
-
-                # Relative to actual center point
-                lr = l .- center_pt
-                hr = h .- center_pt
-
-                # SQ TODO: exact integrated gaussian!
-                center_relative = (lr + hr) / 2
-                factor = exp(-(center_relative ⋅ (psf_matrix * psf_matrix * center_relative)) / 2)
-                psf_kerns[kern_arr_ix,ix_q_source] = factor
-            end
-        end
+        psf_kern_span1 = convert(Vector{Int64},ceil.(Int64,sigma_tol * bin_span))
+        1 .+ 2 .* psf_kern_span1
     else
-        psf_kern_span = [0,0,0]
-        psf_kern_size = 1 .+ 2psf_kern_span
-        psf_kern_span_plus_one_ix = CartesianIndex(ntuple(i -> 1 + psf_kern_span[i],3))
-        psf_kerns = ones(Float64,1,1,1,size(q0vals)...)
+        psf_kern_span = Int64[0,0,0,0]
+        1 .+ 2 .* psf_kern_span
     end
 
+    println(psf_kern_size)
+    psf_matrix = params.covectors * pinv(point_spread_function) * inv(params.covectors)
+    display(psf_matrix)
+
+    is, counts = intensities_binned_aux(output_counts,output_intensities,SMatrix{4,4}(psf_matrix),all_q_scattering_source,SVector{4,Int64}(psf_kern_size),isnothing(point_spread_function),Ls,sc,sc.crystal.recipvecs,binstart,binwidth,covectors,ωvals;approach)
+    Array(is), Array(counts)
+end
+
+function intensities_binned_aux(output_counts::MArray,output_intensities::MArray,psf_matrix::SMatrix,all_q_scattering_source,psf_kern_size::SVector,skip_qres,Ls,sc,recipvecs,binstart,binwidth,covectors,ωvals; approach = :centers)
+    psf_kern_span_plus_one_ix = CartesianIndex(ntuple(i -> 1 + (psf_kern_size[i] - 1)÷2,4))
+    kern_ixs = CartesianIndices(ntuple(i -> psf_kern_size[i],4))
+    maxbin = ntuple(i -> size(output_counts,i),4)
+
+    carloMatrix = pinv(psf_matrix)
+    Fcarlo = eigen(carloMatrix)
+
+    k = MVector{3,Float64}(undef)
+    v = MVector{4,Float64}(undef)
+    q = view(v,1:3)
+    coords = MVector{4,Float64}(undef)
+    xyztBin = MVector{4,Int64}(undef)
+    xyzBin = view(xyztBin,1:3)
+
     # Loop over every scattering vector in the bounding box
-    for cell in CartesianIndices(Tuple(((:).(lower_aabb_cell,upper_aabb_cell))))
+    for cell in all_q_scattering_source
         # Which is the analog of this scattering mode in the first BZ?
         base_cell = CartesianIndex(mod1.(cell.I,Ls)...)
         q .= ((cell.I .- 1) ./ Ls) # q is in R.L.U.
-        k .= sc.crystal.recipvecs * q
+        k .= recipvecs * q
         for (iω,ω) in enumerate(ωvals)
-            if isnothing(integrated_kernel) # `Delta-function energy' logic
-                # Figure out which bin this goes in
-                v[4] = ω
-                mul!(coords,covectors,v)
-                xyztBin .= 1 .+ floor.(Int64,(coords .- binstart) ./ binwidth)
+          # Figure out which bin this goes in
+          v[4] = ω
+          mul!(coords,covectors,v)
+          xyztBin .= 1 .+ floor.(Int64,(coords .- binstart) ./ binwidth)
+          intensity = formula.calc_intensity(sc,SVector{3,Float64}(k),base_cell,iω)
 
-                # Check this bin is within the 4D histogram bounds
-                if all(xyztBin .<= numbins) && all(xyztBin .>= 1)
-                    intensity = formula.calc_intensity(sc,SVector{3,Float64}(k),base_cell,iω)
-
-                    ci = CartesianIndex(xyztBin.data)
-                    center_bin_ix = CartesianIndex(xyztBin[1],xyztBin[2],xyztBin[3])
-                    for kern_arr_ix = CartesianIndices(ntuple(i -> psf_kern_size[i],3))
-                      diff_ix = kern_arr_ix - psf_kern_span_plus_one_ix
-                      ci_other = center_bin_ix + diff_ix
-                      if all(ci_other.I .<= view(numbins,1:3)) && all(ci_other.I .>= 1)
-                        output_intensities[ci_other,xyztBin[4]] += psf_kerns[kern_arr_ix,base_cell] * intensity
-                        output_counts[ci_other,xyztBin[4]] += psf_kerns[kern_arr_ix,base_cell]
-                      end
-                    end
-                    #output_intensities[ci] += intensity
-                    #output_counts[ci] += 1
-                end
-            else # `Energy broadening into bins' logic
-                # For now, only support broadening for `simple' energy axes
-                if covectors[4,:] == [0,0,0,1] && norm(covectors[1:3,:] * [0,0,0,1]) == 0
-
-                    # Check this bin is within the *spatial* 3D histogram bounds
-                    # If we are energy-broadening, then scattering vectors outside the histogram
-                    # in the energy direction need to be considered
-                    mul!(view(coords,1:3),view(covectors,1:3,1:3), view(v,1:3))
-                    xyzBin .= 1 .+ floor.(Int64,(view(coords,1:3) .- view(binstart,1:3)) ./ view(binwidth,1:3))
-                    if all(xyzBin .<= view(numbins,1:3)) &&  all(xyzBin .>= 1)
-
-                        # Calculate source scattering vector intensity only once
-                        intensity = formula.calc_intensity(sc,SVector{3,Float64}(k),base_cell,iω)
-
-                        # Broaden from the source scattering vector (k,ω) to
-                        # each target bin ci_other
-                        center_bin_ix = CartesianIndex(xyzBin[1],xyzBin[2],xyzBin[3])
-                        for kern_arr_ix = CartesianIndices(ntuple(i -> psf_kern_size[i],3))
-                          diff_ix = kern_arr_ix - psf_kern_span_plus_one_ix
-                          ci_other = center_bin_ix + diff_ix
-                          if all(ci_other.I .<= view(numbins,1:3)) && all(ci_other.I .>= 1)
-                            view(output_intensities,ci_other,:) .+= psf_kerns[kern_arr_ix,base_cell] * fraction_in_bin[iω] .* Ref(intensity)
-                            view(output_counts,ci_other,:) .+= psf_kerns[kern_arr_ix,base_cell] * fraction_in_bin[iω]
-                          end
-                        end
-                    end
-                else
-                    error("Energy broadening not yet implemented for histograms with complicated energy axes")
-                end
+          fractional_coords = ((coords .- binstart) ./ binwidth) .- xyztBin
+          center_bin_ix = CartesianIndex(xyztBin.data)
+          if skip_qres
+            if all(xyztBin .<= numbins) && all(xyztBin .>= 1) # Check bounds
+              output_intensities[center_bin_ix] += intensity
+              output_counts[center_bin_ix] += 1
             end
+          else
+            if approach == :centers
+              for kern_arr_ix = kern_ixs
+                diff_ix = kern_arr_ix - psf_kern_span_plus_one_ix
+                ci_other = center_bin_ix + diff_ix
+                b = ci_other.I
+                # Check this bin is within the 4D histogram bounds
+                if b[1] > maxbin[1] || b[2] > maxbin[2] || b[3] > maxbin[3] || b[4] > maxbin[4] || b[1] < 1 || b[2] < 1 || b[3] < 1 || b[4] < 1
+                #if !(all(ci_other.I .<= maxbin) && all(ci_other.I .>= (1,1,1,1)))
+                  continue
+                end
+          
+                # Start and end points of the target bin, relative to origin of center bin
+                l = collect(diff_ix.I .- 1) .* binwidth
+                h = collect(diff_ix.I) .* binwidth
+
+                # Relative to actual scattering point source
+                lr = l .- fractional_coords .* binwidth
+                hr = h .- fractional_coords .* binwidth
+
+                # SQ TODO: exact integrated gaussian!
+                center_relative = (lr + hr) / 2
+                #println()
+                #println(center_relative)
+                #display(psf_matrix)
+                factor = exp(-(dot(center_relative,psf_matrix,center_relative)) / 2)
+          #println(factor)
+                output_intensities[ci_other] += factor * intensity
+                output_counts[ci_other] += factor
+              end
+            elseif approach == :montecarlo
+              ncarlo = 10000
+              for j = 1:ncarlo
+                dq = carloMatrix * randn(4)/2
+                diff = floor.(Int64,dq ./ binwidth)
+                ci_other = center_bin_ix + CartesianIndex(ntuple(i -> diff[i],4))
+                b = ci_other.I
+                if b[1] > maxbin[1] || b[2] > maxbin[2] || b[3] > maxbin[3] || b[4] > maxbin[4] || b[1] < 1 || b[2] < 1 || b[3] < 1 || b[4] < 1
+                  continue
+                end
+                output_intensities[ci_other] += intensity/ncarlo
+                output_counts[ci_other] += 1/ncarlo
+              end
+            end
+          end
         end
     end
 
@@ -213,7 +231,8 @@ function intensities_binned_psf(sc::SampledCorrelations, params::BinningParamete
     # So the division by N here makes it so the result has units of
     # raw S² (to be summed over M-many BZs to recover M-times the sum rule)
     N_bins_in_BZ = abs(det(covectors[1:3,1:3])) / prod(binwidth[1:3])
-    return output_intensities ./ N_bins_in_BZ ./ length(ωvals), output_counts
+    output_intensities ./= N_bins_in_BZ * length(ωvals)
+    return output_intensities, output_counts
 end
 
 
