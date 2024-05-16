@@ -3,9 +3,12 @@ using Sunny, GLMakie, LinearAlgebra, Observables
 include("higher_swt.jl")
 include("viz_hist.jl")
 
-function view_lattice(cryst;params = nothing,latsize = (1,1,1))
+function view_lattice(cryst;params = nothing,magnetic_structure = nothing,latsize = (1,1,1))
   if !isnothing(params)
     @assert iszero(params.covectors[1:3,4]) && iszero(params.covectors[4,1:3])
+  end
+  if !isnothing(magnetic_structure)
+    @assert magnetic_structure.latsize == latsize
   end
   na = length(cryst.positions)
   rs = abs(det(cryst.latvecs))^(1/3)
@@ -23,6 +26,7 @@ function view_lattice(cryst;params = nothing,latsize = (1,1,1))
   point_sites = Int64[]
   nbzs = polyatomic_bzs(cryst)
 
+  recip_lat_bin_ix = CartesianIndex{3}[]
   recip_lat_comm_points = Point3f[]
   recip_lat_abs_comm_points = Point3f[]
 
@@ -34,10 +38,12 @@ function view_lattice(cryst;params = nothing,latsize = (1,1,1))
     end
     for bz = CartesianIndices(ntuple(i -> nbzs[i],3))
       q = collect(bz.I .- 1) + collect((lat_loc.I .- 1) ./ latsize)
+      push!(recip_lat_bin_ix,CartesianIndex(ntuple(i -> latsize[i] * (bz.I[i] - 1) + (lat_loc.I[i] - 1) + 1,3)))
       push!(recip_lat_comm_points,Point3f(q))
       push!(recip_lat_abs_comm_points,Point3f(cryst.recipvecs * q))
     end
   end
+  display(recip_lat_bin_ix)
 
   scatter!(ax_real_lattice,lat_points,color = point_sites)
   n(y) = Sunny.number_to_math_string(y;atol = cryst.symprec)
@@ -48,6 +54,9 @@ function view_lattice(cryst;params = nothing,latsize = (1,1,1))
   linesegments!(ax_real_lattice,[(Point3f(0,0,0),Point3f(cryst.latvecs[:,j]...)) for j = 1:3],color = [:red,:orange,:magenta],linewidth = 2.5)
   if !isnothing(params)
     linesegments!(ax_real_lattice,[(Point3f(0,0,0),Point3f((cryst.latvecs * params.covectors[j,1:3])...)) for j = 1:3],color = [:blue,:green,:purple],linewidth = 5.5,overdraw = true)
+  end
+  if !isnothing(magnetic_structure)
+    Sunny.Plotting.plot_spins!(ax_real_lattice,magnetic_structure,color = [ix.I[4] for ix = eachsite(sys)])
   end
 
   scatter!(ax_real_lattice,cryst.latvecs[:,1]...,color = :red)
@@ -90,6 +99,11 @@ function view_lattice(cryst;params = nothing,latsize = (1,1,1))
   if !isnothing(params)
     linesegments!(ax_real_rlu,[(Point3f(0,0,0),Point3f(params.covectors[j,1:3]...)) for j = 1:3],color = [:blue,:green,:purple],linewidth = 5.5,overdraw = true)
   end
+  if !isnothing(magnetic_structure)
+    # This doesn't really work because the spin orientations are tied to the physical coordinates
+    # in a complicated, pseudo-spin way... need to think more about this!
+    #Sunny.Plotting.plot_spins!(ax_real_rlu,magnetic_structure,color = [ix.I[4] for ix = eachsite(sys)])
+  end
 
   cam1 = Makie.cam3d!(ax_real_rlu.scene;projectiontype = Makie.Orthographic,clipping_mode = :static)
 
@@ -124,7 +138,21 @@ function view_lattice(cryst;params = nothing,latsize = (1,1,1))
   ax_recip_abs = LScene(f[1,2];show_axis = false)
   L = 2π * I(3)
 
-  scatter!(ax_recip_abs,recip_lat_abs_comm_points,color = [all(isinteger.(x)) ? :red : :black for x in recip_lat_comm_points])
+  if !isnothing(magnetic_structure)
+    isc = instant_correlations(magnetic_structure)
+    add_sample!(isc,magnetic_structure)
+    p_isc = unit_resolution_binning_parameters(isc)
+    p_isc.binend[1:3] .+= nbzs .- 1
+    display(cryst)
+    display(magnetic_structure)
+    display(nbzs)
+    display(p_isc)
+    i,c = intensities_binned(isc,p_isc,intensity_formula(isc,:trace))
+    scatter!(ax_recip_abs,recip_lat_abs_comm_points,color = [i[ix,1] for ix in recip_lat_bin_ix],markersize = 18)
+  else
+    # Default: Just color integer R.L.U. points red
+    scatter!(ax_recip_abs,recip_lat_abs_comm_points,color = [all(isinteger.(x)) ? :red : :black for x in recip_lat_comm_points])
+  end
   text!(ax_recip_abs,recip_lat_abs_comm_points,color = :black,text = map(x -> "($(m(x[1])),$(m(x[2])),$(m(x[3])))",recip_lat_abs_comm_points),align = (:center,:top),visible = txt_tog.active)
 
   linesegments!(ax_recip_abs,[(Point3f(-(1/rs) * L[:,j]...),Point3f((1/rs) * L[:,j]...)) for j = 1:3],color = :black)
