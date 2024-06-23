@@ -436,6 +436,7 @@ scatter(fig[1,1], kTs / meV_per_K, Es_μ; axis=(xscale=log10, ylabel="Energy (me
 ## scatter(fig[1,2], kTs_mid / meV_per_K, ΔE ./ ΔT; axis=(xscale=log10, ylabel="dE/dT", xlabel="T (K)"))
 ## scatter(fig[1,3], kTs / meV_per_K, OPs_μ; axis=(xscale=log10, ylabel="OP", xlabel="T (K)"))
 ## EXERCISE: Collect statistics for a long time, uncomment the above, and examine the results.
+fig
 
 # # 5. Spin waves
 #
@@ -610,12 +611,12 @@ sc = dynamical_correlations(sys; nω, ωmax, dt)
 
 nsamples = 10
 for _ in 1:nsamples
-    # Thermalize the system
+    ## Thermalize the system
     for _ in 1:500
         step!(sys, integrator)
     end
 
-    # Add a trajectory
+    ## Add a trajectory
     @time add_sample!(sc, sys)
 end
 
@@ -646,14 +647,14 @@ for kT in kTs
     sc = dynamical_correlations(sys; nω, ωmax, dt)
     integrator.kT = kT
 
-    # Collect correlations from trajectories
+    ## Collect correlations from trajectories
     for _ in 1:nsamples
-        # Thermalize/decorrelate the system
+        ## Thermalize/decorrelate the system
         for _ in 1:500
             step!(sys, integrator)
         end
 
-        # Add a trajectory
+        ## Add a trajectory
         @time add_sample!(sc, sys)
     end
     
