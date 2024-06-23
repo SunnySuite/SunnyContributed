@@ -20,8 +20,8 @@
 # faithfully. A useful showcase for this formalism the the square lattice
 # antiferromagnet Ba₂FeSi₂O₇. This is is a quasi-2D system with effective $S=2$
 # and strong easy-plane anisotropy. BFSO (as we will refer to it) has been
-# studied using the SU(_N_) formalism in a number of recent studies, in particular
-# the following:
+# studied using the SU(_N_) formalism in a number of recent studies, in
+# particular the following:
 
 # - S.-H. Do et al., "Decay and renormalization of a longitudinal mode...," [Nature Communications **12** (2021)](https://doi.org/10.1038/s41467-021-25591-7).
 # - M. Lee et al., "Field-induced spin level crossings...," [PRB **107** (2023)](https://doi.org/10.1103/PhysRevB.107.144427).
@@ -30,16 +30,20 @@
 # # 1. Anisotropies and large spins 
 #
 # Before specifying the complete Hamiltonian, we'll consider a cartoon picture
-# of the single-ion physics. The Hamiltonian for a single $S=2$ spin with single 
-# ion anisotropy is simply $\mathcal{H}_{\mathrm{SI}} = D(\hat{S}^z)^2$, where $\hat{S}^z$ is
-# in the $S=2$ representation. We can use Sunny to represent this as a matrix.
+# of the single-ion physics. The Hamiltonian for a single $S=2$ spin with single
+# ion anisotropy is simply $\mathcal{H}_{\mathrm{SI}} = D(\hat{S}^z)^2$, where
+# $\hat{S}^z$ is in the $S=2$ representation. We can use Sunny to represent this
+# as a matrix.
 
+## Import relevant libraries 
 using Sunny, GLMakie, LinearAlgebra, FFTW, Statistics
 
 S = spin_matrices(2)  # Returns a vector of Sx, Sy, Sz
 Sx, Sy, Sz = S        # Julia's "unpacking" syntax
 ## EXERCISE: Write the single-ion anisotropy (with D=1) and call it H_SI
 ## EXERCISE: How would you add a Zeeman term?
+
+H_SI = Sz^2  # + h*μB*g*Sz
 
 # The result is a diagonal matrix. Ordering of the basis elements is simply
 # $\vert 2\rangle$, $\vert 1\rangle$, $\vert 0\rangle$, $\vert -1\rangle$, and
@@ -94,8 +98,8 @@ sys.dipoles[1,1,1,1]
 
 # We see that this is close enough to zero for all intents and purposes. We can
 # also check the coherent state itself to see if it is equal to `Z=(0, 0, 1, 0,
-# 0)` up to overall phase. In SU(_N_) mode, this informaiton is contained in the
-# `System` field `coherents`
+# 0)` up to overall phase. In SU(_N_) mode, this information is contained in the
+# `System` field `coherents`:
 
 sys.coherents[1,1,1,1]
 
@@ -105,13 +109,14 @@ sys.coherents[1,1,1,1]
 
 # The anisotropy of BFSO is more complicated than the above, but it has a
 # predominantly easy-plane character -- though, from the exercise above, you may
-# realize it would be more appropriate to call this "hard-axis". If a Zeeman
-# term is added to a hard-axis anisotropy like we studied here, it induces a
-# number of level crossings as the field is increased. When exchange
-# interactions are added on top of this, we will find that the ground state
-# evolves with field as a mixture of the $\left\vert 0\right\rangle$ and $\left\vert 1\right\rangle$ 
-# states, into a mixture of the $\left\vert 0\right\rangle$ and $\left\vert 2\right\rangle$ states, 
-# until finally polarizing completely in the $\left\vert 2\right\rangle$ state.
+# realize it would be more appropriate to call this a "hard-axis" anisotropy. If
+# a Zeeman term is added to a hard-axis anisotropy, it induces a number of level
+# crossings as the field is increased. When exchange interactions are added on
+# top of this, we will find that the ground state evolves with field as a
+# mixture of the $\left\vert 0\right\rangle$ and $\left\vert 1\right\rangle$
+# states, into a mixture of the $\left\vert 0\right\rangle$ and $\left\vert
+# 2\right\rangle$ states, until finally polarizing completely in the $\left\vert
+# 2\right\rangle$ state.
 
 # # 2. BFSO Hamiltonian specification
 #
@@ -197,7 +202,7 @@ plot_spins(sys)
 
 # We clearly see an a staggered XY-ordering in the plane.
 
-## EXERCISE: Examine the `dipoles` and `coherents` phases. 
+## EXERCISE: Examine the `dipoles` and `coherents` fields. 
 ## EXERCISE: using `set_external_field!` to see how the ground state develops with applied field.
 ## EXERCISE: Write a function that takes dimensions and returns a `System` for BFSO.
 
@@ -349,9 +354,9 @@ lines(ts, signal)
 # We can use this information to estimate the decorrelation time of the signal.
 
 function ac(sig)
-    ts_ft = fft(sig)                        # Calculate the Fourier transform of the signal
-    ts_power = conj.(ts_ft) .* ts_ft        # Calculate the power spectrum
-    return real.(ifft(ts_power))  # Inverse Fourier transform the power spectrum
+    ts_ft = fft(sig)                  # Calculate the Fourier transform of the signal
+    ts_power = conj.(ts_ft) .* ts_ft  # Calculate the power spectrum
+    return real.(ifft(ts_power))      # Inverse Fourier transform the power spectrum
 end
 
 lines(ac(signal) ./ nsteps^2)
@@ -359,23 +364,23 @@ lines(ac(signal) ./ nsteps^2)
 ## EXERCISE: Redo the above using the order parameter instead.
 
 # To do this analysis properly, this process should be repeated for many
-# different time-series and averaged. Moreover,  the analysis should be
-# performed for each temperature of interest. For the sake of expediency, we'll
-# simply select a decorrelation interval of 125 steps, which looks to be a
-# typical peak "width" at low temperatures, and use it for the remainder of the
-# study.
+# different time-series and averaged. Moreover, the analysis should be performed
+# for each temperature of interest. For the sake of expediency, we'll simply
+# select a decorrelation interval of 125 steps, which looks to be a typical peak
+# "width" at low temperatures, and use it for the remainder of the study.
 #
 # We'll next select a range of temperatures and collect samples of different
 # properties at each temperature, specifically energy, the order parameter, and
 # magnetization along the z-axis.
 
-sys = BFSO((10, 10, 2))
+sys = BFSO((10, 10, 2); )
 randomize_spins!(sys)
 minimize_energy!(sys)
+plot_spins(sys)
 
 ## Select a temperature range
-nkTs = 50 
-kTs = 10 .^ collect(range(log10(0.1), log10(5.0), nkTs))  # In Kelvin
+nkTs = 25 
+kTs = 10 .^ collect(range(log10(0.1), log10(2.5), nkTs))  # In Kelvin
 kTs *= meV_per_K         # Convert to meV
 
 ## Reset the system in the zero-field ground state
@@ -383,12 +388,11 @@ set_external_field!(sys, (0, 0, 0))
 minimize_energy!(sys)
 
 ## Collect statistics
-nsamples = 500
+nsamples = 1000
 
 Es_μ = zeros(nkTs)
 Es_σ = zeros(nkTs)
 OPs_μ = zeros(nkTs)
-Ms_μ = zeros(nkTs)
 
 @time for (i, kT) in enumerate(kTs)
     integrator.kT = kT
@@ -403,7 +407,7 @@ Ms_μ = zeros(nkTs)
     Ms = zeros(nsamples)
 
     ## Collect samples
-    for n in 1:nsamples
+    @time for n in 1:nsamples
 
         ## Decorrelate the system
         for _ in 1:125
@@ -411,36 +415,39 @@ Ms_μ = zeros(nkTs)
         end
 
         ## Collect samples
-        Es[n] = energy(sys)
+        Es[n] = energy_per_site(sys)
         OPs[n] = order_parameter(sys)
-        Ms[n] = sum(magnetic_moment(sys, site) for site in eachsite(sys)) ⋅ [0 0 1.0]
     end
+
     Es_μ[i] = mean(Es)
     Es_σ[i] = std(Es)
     OPs_μ[i] = mean(OPs)
-    Ms_μ[i] = mean(Ms)
 end
 
-scatter(kTs, Es_μ)
-lines(kTs, OPs_μ)
-lines(kTs, Ms_μ)
-
+## Estimate heat capacity with finite differences
 ΔE = Es_μ[2:end] - Es_μ[1:end-1]
 ΔT = kTs[2:end] - kTs[1:end-1]  
 kTs_mid = (kTs[1:end-1] + kTs[2:end]) / 2
 
-scatter(kTs_mid, ΔE ./ ΔT)
+## Plot the results
+fig = Figure()
+scatter(fig[1,1], kTs / meV_per_K, Es_μ; axis=(xscale=log10, ylabel="Energy (meV)", xlabel="T (K)"))
+scatter(fig[1,2], kTs_mid / meV_per_K, ΔE ./ ΔT; axis=(xscale=log10, ylabel="dE/dT", xlabel="T (K)"))
+scatter(fig[1,3], kTs / meV_per_K, OPs_μ; axis=(xscale=log10, ylabel="OP", xlabel="T (K)"))
 
 # # 5. Spin waves
 #
 # A conceptually useful way to think of linear spin wave theory is as the
 # quantization of classical dynamics linearized about the ground state. An
 # important point is that for an S=1/2 spin, it is not possible to have
-# longitudinal oscillations -- the classical magnitude has a fixed value of S.
-# In the SU(_N_) generalization, there are additional degrees of freedom, 
-# corresponding to, for example, higher-order moments like quadrupoles and
-# octupoles. We can illustrate this aspect of the classical dynamics with
-# a simple animation. 
+# longitudinal oscillations classically -- the classical magnitude has a fixed
+# value of S. Similarly, at the linear level, there are no longitudinal
+# oscillations in a traditional SWT calculation -- one has to incorporate 1/S
+# corrections to recover such behavior. In the SU(_N_) generalization, the
+# "spin" has additional degrees of freedom, corresponding to, for example,
+# higher-order moments like quadrupoles and octupoles. As a consequence, it does
+# the dipole does not have a fixed magnitude. We can illustrate this aspect of
+# the SU(_N_) classical dynamics with a simple animation.
 
 set_external_field!(sys, (0, 0, 0))
 minimize_energy!(sys)
@@ -456,10 +463,10 @@ for site in eachsite(sys)
 end
 
 minimize_energy!(sys)
-sys.dipoles[1]
 
-# We'll remove the magnetic fields and then run a classical trajectory, which
-# will allow us to see the longitudinal oscillations.
+# We'll remove the magnetic fields and then run a classical trajectory using the
+# generalized Landau-Lifshitz equations. This will allow us to see the
+# longitudinal oscillations.
 
 set_external_field!(sys, (0, 0, 0))
 integrator = ImplicitMidpoint(dt)
@@ -479,12 +486,14 @@ end
 # This is an important observation: when we go to the SU(_N_) formalism,
 # longitudinal oscillations become something possible at a classical level as a
 # consequence of the local physics rather than true many-body quantum effects.
-# These additional modes of oscillation are capture by additional flavors of
-# boson in the linear spin wave calculation, wich we will proceed to calculate.
+# When we quantize the result below using the SU(_N_) approach (a kind of
+# multiflavor boson theory), we _will_ be able to capture this longitudinal
+# oscillation at the linear level, that is, without loop expansions. 
 #
-# We begin by making a new BFSO system representing a single magnetic unit cell.
-# We'll do this both using SU(_N_) mode, as well as dipole mode. We'll 
-# start with a small system to make optimization easy.
+# We now move onto our spin wave calculation by making a new BFSO system
+# representing a single magnetic unit cell. We'll do this both using SU(_N_)
+# mode, as well as dipole mode. We'll start with a small system to make
+# optimization easy.
 
 sys_sun = BFSO((2, 2, 2); mode=:SUN)
 sys_dip = BFSO((2, 2, 2); mode=:dipole)
@@ -493,8 +502,9 @@ randomize_spins!(sys_sun)
 minimize_energy!(sys_sun)
 plot_spins(sys_sun)
 
-# We'll set the ground state for the `:dipole` system to the
-# analogous degenerate ground state.
+# We'll set the ground state for the `:dipole` system to the corresponding
+# degenerate ground state so our paths through reciprocal space correspond as
+# well.
 
 for site in eachsite(sys_dip)
     set_dipole!(sys_dip, sys_sun.dipoles[site], site)
@@ -520,6 +530,10 @@ swt_sun = SpinWaveTheory(sys_sun)
 points_rlu = [[0, 0, 1/2], [1, 0, 1/2], [2, 0, 1/2], [3, 0, 1/2]]
 density = 300
 path, xticks = reciprocal_space_path(sys.crystal, points_rlu, density);
+
+## EXERCISE: After completing this section, repeat the same steps using a different path
+## through reciprocal space:
+## points_rlu_alt = [[0, 0, 1/2], [1/2, 1/2, 1/2],[1, 1, 1/2],[3/2, 3/2, 1/2]]
 
 # Next specify how we would like Sunny to calculate the intensities, and then
 # calculate both the dispersion curves as well as intensities with artificial
@@ -564,15 +578,17 @@ fig
 # corrections. While this is a planned future for Sunny, we note for now that
 # some of these effects can be capture in finite-temperature simulations using
 # the classical dynamics. Intuitively, this is possible because the classical
-# dynamics is never linearized, unlike LSWT. 
+# dynamics is never linearized, unlike LSWT, so "magnon-magnon" interactions are
+# included up to arbitrary order.
 #
-# In this next section, we'll calculate 𝒮(q,ω) using the generalized classical 
-# dynamics, examining the exact same path through reciprocal space, only
-# this time we'll perform the simulation at T > 0. To start with, we'll make
-# another BFSO system. This time, however, we'll need a large unit cell, rather
-# than a single unit cell. 
+# In this next section, we'll calculate 𝒮(q,ω) using the generalized classical
+# dynamics, examining the exact same path through reciprocal space, only this
+# time we'll perform the simulation at T > 0. To start with, we'll make another
+# BFSO system. This time, however, we'll need a large unit cell, rather than a
+# single unit cell. 
 
-sys = repeat_periodically(sys_sun, (12, 12, 1))
+sys = repeat_periodically(sys_sun, (10, 10, 1))
+minimize_energy!(sys)
 plot_spins(sys)
 
 # Next we'll make a `Langevin` integrator to thermalize and decorrelate the system.
@@ -615,17 +631,18 @@ is = intensities_interpolated(sc, path, formula)
 fig = Figure()
 ax1 = Axis(fig[1,1]; xlabel="Momentum (r.l.u.)", ylabel="Energy (meV)", xticks=xticks, xticklabelrotation=π/6)
 ax2 = Axis(fig[1,2]; xlabel="Momentum (r.l.u.)", ylabel="Energy (meV)", xticks=xticks, xticklabelrotation=π/6)
-heatmap!(ax1, 1:size(is, 1), available_energies(sc), is; colorrange=(0.0, maximum(is)/2000))
+heatmap!(ax1, 1:size(is, 1), available_energies(sc), is; colorrange=(0.0, maximum(is)/3000))
 heatmap!(ax2, 1:size(is_sun, 1), energies, is_sun; colorrange=(0.0, 10))
 fig
 
 # Now let's repeat the procedure above at several different temperatures.
 
-kTs_K = [1.6, 6, 10] .* (1.38/5.2)
+kTs_K = [6, 10, 40] .* (1.38/5.2)
 kTs = kTs_K * meV_per_K
 scs = []
 for kT in kTs
     sc = dynamical_correlations(sys; nω, ωmax, dt)
+    integrator.kT = kT
 
     # Collect correlations from trajectories
     for _ in 1:nsamples
@@ -637,14 +654,18 @@ for kT in kTs
         # Add a trajectory
         @time add_sample!(sc, sys)
     end
+    
+    push!(scs, sc)
 end
 
 fig = Figure()
 for (n, sc) in enumerate(scs)
     is = intensities_interpolated(sc, path, formula)
-    ax1 = Axis(fig[1,1]; xlabel="Momentum (r.l.u.)", ylabel="Energy (meV)", xticks=xticks, xticklabelrotation=π/6, title="kT=$(kTs[n])")
-    ax2 = Axis(fig[1,2]; xlabel="Momentum (r.l.u.)", ylabel="Energy (meV)", xticks=xticks, xticklabelrotation=π/6)
-    heatmap!(ax1, 1:size(is, 1), available_energies(sc), is; colorrange=(0.0, maximum(is)/2000))
-    heatmap!(ax2, 1:size(is_sun, 1), energies, is_sun; colorrange=(0.0, 10))
+    ax = Axis(fig[1,n]; xlabel="Momentum (r.l.u.)", ylabel="Energy (meV)", xticks=xticks, xticklabelrotation=π/6, title="kT=$(kTs_K[n])")
+    heatmap!(ax, 1:size(is, 1), available_energies(sc), is)
 end
 fig
+
+# Notice that the longitudinal mode, which decays when 1-loop corrections are
+# applied, is extremely delicate in the classical simulations, dropping in energy
+# and lowing intensity quite rapidly as the temperature is increased.
