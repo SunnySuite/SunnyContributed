@@ -268,8 +268,8 @@ order_parameter(sys)
 # apply those fields, reoptimizing the spin configuration each time.
 
 Hs = range(0.0, 55.0, 50)
-Ms = []
-OPs = []
+Ms = Float64[]
+OPs = Float64[]
 for H in Hs
     set_external_field!(sys, (0, 0, H))
     minimize_energy!(sys)
@@ -329,8 +329,9 @@ end
 
 ts = collect(0:nsteps-1) .* dt
 fig = Figure(size=(1200,400))
-lines(fig[1,1], ts, Es)
-lines(fig[2,1], ts, OPs)
+lines(fig[1,1], ts, Es; axis=(ylabel="E", xlabel = "Time (meV⁻¹)"))
+lines(fig[2,1], ts, OPs; axis=(ylabel="Staggered Magnetization", xlabel="Time (meV⁻¹)"))
+fig
 
 # By informal inspection, we can see that the system has thermalized pretty well
 # after a duration of 10 meV⁻¹ at low temperature, so this will certainly be
@@ -388,7 +389,7 @@ set_external_field!(sys, (0, 0, 0))
 minimize_energy!(sys)
 
 ## Collect statistics
-nsamples = 1000
+nsamples = 100
 
 Es_μ = zeros(nkTs)
 Es_σ = zeros(nkTs)
@@ -432,8 +433,9 @@ kTs_mid = (kTs[1:end-1] + kTs[2:end]) / 2
 ## Plot the results
 fig = Figure()
 scatter(fig[1,1], kTs / meV_per_K, Es_μ; axis=(xscale=log10, ylabel="Energy (meV)", xlabel="T (K)"))
-scatter(fig[1,2], kTs_mid / meV_per_K, ΔE ./ ΔT; axis=(xscale=log10, ylabel="dE/dT", xlabel="T (K)"))
-scatter(fig[1,3], kTs / meV_per_K, OPs_μ; axis=(xscale=log10, ylabel="OP", xlabel="T (K)"))
+## scatter(fig[1,2], kTs_mid / meV_per_K, ΔE ./ ΔT; axis=(xscale=log10, ylabel="dE/dT", xlabel="T (K)"))
+## scatter(fig[1,3], kTs / meV_per_K, OPs_μ; axis=(xscale=log10, ylabel="OP", xlabel="T (K)"))
+## EXERCISE: Collect statistics for a long time, uncomment the above, and examine the results.
 
 # # 5. Spin waves
 #
@@ -668,4 +670,4 @@ fig
 
 # Notice that the longitudinal mode, which decays when 1-loop corrections are
 # applied, is extremely delicate in the classical simulations, dropping in energy
-# and lowing intensity quite rapidly as the temperature is increased.
+# and intensity quite rapidly as the temperature is increased.
