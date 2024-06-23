@@ -21,6 +21,7 @@ set_exchange!(sys, J, Bond(1, 3, [0,0,0]))
 randomize_spins!(sys)
 minimize_energy!(sys)
 @assert energy_per_site(sys) ≈ -2J*S^2
+s0 = first(sys.dipoles)
 plot_spins(sys; color=[s'*s0 for s in sys.dipoles])
 
 # Construct Langevin integrator with appropriate timestep
