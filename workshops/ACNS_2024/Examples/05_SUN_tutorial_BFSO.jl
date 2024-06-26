@@ -43,6 +43,9 @@ Sx, Sy, Sz = S        # Julia's "unpacking" syntax
 ## EXERCISE: Write the single-ion anisotropy (with D=1) and call it H_SI
 ## EXERCISE: How would you add a Zeeman term?
 
+D = 1.0
+H_SI = D*Sz^2
+
 ##----
 
 # The result is a diagonal matrix. Ordering of the basis elements is simply
@@ -151,14 +154,45 @@ sys = System(crystal, dims, [SpinInfo(1; S=2, g=1.93)], :SUN)
 # Here $A=1.16 K$, $C=-1.74 K$ and $D=28.65 K$. By default, Sunny using $meV$
 # and $T$ for units. These values can be converted to $meV$ with the constant `meV_per_K` 
 
-## EXERCISE: Express the single ion anisotropy as a matrix and assign it to the `sys`.
 A = 1.16 * meV_per_K
 C = -1.74 * meV_per_K
 D = 28.65 * meV_per_K
 
 Sx, Sy, Sz = spin_matrices(2)
-H_SI = ##------ 
+H_SI = D*(Sz)^2 + A*((Sx)^4 + (Sy)^4) + C*(Sz)^4
 set_onsite_coupling!(sys, H_SI, 1)
+
+function BFSO(dims; mode=:SUN)
+    a = 8.3194
+    c = 5.336
+    latvecs = lattice_vectors(a, a, c, 90, 90, 90)
+    positions = [[0, 0, 0]]
+    spacegroup = 113    # Want to use the space group for original lattice, of which the Fe ions form a subcrystal
+    crystal = Crystal(latvecs, positions, spacegroup; types=["Fe"])
+
+    sys = System(crystal, dims, [SpinInfo(1; S=2, g=1.93)], mode)
+
+    A = 1.16 * meV_per_K
+    C = -1.74 * meV_per_K
+    D = 28.65 * meV_per_K
+
+    Sx, Sy, Sz = spin_matrices(2)
+    H_SI = D*(Sz)^2 + A*((Sx)^4 + (Sy)^4) + C*(Sz)^4
+    set_onsite_coupling!(sys, H_SI, 1)
+
+    bond1 = Bond(1, 2, [0, 0, 0])
+    bond2 = Bond(1, 1, [1, 0, 0])  
+    bond3 = Bond(1, 1, [0, 0, 1])
+
+    J = 1.028 * meV_per_K
+    J′ = 0.1J
+    set_exchange!(sys, J, bond1)
+    set_exchange!(sys, J′, bond2)
+    set_exchange!(sys, J′, bond3)
+
+    return sys
+end
+
 
 # The single-ion Hamiltonian was described as a polynomial in spin operators.
 # Often times one has access to a description of the crystal-field Hamiltoniann
@@ -188,9 +222,9 @@ O[2,2]
 ## interactions just mentioned.
 view_crystal(crystal)
 
-bond1 = ##---
-bond2 = ##--- 
-bond3 = ##---
+bond1 = Bond(1, 2, [0, 0, 0])
+bond2 = Bond(1, 1, [1, 0, 0])  
+bond3 = Bond(1, 1, [0, 0, 1])
 
 J = 1.028 * meV_per_K
 J′ = 0.1J
@@ -200,6 +234,9 @@ set_exchange!(sys, J′, bond3)
 
 # We have now completely specified our Hamiltonian. Let's examine the zero-field
 # ground state.
+
+
+sys = BFSO((6, 6, 2); mode=:dipole)
 
 randomize_spins!(sys)
 minimize_energy!(sys)
@@ -278,9 +315,10 @@ scatter(fig[1,2], Hs, OPs; axis=(xlabel="H", ylabel="Staggered XY Magnetization"
 #
 # Let's start by considering step size and thermalization time
 
-sys = BFSO((6, 6, 2))
+sys = BFSO((6, 6, 2); mode=:SUN)
 randomize_spins!(sys)
 minimize_energy!(sys)
+plot_spins(sys)
 
 integrator = Langevin(; kT=0.1*meV_per_K, damping=0.1)
 suggest_timestep(sys, integrator; tol=1e-2)
@@ -291,7 +329,6 @@ suggest_timestep(sys, integrator; tol=1e-2)
 
 integrator.dt = dt = 0.04
 integrator.kT = kT = 0.1 * meV_per_K
-minimize_energy!(sys)
 
 dur = 25.0
 nsteps = round(Int, dur/dt)
@@ -331,12 +368,12 @@ lines(ts, signal)
 # We can use this information to estimate the decorrelation time of the signal.
 
 function ac(sig)
-    ts_ft = fft(sig)                  # Calculate the Fourier transform of the signal
+    ts_ft = fft(sig) ./ length(sig)                 # Calculate the Fourier transform of the signal 
     ts_power = conj.(ts_ft) .* ts_ft  # Calculate the power spectrum
     return real.(ifft(ts_power))      # Inverse Fourier transform the power spectrum
 end
 
-lines(ac(signal) ./ nsteps^2)
+lines(ts, ac(signal))
 
 ## EXERCISE: Redo the above using the order parameter instead.
 
@@ -440,6 +477,7 @@ for site in eachsite(sys)
 end
 
 minimize_energy!(sys)
+plot_spins(sys)
 
 # We'll remove the magnetic fields and then run a classical trajectory using the
 # generalized Landau-Lifshitz equations. This will allow us to see the
@@ -537,8 +575,8 @@ ax1 = Axis(fig[1,1]; xlabel="Momentum (r.l.u.)", ylabel="Energy (meV)", xticks=x
 ax2 = Axis(fig[2,1]; xlabel="Momentum (r.l.u.)", ylabel="Energy (meV)", xticks=xticks, xticklabelrotation=π/6)
 ax3 = Axis(fig[1,2]; xlabel="Momentum (r.l.u.)", ylabel="Energy (meV)", xticks=xticks, xticklabelrotation=π/6)
 ax4 = Axis(fig[2,2]; xlabel="Momentum (r.l.u.)", ylabel="Energy (meV)", xticks=xticks, xticklabelrotation=π/6)
-ylims!(ax1, 0, 3.5)
-ylims!(ax2, 0, 3.5)
+# ylims!(ax1, 0, 3.5)
+# ylims!(ax2, 0, 3.5)
 for i in axes(disp_dip, 2)
     lines!(ax1, 1:length(disp_dip[:,i]), disp_dip[:,i]; color=is_disp_dip[:,i], colorrange=(0,1e-5))
 end
