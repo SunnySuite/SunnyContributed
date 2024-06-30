@@ -3,7 +3,15 @@ using Sunny, GLMakie, LinearAlgebra, Observables
 include("higher_swt.jl")
 include("viz_hist.jl")
 
-function view_lattice(cryst;params = nothing,magnetic_structure = nothing,latsize = (1,1,1))
+function type_to_color(site,type)
+  try
+    Sunny.PlottingExt().type_to_color(type)
+  catch e
+    site
+  end
+end
+
+function view_lattice(cryst;params = nothing,magnetic_structure = nothing,latsize = (1,1,1),crystal_for_recip_size = cryst)
   if !isnothing(params)
     @assert iszero(params.covectors[1:3,4]) && iszero(params.covectors[4,1:3])
   end
@@ -15,16 +23,25 @@ function view_lattice(cryst;params = nothing,magnetic_structure = nothing,latsiz
 
   f = Figure()
   controls = GridLayout(f[3,1],tellwidth = false)
-  txt_tog = Toggle(controls[1,1])
-  Label(controls[1,2];text = "Toggle labels")
-  Label(controls[2,1];text = "rₛ=$(Sunny.number_to_simple_string(rs;digits = 4))Å")
+  gl = GridLayout(controls[1,1])
+  txt_tog = Toggle(gl[1,1])
+  Label(gl[1,2];text = "Toggle labels")
+  sg = SliderGrid(controls[2,1],(label = "Font Size",range = range(1,16,length = 200),startvalue = 10),width = 300)
+  fontsize = sg.sliders[1].value
+  Label(controls[3,1];text = "rₛ=$(Sunny.number_to_simple_string(rs;digits = 4))Å")
 
-  ax_real_lattice = LScene(f[1,1];show_axis = false)#, title = "Lattice (Direct)")
+  instructs = GridLayout(f[3,2],tellwidth = false)
+  Label(instructs[1,1];text = "Left/Right click any view to Rotate/Pan")
+  Label(instructs[2,1];text = "Ctrl+click any view to reset it if you get lost!")
+
+  gl = GridLayout(f[1,1])
+  ax_real_lattice = LScene(gl[2,1];show_axis = false)
+  Label(gl[1,1];text = "Lattice (Lab Frame)",tellwidth=false)
 
   lat_points = Point3f[]
   lat_points_rlu = Point3f[]
   point_sites = Int64[]
-  nbzs = polyatomic_bzs(cryst)
+  nbzs = polyatomic_bzs(crystal_for_recip_size)
 
   recip_lat_bin_ix = CartesianIndex{3}[]
   recip_lat_comm_points = Point3f[]
@@ -43,12 +60,12 @@ function view_lattice(cryst;params = nothing,magnetic_structure = nothing,latsiz
       push!(recip_lat_abs_comm_points,Point3f(cryst.recipvecs * q))
     end
   end
-  display(recip_lat_bin_ix)
 
-  scatter!(ax_real_lattice,lat_points,color = point_sites)
+  scatter!(ax_real_lattice,lat_points,color = map(i -> type_to_color(i,cryst.types[i]),point_sites))
   n(y) = Sunny.number_to_math_string(y;atol = cryst.symprec)
   m(y) = Sunny.number_to_simple_string(y;digits = 4)
-  text!(ax_real_lattice,lat_points,color = :black,text = map(x -> "($(m(x[1])),$(m(x[2])),$(m(x[3])))",lat_points),align = (:center,:top),visible = txt_tog.active)
+  text!(ax_real_lattice,lat_points;color = :black,text = map(x -> "($(m(x[1])),$(m(x[2])),$(m(x[3])))",lat_points),align = (:center,:top),visible = txt_tog.active,fontsize)
+  text!(ax_real_lattice,lat_points;color = :black,text = map(x -> cryst.types[x],point_sites),align = (:center,:bottom),visible = txt_tog.active,fontsize)
 
   linesegments!(ax_real_lattice,[(Point3f(-1,0,0),Point3f(1,0,0)),(Point3f(0,-1,0),Point3f(0,1,0)),(Point3f(0,0,-1),Point3f(0,0,1))],color = :black)
   linesegments!(ax_real_lattice,[(Point3f(0,0,0),Point3f(cryst.latvecs[:,j]...)) for j = 1:3],color = [:red,:orange,:magenta],linewidth = 2.5)
@@ -59,39 +76,45 @@ function view_lattice(cryst;params = nothing,magnetic_structure = nothing,latsiz
     Sunny.Plotting.plot_spins!(ax_real_lattice,magnetic_structure,color = [ix.I[4] for ix = eachsite(sys)])
   end
 
-  scatter!(ax_real_lattice,cryst.latvecs[:,1]...,color = :red)
-  scatter!(ax_real_lattice,cryst.latvecs[:,2]...,color = :orange)
-  scatter!(ax_real_lattice,cryst.latvecs[:,3]...,color = :deeppink)
+  scatter!(ax_real_lattice,cryst.latvecs[:,1]...,color = :red,marker = 'o')
+  scatter!(ax_real_lattice,cryst.latvecs[:,2]...,color = :orange,marker = 'o')
+  scatter!(ax_real_lattice,cryst.latvecs[:,3]...,color = :deeppink,marker = 'o')
   text!(ax_real_lattice,cryst.latvecs[:,1]...;text ="a",align = (:right,:bottom),color = :red)
   text!(ax_real_lattice,cryst.latvecs[:,2]...;text ="b",align = (:right,:bottom),color = :orange)
   text!(ax_real_lattice,cryst.latvecs[:,3]...;text ="c",align = (:right,:bottom),color = :deeppink)
 
-  scatter!(ax_real_lattice,rs,0,0,color = :black)
-  scatter!(ax_real_lattice,0,rs,0,color = :black)
-  scatter!(ax_real_lattice,0,0,rs,color = :black)
+  scatter!(ax_real_lattice,rs,0,0,color = :black,marker = 'o')
+  scatter!(ax_real_lattice,0,rs,0,color = :black,marker = 'o')
+  scatter!(ax_real_lattice,0,0,rs,color = :black,marker = 'o')
   text!(ax_real_lattice,rs,0,0;text ="x (rₛ,Å)",align = (:left,:bottom))
   text!(ax_real_lattice,0,rs,0;text ="y (rₛ,Å)",align = (:left,:bottom))
   text!(ax_real_lattice,0,0,rs;text ="z (rₛ,Å)",align = (:left,:bottom))
 
   cam0 = Makie.cam3d!(ax_real_lattice.scene;projectiontype = Makie.Orthographic,clipping_mode = :static)
 
-  ax_real_rlu = LScene(f[2,1];show_axis = false)
+  gl = GridLayout(f[2,1])
+  ax_real_rlu = LScene(gl[2,1];show_axis = false)
+  Label(gl[1,1];text = "Lattice (Crystal-adapted frame)",tellwidth=false)
 
   M = inv(cryst.latvecs)
 
-  scatter!(ax_real_rlu,lat_points_rlu,color = point_sites)
-  text!(ax_real_rlu,lat_points_rlu,color = :black,text = map(x -> "($(n(x[1])),$(n(x[2])),$(n(x[3])))",lat_points_rlu),align = (:center,:top),visible = txt_tog.active)
+  scatter!(ax_real_rlu,lat_points_rlu,color = map(i -> type_to_color(i,cryst.types[i]),point_sites))
+  text!(ax_real_rlu,lat_points_rlu;color = :black,text = map(x -> "($(n(x[1])),$(n(x[2])),$(n(x[3])))",lat_points_rlu),align = (:center,:top),visible = txt_tog.active,fontsize)
+  text!(ax_real_rlu,lat_points_rlu;color = :black,text = map(x -> cryst.types[x],point_sites),align = (:center,:bottom),visible = txt_tog.active,fontsize)
 
   linesegments!(ax_real_rlu,[(Point3f(-rs * M[:,j]...),Point3f(rs * M[:,j]...)) for j = 1:3],color = :black)
   linesegments!(ax_real_rlu,[(Point3f(0,0,0),Point3f(I(3)[:,j]...)) for j = 1:3],color = [:red,:orange,:deeppink])
 
+  scatter!(ax_real_rlu,1,0,0;color = :red,marker = 'o')
+  scatter!(ax_real_rlu,0,1,0;color = :orange,marker = 'o')
+  scatter!(ax_real_rlu,0,0,1;color = :deeppink,marker = 'o')
   text!(ax_real_rlu,1,0,0;text ="a",align = (:right,:bottom),color = :red)
   text!(ax_real_rlu,0,1,0;text ="b",align = (:right,:bottom),color = :orange)
   text!(ax_real_rlu,0,0,1;text ="c",align = (:right,:bottom),color = :deeppink)
 
-  scatter!(ax_real_rlu,rs * M[:,1]...,color = :black)
-  scatter!(ax_real_rlu,rs * M[:,3]...,color = :black)
-  scatter!(ax_real_rlu,rs * M[:,2]...,color = :black)
+  scatter!(ax_real_rlu,rs * M[:,1]...,color = :black,marker = 'o')
+  scatter!(ax_real_rlu,rs * M[:,3]...,color = :black,marker = 'o')
+  scatter!(ax_real_rlu,rs * M[:,2]...,color = :black,marker = 'o')
   text!(ax_real_rlu,rs * M[:,1]...;text ="x (rₛ,Å)",align = (:left,:bottom))
   text!(ax_real_rlu,rs * M[:,2]...;text ="y (rₛ,Å)",align = (:left,:bottom))
   text!(ax_real_rlu,rs * M[:,3]...;text ="z (rₛ,Å)",align = (:left,:bottom))
@@ -107,11 +130,13 @@ function view_lattice(cryst;params = nothing,magnetic_structure = nothing,latsiz
 
   cam1 = Makie.cam3d!(ax_real_rlu.scene;projectiontype = Makie.Orthographic,clipping_mode = :static)
 
-  ax_recip_rlu = LScene(f[2,2];show_axis = false)
+  gl = GridLayout(f[2,2])
+  ax_recip_rlu = LScene(gl[2,1];show_axis = false)
+  Label(gl[1,1];text = "Reciprocal Lattice (Crystal-adapted frame)",tellwidth=false)
   N = cryst.latvecs'
 
   scatter!(ax_recip_rlu,recip_lat_comm_points,color = [all(isinteger.(x)) ? :red : :black for x in recip_lat_comm_points])
-  text!(ax_recip_rlu,recip_lat_comm_points,color = :black,text = map(x -> "($(n(x[1])),$(n(x[2])),$(n(x[3])))",recip_lat_comm_points),align = (:center,:top),visible = txt_tog.active)
+  text!(ax_recip_rlu,recip_lat_comm_points;color = :black,text = map(x -> "($(n(x[1])),$(n(x[2])),$(n(x[3])))",recip_lat_comm_points),align = (:center,:top),visible = txt_tog.active,fontsize)
 
   linesegments!(ax_recip_rlu,[(Point3f(-(1/rs) * N[:,j]...),Point3f((1/rs) * N[:,j]...)) for j = 1:3],color = :black)
   linesegments!(ax_recip_rlu,[(Point3f(0,0,0),Point3f(I(3)[:,j]...)) for j = 1:3],color = [:red,:orange,:deeppink])
@@ -120,9 +145,9 @@ function view_lattice(cryst;params = nothing,magnetic_structure = nothing,latsiz
   text!(ax_recip_rlu,0,1,0;text ="qy [rlu]",align = (:right,:bottom),color = :orange)
   text!(ax_recip_rlu,0,0,1;text ="qz [rlu]",align = (:right,:bottom),color = :deeppink)
 
-  scatter!(ax_recip_rlu,(1/rs) * N[:,1]...,color = :black,markersize = 12)
-  scatter!(ax_recip_rlu,(1/rs) * N[:,3]...,color = :black,markersize = 12)
-  scatter!(ax_recip_rlu,(1/rs) * N[:,2]...,color = :black,markersize = 12)
+  scatter!(ax_recip_rlu,(1/rs) * N[:,1]...,color = :black,markersize = 12,marker = 'o')
+  scatter!(ax_recip_rlu,(1/rs) * N[:,3]...,color = :black,markersize = 12,marker = 'o')
+  scatter!(ax_recip_rlu,(1/rs) * N[:,2]...,color = :black,markersize = 12,marker = 'o')
   text!(ax_recip_rlu,(1/rs) * N[:,1]...;text ="x (rₛ⁻¹,Å⁻¹)",align = (:left,:bottom))
   text!(ax_recip_rlu,(1/rs) * N[:,2]...;text ="y (rₛ⁻¹,Å⁻¹)",align = (:left,:bottom))
   text!(ax_recip_rlu,(1/rs) * N[:,3]...;text ="z (rₛ⁻¹,Å⁻¹)",align = (:left,:bottom))
@@ -135,7 +160,9 @@ function view_lattice(cryst;params = nothing,magnetic_structure = nothing,latsiz
 
   cam2 = Makie.cam3d!(ax_recip_rlu.scene;projectiontype = Makie.Orthographic,clipping_mode = :static)
 
-  ax_recip_abs = LScene(f[1,2];show_axis = false)
+  gl = GridLayout(f[1,2])
+  ax_recip_abs = LScene(gl[2,1];show_axis = false)
+  Label(gl[1,1];text = "Reciprocal Lattice (Lab frame)",tellwidth=false)
   L = 2π * I(3)
 
   if !isnothing(magnetic_structure)
@@ -143,17 +170,17 @@ function view_lattice(cryst;params = nothing,magnetic_structure = nothing,latsiz
     add_sample!(isc,magnetic_structure)
     p_isc = unit_resolution_binning_parameters(isc)
     p_isc.binend[1:3] .+= nbzs .- 1
-    display(cryst)
-    display(magnetic_structure)
-    display(nbzs)
-    display(p_isc)
+    #display(cryst)
+    #display(magnetic_structure)
+    #display(nbzs)
+    #display(p_isc)
     i,c = intensities_binned(isc,p_isc,intensity_formula(isc,:trace))
     scatter!(ax_recip_abs,recip_lat_abs_comm_points,color = [i[ix,1] for ix in recip_lat_bin_ix],markersize = 18)
   else
     # Default: Just color integer R.L.U. points red
     scatter!(ax_recip_abs,recip_lat_abs_comm_points,color = [all(isinteger.(x)) ? :red : :black for x in recip_lat_comm_points])
   end
-  text!(ax_recip_abs,recip_lat_abs_comm_points,color = :black,text = map(x -> "($(m(x[1])),$(m(x[2])),$(m(x[3])))",recip_lat_abs_comm_points),align = (:center,:top),visible = txt_tog.active)
+  text!(ax_recip_abs,recip_lat_abs_comm_points;color = :black,text = map(x -> "($(m(x[1])),$(m(x[2])),$(m(x[3])))",recip_lat_abs_comm_points),align = (:center,:top),visible = txt_tog.active,fontsize)
 
   linesegments!(ax_recip_abs,[(Point3f(-(1/rs) * L[:,j]...),Point3f((1/rs) * L[:,j]...)) for j = 1:3],color = :black)
   linesegments!(ax_recip_abs,[(Point3f(0,0,0),Point3f(cryst.recipvecs[:,j]...)) for j = 1:3],color = [:red,:orange,:deeppink])
@@ -162,9 +189,9 @@ function view_lattice(cryst;params = nothing,magnetic_structure = nothing,latsiz
   text!(ax_recip_abs,cryst.recipvecs[:,2]...;text ="qy [rlu]",align = (:right,:bottom),color = :orange)
   text!(ax_recip_abs,cryst.recipvecs[:,3]...;text ="qz [rlu]",align = (:right,:bottom),color = :deeppink)
 
-  scatter!(ax_recip_abs,(1/rs) * L[:,1]...,color = :black,markersize = 12)
-  scatter!(ax_recip_abs,(1/rs) * L[:,3]...,color = :black,markersize = 12)
-  scatter!(ax_recip_abs,(1/rs) * L[:,2]...,color = :black,markersize = 12)
+  scatter!(ax_recip_abs,(1/rs) * L[:,1]...,color = :black,marker = 'o',markersize = 12)
+  scatter!(ax_recip_abs,(1/rs) * L[:,3]...,color = :black,marker = 'o',markersize = 12)
+  scatter!(ax_recip_abs,(1/rs) * L[:,2]...,color = :black,marker = 'o',markersize = 12)
   text!(ax_recip_abs,(1/rs) * L[:,1]...;text ="x (rₛ⁻¹,Å⁻¹)",align = (:left,:bottom))
   text!(ax_recip_abs,(1/rs) * L[:,2]...;text ="y (rₛ⁻¹,Å⁻¹)",align = (:left,:bottom))
   text!(ax_recip_abs,(1/rs) * L[:,3]...;text ="z (rₛ⁻¹,Å⁻¹)",align = (:left,:bottom))
@@ -225,6 +252,14 @@ function view_lattice(cryst;params = nothing,magnetic_structure = nothing,latsiz
 
 
 
-  f
+  display(f)
+
+  # Returns the labelled points used in each view
+  out = Matrix{Any}(undef,2,2)
+  out[1,1] = lat_points
+  out[1,2] = recip_lat_abs_comm_points
+  out[2,1] = lat_points_rlu
+  out[2,2] = recip_lat_comm_points
+  out
 end
 
