@@ -73,7 +73,7 @@ using Sunny, LinearAlgebra
 include(joinpath(@__DIR__, "kappa_supplementals.jl")) 
 
 dims = (8, 8, 4)
-seed = 101
+seed = 102
 sys, cryst = FeI2_sys_and_cryst(dims; seed); 
 
 # We will next estimate $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$ using
@@ -84,13 +84,13 @@ sys, cryst = FeI2_sys_and_cryst(dims; seed);
 dt_therm = 0.004                      # Step size for Langevin integrator
 dur_therm = 10.0                      # Safe thermalization time
 damping = 0.1                         # Phenomenological coupling to thermal bath
-kT = 0.1 * Sunny.meV_per_K            # Simulation temperature
+kT = 0.2 * Sunny.meV_per_K            # Simulation temperature
 langevin = Langevin(dt_therm; damping, kT)  # Langevin integrator
 
 ## Parameters for sampling correlations. 
 dt = 0.025                     # Integrator step size for dissipationless trajectories
 nsamples = 3                   # Number of dynamical trajectories to collect for estimating S(𝐪,ω)
-energies = range(0, 10, 200)   # Energies to resolve, in meV, when calculating the dynamics
+energies = range(0, 10, 200);  # Energies to resolve, in meV, when calculating the dynamics
 
 # Since FeI2 is a Spin-1 material, we'll need a complete set of observables for SU($2S+1=3$)
 # with which to calculate correlations.
