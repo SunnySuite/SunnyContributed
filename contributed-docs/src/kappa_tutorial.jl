@@ -106,13 +106,13 @@ observables = [
 
 # ## Build the `SampledCorrelations` object to hold calculation results.
 
-# It's necessary to construct a custom measurement,  or `MeasureSpec`, to
-# calculate the correlations of these observables. This involves specifying an
-# observable field, with a fixed number of observables for each site of the
-# system; a vector of tuples `(n, m)`, which specify correlation pairs to
-# calculate; a function for reducing these correlation pairs into a final value;
-# and a list of form factors. We will turn off the form factors by setting them
-# to one.
+# It is necessary to construct a custom measurement,  or `MeasureSpec`, to
+# calculate the correlations of these observables. This involves specifying: an
+# (1) observable field with observables specified for each site of the system;
+# (2) a vector of tuples `(n, m)`, which specify correlation pairs to calculate;
+# (3) a function for reducing these correlation pairs into a final value; and
+# (4) a list of form factors. We will turn off the form factors by setting them
+# to one, since including them would interfere with our sum rule calculations
 
 observable_field = fill(Sunny.HermitianC64(Hermitian(zeros(ComplexF64, 3, 3))), length(observables), size(sys.coherents)...);
 for site in Sunny.eachsite(sys), μ in axes(observables, 1)
