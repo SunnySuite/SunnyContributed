@@ -102,9 +102,9 @@ observables = [
     Sx^2 - Sy^2,
     Sx*Sy + Sy*Sx,
     √3 * Sz^2 - I*2/√3,
-] 
+];
 
-## Build the `SampledCorrelations` object to hold calculation results.
+# ## Build the `SampledCorrelations` object to hold calculation results.
 
 # It's necessary to construct a custom measurement,  or `MeasureSpec`, to
 # calculate the correlations of these observables. This involves specifying an

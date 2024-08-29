@@ -104,22 +104,10 @@ observables = [
     Sx^2 - Sy^2,
     Sx*Sy + Sy*Sx,
     √3 * Sz^2 - I*2/√3,
-]
-
-# Build the `SampledCorrelations` object to hold calculation results.
+];
 ````
 
-````
-8-element Vector{AbstractMatrix{ComplexF64}}:
- [0.0 + 0.0im 0.7071067811865476 + 0.0im 0.0 + 0.0im; 0.7071067811865476 - 0.0im 0.0 + 0.0im 0.7071067811865476 + 0.0im; 0.0 - 0.0im 0.7071067811865476 - 0.0im 0.0 + 0.0im]
- [0.0 + 0.0im 0.0 - 0.7071067811865476im 0.0 + 0.0im; 0.0 + 0.7071067811865476im 0.0 + 0.0im 0.0 - 0.7071067811865476im; 0.0 - 0.0im 0.0 + 0.7071067811865476im 0.0 + 0.0im]
- [1.0 + 0.0im 0.0 + 0.0im 0.0 + 0.0im; 0.0 - 0.0im 0.0 + 0.0im 0.0 + 0.0im; 0.0 - 0.0im 0.0 - 0.0im -1.0 + 0.0im]
- [-0.0 - 0.0im -0.7071067811865476 - 0.0im -0.0 - 0.0im; -0.7071067811865476 - 0.0im -0.0 - 0.0im 0.7071067811865476 - 0.0im; -0.0 - 0.0im 0.7071067811865476 - 0.0im -0.0 - 0.0im]
- [-0.0 - 0.0im -0.0 + 0.7071067811865476im -0.0 - 0.0im; -0.0 - 0.7071067811865476im -0.0 - 0.0im -0.0 - 0.7071067811865476im; -0.0 - 0.0im -0.0 + 0.7071067811865476im -0.0 - 0.0im]
- [0.0 + 0.0im 0.0 + 0.0im 1.0000000000000002 + 0.0im; 0.0 - 0.0im 0.0 + 0.0im 0.0 + 0.0im; 1.0000000000000002 - 0.0im 0.0 - 0.0im 0.0 + 0.0im]
- [0.0 + 0.0im 0.0 + 0.0im 0.0 - 1.0000000000000002im; 0.0 + 0.0im 0.0 + 0.0im 0.0 + 0.0im; 0.0 + 1.0000000000000002im 0.0 + 0.0im 0.0 + 0.0im]
- [0.5773502691896255 + 0.0im 0.0 + 0.0im 0.0 + 0.0im; 0.0 - 0.0im -1.1547005383792517 + 0.0im 0.0 + 0.0im; 0.0 - 0.0im 0.0 - 0.0im 0.5773502691896255 + 0.0im]
-````
+## Build the `SampledCorrelations` object to hold calculation results.
 
 It's necessary to construct a custom measurement,  or `MeasureSpec`, to
 calculate the correlations of these observables. This involves specifying an
