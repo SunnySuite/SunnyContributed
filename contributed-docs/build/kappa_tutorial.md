@@ -17,8 +17,9 @@ factor to $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$:
 \mathcal{S}_{\mathrm{Q}}(\mathbf{q}, \omega)=\frac{\hbar\omega}{k_{\mathrm{B}} T} \left[1+ n_{\mathrm{B}}(\omega/T) \right] \mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega),
 ```
 
-Sunny automatically applies this correction when you provide an
-`intensity_formula` with a temperature. This will be demonstrated in the code
+Sunny automatically applies this correction when you call
+`intensity_static` on a `SampledCorrelations` and provide a temperature.
+This will be demonstrated in the code
 example below.
 
 The quantum structure factor satisfies a familiar "zeroth-moment" sum rule,
@@ -67,7 +68,7 @@ We'll begin by building a spin system representing the effective Spin-1 compound
 
 ````julia
 using Sunny, LinearAlgebra
-include(joinpath(@__DIR__, "..", "src", "kappa_supplementals.jl"))
+include(joinpath(@__DIR__, "kappa_supplementals.jl"))
 
 dims = (8, 8, 4)
 seed = 101
@@ -80,17 +81,16 @@ the tutorials in the official Sunny documentation.)
 
 ````julia
 # Parameters for generating equilbrium samples.
-Δt_therm = 0.004                      # Step size for Langevin integrator
+dt_therm = 0.004                      # Step size for Langevin integrator
 dur_therm = 10.0                      # Safe thermalization time
-λ = 0.1                               # Phenomenological coupling to thermal bath
+damping = 0.1                         # Phenomenological coupling to thermal bath
 kT = 0.1 * Sunny.meV_per_K            # Simulation temperature
-langevin = Langevin(Δt_therm; λ, kT)  # Langevin integrator
+langevin = Langevin(dt_therm; damping, kT)  # Langevin integrator
 
 # Parameters for sampling correlations.
-Δt = 0.025          # Integrator step size for dissipationless trajectories
-ωmax = 10.0         # Maximum energy to resolve
-nω = 200            # Number of energy bins
-nsamples = 3        # Number of dynamical trajectories to collect for estimating S(𝐪,ω)
+dt = 0.025                     # Integrator step size for dissipationless trajectories
+nsamples = 3                   # Number of dynamical trajectories to collect for estimating S(𝐪,ω)
+energies = range(0, 10, 200)   # Energies to resolve, in meV, when calculating the dynamics
 
 # Since FeI2 is a Spin-1 material, we'll need a complete set of observables for SU($2S+1=3$)
 # with which to calculate correlations.
@@ -107,7 +107,38 @@ observables = [
 ]
 
 # Build the `SampledCorrelations` object to hold calculation results.
-sc = dynamical_correlations(sys; Δt, nω, ωmax, observables)
+````
+
+````
+8-element Vector{AbstractMatrix{ComplexF64}}:
+ [0.0 + 0.0im 0.7071067811865476 + 0.0im 0.0 + 0.0im; 0.7071067811865476 - 0.0im 0.0 + 0.0im 0.7071067811865476 + 0.0im; 0.0 - 0.0im 0.7071067811865476 - 0.0im 0.0 + 0.0im]
+ [0.0 + 0.0im 0.0 - 0.7071067811865476im 0.0 + 0.0im; 0.0 + 0.7071067811865476im 0.0 + 0.0im 0.0 - 0.7071067811865476im; 0.0 - 0.0im 0.0 + 0.7071067811865476im 0.0 + 0.0im]
+ [1.0 + 0.0im 0.0 + 0.0im 0.0 + 0.0im; 0.0 - 0.0im 0.0 + 0.0im 0.0 + 0.0im; 0.0 - 0.0im 0.0 - 0.0im -1.0 + 0.0im]
+ [-0.0 - 0.0im -0.7071067811865476 - 0.0im -0.0 - 0.0im; -0.7071067811865476 - 0.0im -0.0 - 0.0im 0.7071067811865476 - 0.0im; -0.0 - 0.0im 0.7071067811865476 - 0.0im -0.0 - 0.0im]
+ [-0.0 - 0.0im -0.0 + 0.7071067811865476im -0.0 - 0.0im; -0.0 - 0.7071067811865476im -0.0 - 0.0im -0.0 - 0.7071067811865476im; -0.0 - 0.0im -0.0 + 0.7071067811865476im -0.0 - 0.0im]
+ [0.0 + 0.0im 0.0 + 0.0im 1.0000000000000002 + 0.0im; 0.0 - 0.0im 0.0 + 0.0im 0.0 + 0.0im; 1.0000000000000002 - 0.0im 0.0 - 0.0im 0.0 + 0.0im]
+ [0.0 + 0.0im 0.0 + 0.0im 0.0 - 1.0000000000000002im; 0.0 + 0.0im 0.0 + 0.0im 0.0 + 0.0im; 0.0 + 1.0000000000000002im 0.0 + 0.0im 0.0 + 0.0im]
+ [0.5773502691896255 + 0.0im 0.0 + 0.0im 0.0 + 0.0im; 0.0 - 0.0im -1.1547005383792517 + 0.0im 0.0 + 0.0im; 0.0 - 0.0im 0.0 - 0.0im 0.5773502691896255 + 0.0im]
+````
+
+It's necessary to construct a custom measurement,  or `MeasureSpec`, to
+calculate the correlations of these observables. This involves specifying an
+observable field, with a fixed number of observables for each site of the
+system; a vector of tuples `(n, m)`, which specify correlation pairs to
+calculate; a function for reducing these correlation pairs into a final value;
+and a list of form factors. We will turn off the form factors by setting them
+to one.
+
+````julia
+observable_field = fill(Sunny.HermitianC64(Hermitian(zeros(ComplexF64, 3, 3))), length(observables), size(sys.coherents)...);
+for site in Sunny.eachsite(sys), μ in axes(observables, 1)
+    observable_field[μ, site] = Hermitian(observables[μ])
+end
+corr_pairs = [(i, i) for i in 1:length(observables)]  # Only interested "diagonal" (αα) pair correlations
+combiner(_, data) = real(sum(data))  # Sum all the pair correlations
+measure = Sunny.MeasureSpec(observable_field, corr_pairs, combiner, [one(FormFactor)]);
+
+sc = SampledCorrelations(sys; dt, energies, measure)
 
 # Thermalize and add several samples
 for _ in 1:5_000
@@ -123,39 +154,35 @@ for _ in 1:nsamples
 end
 ````
 
-`sc` now contains an estimate of $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$.
-We next wish to evaluate the total spectral weight. We are working
+`sc` now contains an estimate of $\mathcal{S}_{\mathrm{cl}}(\mathbf{q},
+\omega)$. We next wish to evaluate the total spectral weight. We are working
 on a finite lattice and using discretized dynamics, so the integral will
 reduce to a sum. Since we'll be evaluating this sum repeatedly, we'll define a
-function.
+function to do this. (Note that this function only works on Bravais lattices --
+To evaluate spectral sums on a decorated lattice, the sum rule needs to be
+evaluated on each sublattice individually!)
 
 ````julia
-function total_spectral_weight(sc::SampledCorrelations; kT = Inf)
+function total_spectral_weight(sc::SampledCorrelations; kT = nothing)
     # Retrieve all available discrete wave vectors in the first Brillouin zone.
-    qs = available_wave_vectors(sc)
-
-    # Set up a formula to tell Sunny how to calculate intensities. For
-    # evaluating the sum rule, we want to take the trace over S(𝐪,ω).
-    # Setting `kT` to something other than `Inf` will result in the application
-    # temperature corrections.
-    formula = intensity_formula(sc, :trace; kT)
+    qs = Sunny.QPoints(Sunny.available_wave_vectors(sc)[:])
 
     # Calculate the intensities. Note that we must include negative energies to
     # evaluate the total spectral weight.
-    is = intensities_interpolated(sc, qs, formula; interpolation=:round, negative_energies=true)
+    is = intensities(sc, qs; energies=:available_with_negative, kT)
 
-    return sum(is)
+    return sum(is.data * sc.Δω)
 end;
 ````
 
 Now evaluate the total spectral weight without temperature corrections.
 
 ````julia
-total_spectral_weight(sc; kT=Inf) / prod(sys.latsize)
+total_spectral_weight(sc) / (prod(sys.dims))
 ````
 
 ````
-1.3333333333333337
+1.3333333333333335
 ````
 
 The result is 4/3, which is the expected "classical" sum rule. This reference can be
@@ -169,14 +196,14 @@ Now let's try again, this time applying the classical-to-quantum
 correspondence factor by providing the simulation temperature.
 
 ````julia
-total_spectral_weight(sc; kT) / prod(sys.latsize)
+total_spectral_weight(sc; kT) / prod(sys.dims)
 ````
 
 ````
-5.3454553947623955
+6.603924617463461
 ````
 
-This is in fact very close to 16/3. So, at low temperatures, application of
+This is relatively close to 16/3. So, at low temperatures, application of
 the classical-to-quantum correspondence factor yields results that
 (approximately) satisfy the quantum sum rule.
 
@@ -186,8 +213,8 @@ experiment with a simulation temperature above $T_N=3.05$.
 ````julia
 sys, cryst = FeI2_sys_and_cryst(dims; seed)
 kT = 3.5 * Sunny.meV_per_K
-langevin = Langevin(Δt_therm; λ, kT)
-sc = dynamical_correlations(sys; Δt, nω, ωmax, observables)
+langevin = Langevin(dt_therm; damping, kT)
+sc = SampledCorrelations(sys; dt, energies, measure)
 
 # Thermalize
 for _ in 1:5_000
@@ -208,11 +235,11 @@ again give 4/3, as you can easily verify. Let's examine the result with
 the correction:
 
 ````julia
-total_spectral_weight(sc; kT) / prod(sys.latsize)
+total_spectral_weight(sc; kT) / prod(sys.dims)
 ````
 
 ````
-2.9237215440928477
+2.9029249295590542
 ````
 
 While this is larger than the classical value of 4/3, it is still
@@ -228,7 +255,7 @@ time setting $κ=1.25$.
 
 ````julia
 sys, cryst = FeI2_sys_and_cryst(dims; seed)
-sc = dynamical_correlations(sys; Δt, nω, ωmax, observables)
+sc = SampledCorrelations(sys; dt, energies, measure)
 κ = 1.25
 
 # Thermalize
@@ -256,11 +283,11 @@ end
 Finally, we evaluate the sum:
 
 ````julia
-total_spectral_weight(sc; kT) / prod(sys.latsize)
+total_spectral_weight(sc; kT) / prod(sys.dims)
 ````
 
 ````
-5.190400851435814
+5.021632150413751
 ````
 
 The result is something slightly greater than 5, substantially closer to the
