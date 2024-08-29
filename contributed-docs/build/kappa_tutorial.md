@@ -1,5 +1,8 @@
 # Enforcing the quantum sum rule with moment renormalization
 
+**AUTHOR**: David Dahlbom (dahlbomda@ornl.gov)
+**DATE**: August 29, 2024 (Sunny 0.7.0)
+
 One goal of the Sunny project is to extend classical techniques to incorporate
 a greater number of quantum effects. The generalization of the Landau-Lifshitz
 (LL) equations from SU(2) to SU($N$) coherent states is the cornerstone of
