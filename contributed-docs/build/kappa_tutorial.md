@@ -73,7 +73,7 @@ using Sunny, LinearAlgebra
 include(joinpath(@__DIR__, "kappa_supplementals.jl"))
 
 dims = (8, 8, 4)
-seed = 101
+seed = 102
 sys, cryst = FeI2_sys_and_cryst(dims; seed);
 ````
 
@@ -86,17 +86,13 @@ the tutorials in the official Sunny documentation.)
 dt_therm = 0.004                      # Step size for Langevin integrator
 dur_therm = 10.0                      # Safe thermalization time
 damping = 0.1                         # Phenomenological coupling to thermal bath
-kT = 0.1 * Sunny.meV_per_K            # Simulation temperature
+kT = 0.2 * Sunny.meV_per_K            # Simulation temperature
 langevin = Langevin(dt_therm; damping, kT)  # Langevin integrator
 
 # Parameters for sampling correlations.
 dt = 0.025                     # Integrator step size for dissipationless trajectories
 nsamples = 3                   # Number of dynamical trajectories to collect for estimating S(𝐪,ω)
-energies = range(0, 10, 200)   # Energies to resolve, in meV, when calculating the dynamics
-````
-
-````
-0.0:0.05025125628140704:10.0
+energies = range(0, 10, 200);  # Energies to resolve, in meV, when calculating the dynamics
 ````
 
 Since FeI2 is a Spin-1 material, we'll need a complete set of observables for SU($2S+1=3$)
@@ -183,7 +179,7 @@ total_spectral_weight(sc) / (prod(sys.dims))
 ````
 
 ````
-1.3333333333333335
+1.333333333333334
 ````
 
 The result is 4/3, which is the expected "classical" sum rule. This reference can be
@@ -201,7 +197,7 @@ total_spectral_weight(sc; kT) / prod(sys.dims)
 ````
 
 ````
-6.603924617463461
+5.734206539038629
 ````
 
 This is relatively close to 16/3. So, at low temperatures, application of
@@ -240,7 +236,7 @@ total_spectral_weight(sc; kT) / prod(sys.dims)
 ````
 
 ````
-2.9029249295590542
+2.9374993339227875
 ````
 
 While this is larger than the classical value of 4/3, it is still
@@ -288,7 +284,7 @@ total_spectral_weight(sc; kT) / prod(sys.dims)
 ````
 
 ````
-5.021632150413751
+5.142433967821603
 ````
 
 The result is something slightly greater than 5, substantially closer to the
