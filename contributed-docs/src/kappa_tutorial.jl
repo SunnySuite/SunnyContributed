@@ -90,8 +90,8 @@ dt = 0.025                     # Integrator step size for dissipationless trajec
 nsamples = 3                   # Number of dynamical trajectories to collect for estimating S(𝐪,ω)
 energies = range(0, 10, 200)   # Energies to resolve, in meV, when calculating the dynamics
 
-## Since FeI2 is a Spin-1 material, we'll need a complete set of observables for SU($2S+1=3$)
-## with which to calculate correlations.
+# Since FeI2 is a Spin-1 material, we'll need a complete set of observables for SU($2S+1=3$)
+# with which to calculate correlations.
 Sx, Sy, Sz = spin_matrices(1)  # Spin-1 representation of spin operators
 observables = [
     Sx,
@@ -104,15 +104,14 @@ observables = [
     √3 * Sz^2 - I*2/√3,
 ];
 
-# ## Build the `SampledCorrelations` object to hold calculation results.
-
-# It is necessary to construct a custom measurement,  or `MeasureSpec`, to
-# calculate the correlations of these observables. This involves specifying: an
-# (1) observable field with observables specified for each site of the system;
-# (2) a vector of tuples `(n, m)`, which specify correlation pairs to calculate;
-# (3) a function for reducing these correlation pairs into a final value; and
-# (4) a list of form factors. We will turn off the form factors by setting them
-# to one, since including them would interfere with our sum rule calculations
+# It is necessary to construct a custom measurement, or `MeasureSpec`, to
+# configure the correlations calculators to use these observables. This involves
+# specifying: an (1) observable field with observables specified for each site
+# of the system; (2) a vector of tuples `(n, m)`, which specify correlation
+# pairs to calculate; (3) a function for reducing these correlation pairs into a
+# final value; and (4) a list of form factors. We will effectively turn off the
+# form factors by setting them to one, since including them would interfere with
+# our sum rule calculations.
 
 observable_field = fill(Sunny.HermitianC64(Hermitian(zeros(ComplexF64, 3, 3))), length(observables), size(sys.coherents)...);
 for site in Sunny.eachsite(sys), μ in axes(observables, 1)
@@ -121,6 +120,8 @@ end
 corr_pairs = [(i, i) for i in 1:length(observables)]  # Only interested "diagonal" (αα) pair correlations 
 combiner(_, data) = real(sum(data))  # Sum all the pair correlations
 measure = Sunny.MeasureSpec(observable_field, corr_pairs, combiner, [one(FormFactor)]);
+
+# Finally, we can construct a `SampledCorrelations` and perform the calculations.
 
 sc = SampledCorrelations(sys; dt, energies, measure)
 
