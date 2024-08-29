@@ -83,10 +83,10 @@ the tutorials in the official Sunny documentation.)
 
 ````julia
 # Parameters for generating equilbrium samples.
-dt_therm = 0.004                      # Step size for Langevin integrator
-dur_therm = 10.0                      # Safe thermalization time
-damping = 0.1                         # Phenomenological coupling to thermal bath
-kT = 0.2 * Sunny.meV_per_K            # Simulation temperature
+dt_therm = 0.004                            # Step size for Langevin integrator
+dur_therm = 10.0                            # Safe thermalization time
+damping = 0.1                               # Phenomenological coupling to thermal bath
+kT = 0.3 * Sunny.meV_per_K                  # Simulation temperature
 langevin = Langevin(dt_therm; damping, kT)  # Langevin integrator
 
 # Parameters for sampling correlations.
@@ -197,7 +197,7 @@ total_spectral_weight(sc; kT) / prod(sys.dims)
 ````
 
 ````
-5.734206539038629
+5.450820794092413
 ````
 
 This is relatively close to 16/3. So, at low temperatures, application of

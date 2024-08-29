@@ -81,10 +81,10 @@ sys, cryst = FeI2_sys_and_cryst(dims; seed);
 # the tutorials in the official Sunny documentation.)
 
 ## Parameters for generating equilbrium samples.
-dt_therm = 0.004                      # Step size for Langevin integrator
-dur_therm = 10.0                      # Safe thermalization time
-damping = 0.1                         # Phenomenological coupling to thermal bath
-kT = 0.2 * Sunny.meV_per_K            # Simulation temperature
+dt_therm = 0.004                            # Step size for Langevin integrator
+dur_therm = 10.0                            # Safe thermalization time
+damping = 0.1                               # Phenomenological coupling to thermal bath
+kT = 0.3 * Sunny.meV_per_K                  # Simulation temperature
 langevin = Langevin(dt_therm; damping, kT)  # Langevin integrator
 
 ## Parameters for sampling correlations. 
