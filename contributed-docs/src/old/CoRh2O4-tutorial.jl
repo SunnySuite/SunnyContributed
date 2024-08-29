@@ -4,7 +4,7 @@
 #
 # **Authors**: Martin Mourigal, David Dahlbom
 #
-# **Date**: October 28, 2023  (Sunny 0.5.5)
+# **Date**: August 29, 2024  (Sunny 0.7.0)
 #
 # **Goal**: This script is to calculate the temperature dependence of the magnon excitations in the 
 # spin-3/2 Heisenberg Diamond Antiferromagnet and compare to powder-averaged results obtained for 

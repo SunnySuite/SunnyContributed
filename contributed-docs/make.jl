@@ -14,6 +14,10 @@ else
     ARGS
 end
 
+# Copy over any supplemental material needed for build
+cp(joinpath(@__DIR__, "..", "src", "MgCr2O4_160953_2009.cif"), joinpath(@__DIR__, "MgCr2O4_160953_2009.cif"))
+cp(joinpath(@__DIR__, "..", "src", "kappa_tutorial.jl"), joinpath(@__DIR__, "kappa_tutorial.jl"))
+
 # Build the notebooks
 map(docnames) do docname
     Literate.markdown(joinpath(src_dir, docname), build_dir; execute=!draft, documenter=false, credit=false)

@@ -35,7 +35,7 @@ function FeI2_magnetic_unit_cell(; gs = 1, seed=nothing)
         [2 0 1; -1 1 0; -1 -1 1]
     ]
     cryst = FeI2_crystal()
-    sys = System(cryst, (4,4,4), [SpinInfo(1; S=1, g=2)], :SUN; seed)
+    sys = System(cryst, (4,4,4), [1 => Moment(s=1, g=2)], :SUN; seed)
 
     J1pm   = -0.236
     J1pmpm = -0.161

@@ -2,7 +2,7 @@
 
 # **Author**: Martin Mourigal
 #
-# **Date**: September 9, 2022 (Updated by November 1, 2023 using Sunny 0.5.5)
+# **Date**: September 9, 2022 (Updated August 29, 2024 using Sunny 0.7.0)
 # 
 # In this tutorial, we will walk through an example in Sunny and calculate
 # the spin dynamical properties of the Heisenberg pyrochlore antiferromagnet and
@@ -106,7 +106,7 @@ xtal_mgcro_2 = Crystal(latvecs, positions, spacegroup; types, setting)
 # To import a CIF file, simply give the path to `Crystal`. One may optionally
 # specify a precision parameter to apply to the symmetry analysis.
 
-cif = joinpath(@__DIR__, "..", "src", "MgCr2O4_160953_2009.cif")
+cif = joinpath(@__DIR__, "MgCr2O4_160953_2009.cif")
 xtal_mgcro_3 = Crystal(cif; symprec=0.001)
 
 # Finally, we wish to restrict attention to the magnetic atoms in the unit cell
@@ -114,7 +114,7 @@ xtal_mgcro_3 = Crystal(cif; symprec=0.001)
 # to determine the correct exchange and g-factor anisotropies. This can be
 # achieved with the `subcrystal` function.
 
-xtal_mgcro = subcrystal(xtal_mgcro_2,"Cr")
+xtal_mgcro = subcrystal(xtal_mgcro_2, "Cr")
 
 # ## Making a `System` and assigning interactions 
 # ### Making a `System`
@@ -122,9 +122,9 @@ xtal_mgcro = subcrystal(xtal_mgcro_2,"Cr")
 # our `Crystal`.
 
 dims = (6, 6, 6)  # Supercell dimensions 
-spininfos = [SpinInfo(1, S=3/2, g=2)]  # Specify spin information, note that all sites are symmetry equivalent 
-sys_pyro = System(xtal_pyro, dims, spininfos, :dipole)    # Make a system in dipole (Landau-Lifshitz) mode on pyrochlore lattice
-sys_mgcro = System(xtal_mgcro, dims, spininfos, :dipole); # Same on MgCr2O4 crystal
+momentinfo = [1 => Moment(s=3/2, g=2)]  # Specify local moment information, note that all sites are symmetry equivalent 
+sys_pyro = System(xtal_pyro, momentinfo, :dipole; dims)    # Make a system in dipole (Landau-Lifshitz) mode on pyrochlore lattice
+sys_mgcro = System(xtal_mgcro, momentinfo, :dipole; dims); # Same on MgCr2O4 crystal
 
 # To understand what interactions we may assign to this system, we have to
 # understand the the symmetry properties of the crystal, which we turn to next.
@@ -189,13 +189,13 @@ randomize_spins!(sys_mgcro);
 # accomplish this by running Langevin dynamics. To do this, we must set up a
 # Langevin integrator.
 
-Δt = 0.05  # Integration time step in meV^-1
-λ  = 0.1   # Phenomenological damping parameter
+dt = 0.01  # Integration time step in meV^-1
+damping  = 0.1   # Phenomenological damping parameter
 kT = 1.8   # Desired temperature in meV
-langevin = Langevin(Δt; λ, kT); # Construct integrator
+langevin = Langevin(dt; damping, kT); # Construct integrator
 
 # We can now thermalize our systems by running the integrator.
-for _ in 1:2000
+for _ in 1:5000
     step!(sys_pyro, langevin)
     step!(sys_mgcro, langevin)
 end
@@ -212,10 +212,11 @@ plot_spins(sys_mgcro)
 # ## Instantaneous Structure Factor
 # Next we can examine the instantaneous structure factor.
 
-isf_pyro  = instant_correlations(sys_pyro)
-isf_mgcro = instant_correlations(sys_mgcro);
+isf_pyro  = SampledCorrelationsStatic(sys_pyro; measure=ssf_perp(sys_pyro))
+isf_mgcro = SampledCorrelationsStatic(sys_mgcro; measure=ssf_perp(sys_mgcro));
 
-# These are currently empty. Let's add correlation data from 10 trajectories.
+# These are currently empty. Let's add spin-spin correlation data from 10
+# sampled spin configurations at kT = 1.8 meV.
 
 for _ in 1:10
     ## Run dynamics to decorrelate
@@ -228,37 +229,34 @@ for _ in 1:10
     add_sample!(isf_mgcro, sys_mgcro)
 end
 
-# To retrieve the intensities, we set up a formula and call
-# `intensities_interpolated` on an array of wave vectors.
+# To retrieve the intensities, we call `intensities_static` on an array of wave
+# vectors, which we can generate with `q_space_grid`.
 
-qvals = -4.0:0.025:4.0
-qs = [(qa, qb, 0) for qa in qvals, qb in qvals]      # Wave vectors to query
+qpts_pyro = q_space_grid(xtal_pyro, [1, 0, 0], range(-4.0, 4.0, 200), [0, 1, 0], (-4, 4))
+qpts_mgcro = q_space_grid(xtal_mgcro, [1, 0, 0], range(-4.0, 4.0, 200), [0, 1, 0], (-4, 4))
 
-formula_pyro = intensity_formula(isf_pyro, :perp)
-formula_mgcro = intensity_formula(isf_mgcro, :perp)
-Sq_pyro  = instant_intensities_interpolated(isf_pyro, qs, formula_pyro)  
-Sq_mgcro = instant_intensities_interpolated(isf_mgcro, qs, formula_mgcro);
+Sq_pyro  = intensities_static(isf_pyro, qpts_pyro)  
+Sq_mgcro = intensities_static(isf_mgcro, qpts_mgcro);
 
-# Finally, we can plot the results.
+# Finally, plot the results.
 
-fig = Figure(; resolution=(1200,500))
-axparams = (aspect = true, xticks=-4:4, yticks=-4:4, titlesize=20,
-    xlabel = "𝐪a (2π a⁻¹)", ylabel = "𝐪b (2π b⁻¹)", xlabelsize = 18, ylabelsize=18,)
-ax_pyro  = Axis(fig[1,1]; title="Pyrochlore", axparams...) 
-ax_mgcro = Axis(fig[1,3]; title="MgCr2O4",  axparams...)
-hm = heatmap!(ax_pyro, qvals, qvals, Sq_pyro)
-Colorbar(fig[1,2], hm)
-hm = heatmap!(ax_mgcro, qvals, qvals, Sq_mgcro)
-Colorbar(fig[1,4], hm)
+fig = Figure(; size=(1200,500))
+ax = plot_intensities!(fig[1,1], Sq_pyro)
+Colorbar(fig[1,2], only(ax.scene.plots))
+ax = plot_intensities!(fig[1,3], Sq_mgcro)
+Colorbar(fig[1,4], only(ax.scene.plots))
 fig
 
 # ## Dynamical Structure Factor
 # We can also estimate the dynamical structure factor.
 
-sc_pyro  = dynamical_correlations(sys_pyro; Δt, ωmax = 10.0, nω = 100)
-sc_mgcro = dynamical_correlations(sys_mgcro; Δt, ωmax = 10.0, nω = 100);
+energies = range(0, 10, 100)
+sc_pyro  = SampledCorrelations(sys_pyro; dt, energies, measure=ssf_perp(sys_pyro))
+sc_mgcro = SampledCorrelations(sys_mgcro; dt, energies, measure=ssf_perp(sys_mgcro));
 
-# Next we add some sample trajectories.
+# Next we sample trajectories and calculate the spin-spin correlations of these.
+# Unlike `SampledCorrelationsStatic`, these samples now include time (energy)
+# information -- and take significantly longer to calculate.
 
 for _ in 1:3
     ## Run dynamics to decorrelate
@@ -271,69 +269,53 @@ for _ in 1:3
     add_sample!(sc_mgcro, sys_mgcro)
 end
 
-# We can now examine the structure factor intensities along a path in momentum space. 
+# We can now examine the structure factor intensities along a path in momentum
+# space. First examine the pyrochlore model.
 
-fig = Figure(; resolution=(1200,900))
-axsqw = (xticks=-4:4, yticks=0:2:10, ylabel="E (meV)", ylabelsize=18, xlabelsize=18, )
-
+fig = Figure(; size=(1200,900))
 qbs = 0.0:0.5:1.5 # Determine q_b for each slice
 for (i, qb) in enumerate(qbs)
-    path, _ = reciprocal_space_path(xtal_pyro, [[-4.0, qb, 0.0],[4.0, qb, 0.0]], 40)  # Generate a path of wave
-                                                                                      ## vectors through the BZ
-    formula = intensity_formula(sc_pyro, :perp; kT) # Temperature keyword enables intensity rescaling
-    Sqω_pyro  = intensities_interpolated(sc_pyro, path, formula)  
-
-    ax = Axis(fig[fldmod1(i,2)...]; xlabel = "q = (x, $qb, 0)", axsqw...)
-    ωs = available_energies(sc_pyro)
-    heatmap!(ax, [p[1] for p in path], ωs, Sqω_pyro; colorrange=(0.0, 4.0))
+    qpts_pyro = q_space_path(xtal_pyro, [[-4, qb, 0], [4, qb, 0]], 200)
+    Sqw_pyro = intensities(sc_pyro, qpts_pyro; energies=:available, kT)
+    plot_intensities!(fig[fldmod1(i, 2)...], Sqw_pyro; axisopts=Dict(:title => "q_b = $qb"))
 end
 fig
 
-# And let's take a look at the same slices for MgCr2O4.
+# Next generate the results along the same path for MgCr2O4.
 
-fig = Figure(; resolution=(1200,900))
-
-qbs = 0.0:0.5:1.5
+fig = Figure(; size=(1200,900))
 for (i, qb) in enumerate(qbs)
-    path, _ = reciprocal_space_path(xtal_mgcro, [[-4.0, qb, 0.0],[4.0, qb, 0.0]], 40)  # Generate a path of wave
-                                                                                 ## vectors through the BZ
-    formula = intensity_formula(sc_mgcro, :perp; kT) # Temperature keyword enables intensity rescaling
-    Sqω_mgcro  = intensities_interpolated(sc_mgcro, path, formula) 
-
-    ax = Axis(fig[fldmod1(i,2)...]; xlabel = "q = (x, $qb, 0)", axsqw...)
-    ωs = available_energies(sc_mgcro)
-    heatmap!(ax, [p[1] for p in path], ωs, Sqω_mgcro; colorrange=(0.0, 4.0))
+    qpts_mgcro = q_space_path(xtal_mgcro, [[-4, qb, 0], [4, qb, 0]], 200)
+    Sqw_mgcro = intensities(sc_mgcro, qpts_mgcro; energies=:available, kT)
+    plot_intensities!(fig[fldmod1(i, 2)...], Sqw_mgcro; axisopts=Dict(:title => "q_b = $qb"))
 end
 fig
 
 # ### Instantaneous structure factor from a dynamical structure factor
 
-# Finally, we note that the instant structure factor can be calculated from the
-# dynamical structure factor. We simply call `instant_intensities` rather than
-# `intensities`. This will calculate the instantaneous structure factor from
-# from ``𝒮(𝐪,ω)`` by integrating out ``ω`` . An advantage of doing this (as
-# opposed to using `instant_correlations`) is that Sunny is able to apply a
-# temperature- and energy-dependent intensity rescaling before integrating out
-# the dynamical information. The results of this approach are more suitable for
-# comparison with experimental data.
+# Finally, we note that the instant structure factor (what we generated with
+# `SampledCorrelationsStatic`) can be calculated from the dynamical structure
+# factor (generated with a `SampledCorrelations`). We simply call
+# `instant_static` rather than `intensities` on the `SampledCorrelations`. This
+# will calculate the instantaneous structure factor from from ``𝒮(𝐪,ω)`` by
+# integrating out ``ω`` . An advantage of doing this (as opposed to using a
+# `SampledCorrelationsStatic`) is that Sunny is able to apply a temperature- and
+# energy-dependent intensity rescaling before integrating out the dynamical
+# information. The results of this approach are more suitable for comparison
+# with experimental data.
 
-qvals = -4.0:0.05:4.0
-qs = [(qa, qb, 0) for qa in qvals, qb in qvals]      # Wave vectors to query
+qpts_pyro = q_space_grid(xtal_pyro, [1, 0, 0], range(-4, 4, 200), [0, 1, 0], (-4, 4))
+qpts_mgcro = q_space_grid(xtal_mgcro, [1, 0, 0], range(-4, 4, 200), [0, 1, 0], (-4, 4))
 
-formula_pyro = intensity_formula(sc_pyro, :perp; kT)   # Temperature keyword enables intensity rescaling
-formula_mgcro = intensity_formula(sc_mgcro, :perp; kT) # Temperature keyword enables intensity rescaling
-
-Sq_pyro  = instant_intensities_interpolated(sc_pyro, qs, formula_pyro)  
-Sq_mgcro = instant_intensities_interpolated(sc_mgcro, qs, formula_mgcro);
+Sq_pyro  = intensities_static(sc_pyro, qpts_pyro; kT)  
+Sq_mgcro = intensities_static(sc_mgcro, qpts_mgcro; kT);
 
 # We can plot the results below. It is useful to compare these to the plot above
-# generated with an `instant_correlations`.
+# generated with an `SampledCorrelationsStatic`.
 
-fig = Figure(; resolution=(1200,500))
-ax_pyro  = Axis(fig[1,1]; title="Pyrochlore", axparams...)
-ax_mgcro = Axis(fig[1,3]; title="MgCr2O4", axparams...)
-hm = heatmap!(ax_pyro, qvals, qvals, Sq_pyro)
-Colorbar(fig[1,2], hm)
-hm = heatmap!(ax_mgcro, qvals, qvals, Sq_mgcro)
-Colorbar(fig[1,4], hm)
+fig = Figure(; size=(1200,500))
+ax = plot_intensities!(fig[1,1], Sq_pyro; axisopts=Dict(:title => "Pyrochlore"))
+Colorbar(fig[1,2], only(ax.scene.plots))
+ax = plot_intensities!(fig[1,3], Sq_mgcro; axisopts=Dict(:title => "MgCr₂O₄"))
+Colorbar(fig[1,4], only(ax.scene.plots))
 fig
