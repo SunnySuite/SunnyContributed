@@ -162,7 +162,8 @@ evaluated on each sublattice individually!)
 
 ````julia
 function total_spectral_weight(sc::SampledCorrelations; kT = nothing)
-    # Retrieve all available discrete wave vectors in the first Brillouin zone.
+    # Retrieve all available discrete wave vectors in the equivalent of
+    # one Brillouin zone.
     qs = Sunny.available_wave_vectors(sc)[:]
 
     # Calculate the intensities. Note that we must include negative energies to
