@@ -275,7 +275,7 @@ qbs = 0.0:0.5:1.5 # Determine q_b for each slice
 for (i, qb) in enumerate(qbs)
     qpts_pyro = q_space_path(xtal_pyro, [[-4, qb, 0], [4, qb, 0]], 200)
     Sqw_pyro = intensities(sc_pyro, qpts_pyro; energies=:available, kT)
-    plot_intensities!(fig[fldmod1(i, 2)...], Sqw_pyro; axisopts=Dict(:title => "q_b = $qb"))
+    plot_intensities!(fig[fldmod1(i, 2)...], Sqw_pyro; title="q_b = $qb")
 end
 fig
 
@@ -285,7 +285,7 @@ fig = Figure(; size=(1200,900))
 for (i, qb) in enumerate(qbs)
     qpts_mgcro = q_space_path(xtal_mgcro, [[-4, qb, 0], [4, qb, 0]], 200)
     Sqw_mgcro = intensities(sc_mgcro, qpts_mgcro; energies=:available, kT)
-    plot_intensities!(fig[fldmod1(i, 2)...], Sqw_mgcro; axisopts=Dict(:title => "q_b = $qb"))
+    plot_intensities!(fig[fldmod1(i, 2)...], Sqw_mgcro; title ="q_b = $qb")
 end
 fig
 
@@ -312,6 +312,6 @@ Sq_mgcro = intensities_static(sc_mgcro, qpts_mgcro; kT);
 # generated with an `SampledCorrelationsStatic`.
 
 fig = Figure(; size=(1200,500))
-ax = plot_intensities!(fig[1,1], Sq_pyro; axisopts=Dict(:title => "Pyrochlore"))
-ax = plot_intensities!(fig[1,2], Sq_mgcro; axisopts=Dict(:title => "MgCr₂O₄"))
+ax = plot_intensities!(fig[1,1], Sq_pyro; title="Pyrochlore")
+ax = plot_intensities!(fig[1,2], Sq_mgcro; title="MgCr₂O₄")
 fig

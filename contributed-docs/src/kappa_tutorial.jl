@@ -258,7 +258,7 @@ for _ in 1:nsamples
     set_spin_rescaling!(sys, 1.0)
 end
 
-# Finally, we evaluate the sum:
+# Finally, we evaluate the sum.
 total_spectral_weight(sc; kT) / prod(sys.dims) 
 
 # The result is something slightly greater than 5, substantially closer to the

@@ -292,7 +292,7 @@ for _ in 1:nsamples
 end
 ````
 
-Finally, we evaluate the sum:
+Finally, we evaluate the sum.
 
 ````julia
 total_spectral_weight(sc; kT) / prod(sys.dims)
