@@ -67,13 +67,17 @@
 
 # ## Evaluating spectral sums in Sunny
 #
-# We'll begin by building a spin system representing the effective Spin-1 compound FeI₂.
+# We'll begin by building a spin system representing the effective Spin-1
+# compound FeI₂. The functions for doing this are imported from
+# `kappa_supplementals.jl`, available for download 
+# [here](https://github.com/SunnySuite/SunnyContributed/blob/main/contributed-docs/src/kappa_supplementals.jl).
 
 using Sunny, LinearAlgebra
 include(joinpath(@__DIR__, "kappa_supplementals.jl")) 
 
 dims = (8, 8, 4)
 seed = 102
+units = Units(:meV, :angstrom)
 sys, cryst = FeI2_sys_and_cryst(dims; seed); 
 
 # We will next estimate $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$ using
@@ -84,7 +88,7 @@ sys, cryst = FeI2_sys_and_cryst(dims; seed);
 dt_therm = 0.004                            # Step size for Langevin integrator
 dur_therm = 10.0                            # Safe thermalization time
 damping = 0.1                               # Phenomenological coupling to thermal bath
-kT = 0.3 * Sunny.meV_per_K                  # Simulation temperature
+kT = 0.3 * units.K 
 langevin = Langevin(dt_therm; damping, kT)  # Langevin integrator
 
 ## Parameters for sampling correlations. 
@@ -119,16 +123,14 @@ observables = [
 # Building a `Sunny.MeasureSpec` requires the following:
 #
 # 1. An array containing a set of $N$ observables for each site of the system.
-# 2. A vector of tuples $(n, m)$, with $1 <= n, m <= N$. Each tuple specifies a
-# pair of observables. Together these determine which correlations will be
-# calculated.
+# 2. A vector of tuples $(n, m)$, with $1 <= n, m <= N$. Each tuple specifies a pair of observables. Together these determine which correlations will be calculated.
 # 3. A function for reducing these correlation pairs into a final intensity.
 # 4. A list of form factors. 
 #
 # The `Sunny.MeasureSpec` below sums over the autocorrelations of each observable and
 # disables form factor corrections.
 
-observable_field = fill(Sunny.HermitianC64(Hermitian(zeros(ComplexF64, 3, 3))), length(observables), size(sys.coherents)...);
+observable_field = fill(Hermitian(zeros(ComplexF64, 3, 3)), length(observables), size(sys.coherents)...);
 for site in Sunny.eachsite(sys), μ in axes(observables, 1)
     observable_field[μ, site] = Hermitian(observables[μ])
 end
@@ -197,7 +199,7 @@ total_spectral_weight(sc; kT) / prod(sys.dims)
 # experiment with a simulation temperature above $T_N=3.05$.
 
 sys, cryst = FeI2_sys_and_cryst(dims; seed) 
-kT = 3.5 * Sunny.meV_per_K
+kT = 3.5 * units.K
 langevin = Langevin(dt_therm; damping, kT)
 sc = SampledCorrelations(sys; dt, energies, measure)
 
