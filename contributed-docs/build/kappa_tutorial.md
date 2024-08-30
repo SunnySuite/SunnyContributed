@@ -66,7 +66,7 @@ factors themselves is demonstrated in the sample code
 
 ## Evaluating spectral sums in Sunny
 
-We'll begin by building a spin system representing the effective Spin-1 compound FeI2.
+We'll begin by building a spin system representing the effective Spin-1 compound FeI₂.
 
 ````julia
 using Sunny, LinearAlgebra
@@ -95,15 +95,19 @@ nsamples = 3                   # Number of dynamical trajectories to collect for
 energies = range(0, 10, 200);  # Energies to resolve, in meV, when calculating the dynamics
 ````
 
-Since FeI2 is a Spin-1 material, we'll need a complete set of observables for SU($2S+1=3$)
-with which to calculate correlations.
+Since FeI₂ is a Spin-1 material, we will use the SU($2S+1=3$) formalism and
+require a set of $N^2-1=8$ observables to calculate the total spectral weight.
 
 ````julia
 Sx, Sy, Sz = spin_matrices(1)  # Spin-1 representation of spin operators
 observables = [
+
+    # Dipoles
     Sx,
     Sy,
     Sz,
+
+    # Quadrupoles
     -(Sx*Sz + Sz*Sx),
     -(Sy*Sz + Sz*Sy),
     Sx^2 - Sy^2,
@@ -112,22 +116,31 @@ observables = [
 ];
 ````
 
-It is necessary to construct a custom measurement, or `MeasureSpec`, to
-configure the correlations calculators to use these observables. This involves
-specifying: an (1) observable field with observables specified for each site
-of the system; (2) a vector of tuples `(n, m)`, which specify correlation
-pairs to calculate; (3) a function for reducing these correlation pairs into a
-final value; and (4) a list of form factors. We will effectively turn off the
-form factors by setting them to one, since including them would interfere with
-our sum rule calculations.
+At the moment, Sunny does not expose a high-level interface for working with
+custom observables such as these. As a workaround, we will write low-level
+code that accesses the internal Sunny datastructure `Sunny.MeasureSpec`. The
+notation `Sunny.*` indicates that this functionality is not part of the public
+interface and is subject to change in future Sunny versions.
+
+Building a `Sunny.MeasureSpec` requires the following:
+
+1. An array containing a set of $N$ observables for each site of the system.
+2. A vector of tuples $(n, m)$, with $1 <= n, m <= N$. Each tuple specifies a
+pair of observables. Together these determine which correlations will be
+calculated.
+3. A function for reducing these correlation pairs into a final intensity.
+4. A list of form factors.
+
+The `Sunny.MeasureSpec` below sums over the autocorrelations of each observable and
+disables form factor corrections.
 
 ````julia
 observable_field = fill(Sunny.HermitianC64(Hermitian(zeros(ComplexF64, 3, 3))), length(observables), size(sys.coherents)...);
 for site in Sunny.eachsite(sys), μ in axes(observables, 1)
     observable_field[μ, site] = Hermitian(observables[μ])
 end
-corr_pairs = [(i, i) for i in 1:length(observables)]  # Only interested "diagonal" (αα) pair correlations
-combiner(_, data) = real(sum(data))  # Sum all the pair correlations
+corr_pairs = [(i, i) for i in 1:length(observables)]
+combiner(_, data) = real(sum(data))
 measure = Sunny.MeasureSpec(observable_field, corr_pairs, combiner, [one(FormFactor)]);
 ````
 

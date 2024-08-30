@@ -241,10 +241,8 @@ Sq_mgcro = intensities_static(isf_mgcro, qpts_mgcro);
 # Finally, plot the results.
 
 fig = Figure(; size=(1200,500))
-ax = plot_intensities!(fig[1,1], Sq_pyro)
-Colorbar(fig[1,2], only(ax.scene.plots))
-ax = plot_intensities!(fig[1,3], Sq_mgcro)
-Colorbar(fig[1,4], only(ax.scene.plots))
+plot_intensities!(fig[1,1], Sq_pyro)
+plot_intensities!(fig[1,2], Sq_mgcro)
 fig
 
 # ## Dynamical Structure Factor
@@ -315,7 +313,5 @@ Sq_mgcro = intensities_static(sc_mgcro, qpts_mgcro; kT);
 
 fig = Figure(; size=(1200,500))
 ax = plot_intensities!(fig[1,1], Sq_pyro; axisopts=Dict(:title => "Pyrochlore"))
-Colorbar(fig[1,2], only(ax.scene.plots))
-ax = plot_intensities!(fig[1,3], Sq_mgcro; axisopts=Dict(:title => "MgCr₂O₄"))
-Colorbar(fig[1,4], only(ax.scene.plots))
+ax = plot_intensities!(fig[1,2], Sq_mgcro; axisopts=Dict(:title => "MgCr₂O₄"))
 fig

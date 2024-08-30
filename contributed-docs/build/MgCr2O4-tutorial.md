@@ -576,10 +576,8 @@ Finally, plot the results.
 
 ````julia
 fig = Figure(; size=(1200,500))
-ax = plot_intensities!(fig[1,1], Sq_pyro)
-Colorbar(fig[1,2], only(ax.scene.plots))
-ax = plot_intensities!(fig[1,3], Sq_mgcro)
-Colorbar(fig[1,4], only(ax.scene.plots))
+plot_intensities!(fig[1,1], Sq_pyro)
+plot_intensities!(fig[1,2], Sq_mgcro)
 fig
 ````
 ![](MgCr2O4-tutorial-51.png)
@@ -665,9 +663,7 @@ generated with an `SampledCorrelationsStatic`.
 ````julia
 fig = Figure(; size=(1200,500))
 ax = plot_intensities!(fig[1,1], Sq_pyro; axisopts=Dict(:title => "Pyrochlore"))
-Colorbar(fig[1,2], only(ax.scene.plots))
-ax = plot_intensities!(fig[1,3], Sq_mgcro; axisopts=Dict(:title => "MgCr₂O₄"))
-Colorbar(fig[1,4], only(ax.scene.plots))
+ax = plot_intensities!(fig[1,2], Sq_mgcro; axisopts=Dict(:title => "MgCr₂O₄"))
 fig
 ````
 ![](MgCr2O4-tutorial-64.png)
