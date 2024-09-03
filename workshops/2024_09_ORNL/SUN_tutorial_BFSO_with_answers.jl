@@ -214,7 +214,7 @@ function BFSO(dims; mode=:SUN, seed=1)
     spacegroup = 113    # Want to use the space group for original lattice, of which the Fe ions form a subcrystal
     crystal = Crystal(latvecs, positions, spacegroup; types=["Fe"])
 
-    sys = System(crystal, dims, [SpinInfo(1; S=2, g=1.93)], mode; seed)
+    sys = System(crystal, [1 => Moment(s=2, g=1.93)], mode; dims, seed)
 
     A = 1.16 * meV_per_K
     C = -1.74 * meV_per_K
@@ -268,11 +268,11 @@ order_parameter(sys)
 # apply those fields, reoptimizing the spin configuration each time.
 
 units = Units(:meV, :angstrom)
-Hs = range(0.0, 1000.0, 50)
+Hs = range(0.0, 55.0, 50)
 Ms = Float64[]
 OPs = Float64[]
 for H in Hs
-    set_external_field!(sys, (0, 0, H*units.T))
+    set_field!(sys, (0, 0, H*units.T))
     minimize_energy!(sys)
     push!(Ms, magnetization(sys))
     push!(OPs, order_parameter(sys))
@@ -282,7 +282,6 @@ fig = Figure(size=(1200,400))
 scatter(fig[1,1], Hs, Ms; axis=(xlabel="H", ylabel="M"))
 scatter(fig[1,2], Hs, OPs; axis=(xlabel="H", ylabel="Staggered XY Magnetization"))
 fig
-plot_spins(sys)
 
 
 # # 4. Temperature-dependent bulk characteristics
@@ -469,6 +468,7 @@ for site in eachsite(sys)
 end
 
 minimize_energy!(sys)
+plot_spins(sys)
 
 # We'll remove the magnetic fields and then run a classical trajectory using the
 # generalized Landau-Lifshitz equations. This will allow us to see the
@@ -479,7 +479,7 @@ integrator = ImplicitMidpoint(dt)
 suggest_timestep(sys, integrator; tol=1e-2)
 integrator.dt = 0.01
 
-fig = plot_spins(sys; colorfn=i->norm(sys.dipoles[i][3]))
+fig = plot_spins(sys; colorfn=i->sys.dipoles[i][2])
 
 for _ in 1:500
     for _ in 1:5
@@ -527,15 +527,14 @@ sys_sun = reshape_supercell(sys_sun, [1 0 0; 0 1 0; 0 0 2])
 
 # Finally, we'll create `SpinWaveTheory`s for both systems.
 
-swt_dip = SpinWaveTheory(sys_dip)
-swt_sun = SpinWaveTheory(sys_sun)
+swt_dip = SpinWaveTheory(sys_dip; measure=ssf_perp(sys_dip))
+swt_sun = SpinWaveTheory(sys_sun; measure=ssf_perp(sys_sun))
 
 # We're now in a position to extract dispersions and intensities. First
 # define a path in reciprocal space that we wish to examine.
 
 points_rlu = [[0, 0, 1/2], [1, 0, 1/2], [2, 0, 1/2], [3, 0, 1/2]]
-density = 300
-path, xticks = reciprocal_space_path(sys.crystal, points_rlu, density);
+qpts = q_space_path(sys.crystal, points_rlu, 400)
 
 ## EXERCISE: After completing this section, repeat the same steps using a different path
 ## through reciprocal space:
@@ -545,36 +544,22 @@ path, xticks = reciprocal_space_path(sys.crystal, points_rlu, density);
 # calculate both the dispersion curves as well as intensities with artificial
 # broadening. 
 
-formula_disp_dip = intensity_formula(swt_dip, :perp; kernel=delta_function_kernel)
-formula_disp_sun = intensity_formula(swt_sun, :perp; kernel=delta_function_kernel)
-
-disp_dip, is_disp_dip = intensities_bands(swt_dip, path, formula_disp_dip)
-disp_sun, is_disp_sun = intensities_bands(swt_sun, path, formula_disp_sun)
+bands_dip = intensities_bands(swt_dip, qpts)
+bands_sun = intensities_bands(swt_sun, qpts)
 
 fwhm = 0.1
-formula_dip = intensity_formula(swt_dip, :perp; kernel=Sunny.gaussian(; fwhm))
-formula_sun = intensity_formula(swt_sun, :perp; kernel=Sunny.gaussian(; fwhm))
-
 energies = range(0, 3.5, 400) 
-is_dip = intensities_broadened(swt_dip, path, energies, formula_dip)
-is_sun = intensities_broadened(swt_sun, path, energies, formula_sun)
+broadened_dip = intensities(swt_dip, qpts; energies, kernel=gaussian(; fwhm))
+broadened_sun = intensities(swt_sun, qpts; energies, kernel=gaussian(; fwhm))
 
 fig = Figure()
-ax1 = Axis(fig[1,1]; xlabel="Momentum (r.l.u.)", ylabel="Energy (meV)", xticks=xticks, xticklabelrotation=π/6)
-ax2 = Axis(fig[2,1]; xlabel="Momentum (r.l.u.)", ylabel="Energy (meV)", xticks=xticks, xticklabelrotation=π/6)
-ax3 = Axis(fig[1,2]; xlabel="Momentum (r.l.u.)", ylabel="Energy (meV)", xticks=xticks, xticklabelrotation=π/6)
-ax4 = Axis(fig[2,2]; xlabel="Momentum (r.l.u.)", ylabel="Energy (meV)", xticks=xticks, xticklabelrotation=π/6)
-ylims!(ax1, 0, 3.5)
-ylims!(ax2, 0, 3.5)
-for i in axes(disp_dip, 2)
-    lines!(ax1, 1:length(disp_dip[:,i]), disp_dip[:,i]; color=is_disp_dip[:,i], colorrange=(0,1e-5))
-end
-for i in axes(disp_sun, 2)
-    lines!(ax2, 1:length(disp_sun[:,i]), disp_sun[:,i]; color=is_disp_sun[:,i], colorrange=(0,1e-5))
-end
-heatmap!(ax3, 1:size(is_dip, 1), energies, is_dip; colorrange=(0.0, 10))
-heatmap!(ax4, 1:size(is_sun, 1), energies, is_sun; colorrange=(0.0, 10))
+plot_intensities!(fig[1,1], bands_dip; ylims=(0, 3.0))
+plot_intensities!(fig[1,2], bands_sun; ylims=(0, 3.0))
+plot_intensities!(fig[2,1], broadened_dip)
+plot_intensities!(fig[2,2], broadened_sun)
 fig
+
+# ## EXERCISE: Change the upper bound on the `ylims` of the dispersions plot to 5.0. What do you see
 
 
 # # 6. S(q,ω) with classical dynamics
@@ -582,10 +567,11 @@ fig
 # We noted above that the longitudinal mode should actually decay, an effect
 # that can only be captured when going beyond linear SWT by adding 1-loop
 # corrections. While this is a planned future for Sunny, we note for now that
-# some of these effects can be capture in finite-temperature simulations using
+# some of these effects can be captured in finite-temperature simulations using
 # the classical dynamics. Intuitively, this is possible because the classical
 # dynamics is never linearized, unlike LSWT, so "magnon-magnon" interactions are
-# included up to arbitrary order.
+# included up to arbitrary order. How, the substitution of thermal fluctuations
+# for quantum fluctuations in somewhat adhoc.
 #
 # In this next section, we'll calculate 𝒮(q,ω) using the generalized classical
 # dynamics, examining the exact same path through reciprocal space, only this
@@ -599,7 +585,7 @@ plot_spins(sys)
 
 # Next we'll make a `Langevin` integrator to thermalize and decorrelate the system.
 
-kT = 0.1 * meV_per_K
+kT = 0.1 # We'll assume units of Kelvin
 integrator = Langevin(; kT, damping=0.1)
 suggest_timestep(sys, integrator; tol=1e-2)
 integrator.dt = dt = 0.04
@@ -675,3 +661,11 @@ fig
 # Notice that the longitudinal mode, which decays when 1-loop corrections are
 # applied, is extremely delicate in the classical simulations, dropping in energy
 # and intensity quite rapidly as the temperature is increased.
+
+
+
+using Sunny, GLMakie
+crystal = Sunny.kagome_crystal()
+view_crystal(crystal; ndims=2)
+sys = System(crystal, [1 => Moment(s=1/2, g=2)], :dipole)
+plot_spins(sys)
