@@ -1,0 +1,85 @@
+#------------------------------------------------------------------------------
+#$Date: 2016-02-14 16:26:36 +0200 (Sun, 14 Feb 2016) $
+#$Revision: 176435 $
+#$URL: svn://www.crystallography.net/cod/cif/1/01/05/1010527.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/
+#
+# All data on this site have been placed in the public domain by the
+# contributors.
+#
+data_1010527
+loop_
+_publ_author_name
+'Beevers, C A'
+'Lipson, H'
+_publ_section_title
+;
+The Crystal Structure of Copper Sulfate Pentahydrate Cu S O~4~ (H~2~
+O)~5~
+;
+_journal_coden_ASTM              PRLAAZ
+_journal_name_full
+;
+Proceedings of the Royal Society of London, Series A: Mathematical and
+Physical Sciences (76,1906-)
+;
+_journal_page_first              570
+_journal_page_last               582
+_journal_paper_doi               10.1098/rspa.1934.0173
+_journal_volume                  146
+_journal_year                    1934
+_chemical_formula_structural     'Cu S O4 (H2 O)5'
+_chemical_formula_sum            'Cu H10 O9 S'
+_chemical_name_systematic        'Copper sulfate pentahydrate'
+_space_group_IT_number           2
+_symmetry_cell_setting           triclinic
+_symmetry_Int_Tables_number      2
+_symmetry_space_group_name_Hall  '-P 1'
+_symmetry_space_group_name_H-M   'P -1'
+_cell_angle_alpha                82.27
+_cell_angle_beta                 107.43
+_cell_angle_gamma                102.67
+_cell_formula_units_Z            2
+_cell_length_a                   6.12(6)
+_cell_length_b                   10.7(1)
+_cell_length_c                   5.97(6)
+_cell_volume                     362.9
+_cod_original_formula_sum        'H10 Cu O9 S'
+_cod_database_code               1010527
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+-x,-y,-z
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_symmetry_multiplicity
+_atom_site_Wyckoff_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_attached_hydrogens
+_atom_site_calc_flag
+Cu1 Cu2+ 1 a 0. 0. 0. 1. 0 d
+Cu2 Cu2+ 1 e 0.5 0.5 0. 1. 0 d
+S1 S6+ 2 i 0. 0.28 0.64 1. 0 d
+O1 O2- 2 i 0.89 0.15 0.69 1. 0 d
+O2 O2- 2 i 0.24 0.31 0.82 1. 0 d
+O3 O2- 2 i 0.86 0.38 0.64 1. 0 d
+O4 O2- 2 i 0.02 0.3 0.38 1. 0 d
+O5 O2- 2 i 0.83 0.08 0.16 1. 2 d
+O6 O2- 2 i 0.29 0.11 0.17 1. 2 d
+O7 O2- 2 i 0.48 0.41 0.32 1. 2 d
+O8 O2- 2 i 0.76 0.42 0.01 1. 2 d
+O9 O2- 2 i 0.43 0.12 0.65 1. 2 d
+loop_
+_atom_type_symbol
+_atom_type_oxidation_number
+Cu2+ 2.000
+S6+ 6.000
+O2- -2.000
+H1+ 1.000

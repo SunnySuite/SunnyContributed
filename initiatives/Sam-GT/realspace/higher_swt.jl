@@ -364,10 +364,14 @@ function finite_spin_wave_Vmats(sys; polyatomic = true)
   Hs, Vs, disps, swt.data.local_rotations
 end
 
-function polyatomic_bzs(crystal)
+function polyatomic_bzs(crystal;verbose = false)
   na = Sunny.natoms(crystal)
   iszero_symprec(x) = abs(x) < crystal.symprec
   ΔRs = [map(x -> iszero_symprec(x) ? Inf : x,abs.(crystal.positions[i] - crystal.positions[j])) for i = 1:na, j = 1:na]
+  if verbose
+    println("ΔRs:")
+    display(sort(ΔRs[:]))
+  end
   round.(Int64,max.([1,1,1],1 ./ minimum(ΔRs)))
 end
 

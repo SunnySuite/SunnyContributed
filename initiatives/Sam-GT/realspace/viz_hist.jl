@@ -1,4 +1,4 @@
-using Sunny, GLMakie
+using Sunny, GLMakie, StaticArrays
 
 function viz_qqq_path(params; kwargs...)
   f = Figure()
@@ -6,7 +6,7 @@ function viz_qqq_path(params; kwargs...)
   Makie.cam3d!(ax.scene;projectiontype = Makie.Orthographic)
   viz_qqq_path!(ax,params;kwargs...)
 
-  aabb_lo, aabb_hi = Sunny.binning_parameters_aabb(params)
+  aabb_lo, aabb_hi = binning_parameters_aabb(params)
   lo = min.(0,floor.(Int64,aabb_lo))
   hi = max.(0,ceil.(Int64,aabb_hi))
   scatter!(ax,map(x -> Point3f(lo .+ x.I .- 1),CartesianIndices(ntuple(i -> 1 + hi[i] - lo[i],3)))[:],color = :black)
@@ -20,7 +20,7 @@ end
 
 function viz_qqq_path!(ax,params; background = nothing, line_alpha = 0.3,color = nothing,colorrange = nothing,bin_colors = [:red,:blue,:green],bin_line_width = 0.5)
   @assert iszero(params.covectors[1:3,4]) && iszero(params.covectors[4,1:3])
-  bcs = axes_bincenters(params)
+  bcs = Sunny.axes_bincenters(params)
   bes = Sunny.axes_binedges(params)
   M = inv(params.covectors[1:3,1:3])
   for dir = 1:3
@@ -53,4 +53,26 @@ function viz_qqq_path!(ax,params; background = nothing, line_alpha = 0.3,color =
     linesegments!(ax,segs;color = isnothing(color) ? :black : color,linewidth = 2.5,colorrange)
   end
 end
+
+# Find an axis-aligned bounding box containing the histogram
+function binning_parameters_aabb(params)
+    (; binstart, binend, covectors) = params
+    bin_edges = Sunny.axes_binedges(params)
+    first_edges = map(x -> x[1],bin_edges)
+    last_edges = map(x -> x[end],bin_edges)
+    bin_edges = [first_edges last_edges]
+    this_corner = MVector{4,Float64}(undef)
+    q_corners = MMatrix{4,16,Float64}(undef)
+    for j = 1:16 # The sixteen corners of a 4-cube
+        for k = 1:4 # The four axes
+            this_corner[k] = bin_edges[k,1 + (j >> (k-1) & 1)]
+        end
+        this_corner[.!isfinite.(this_corner)] .= 0
+        q_corners[:,j] = covectors \ this_corner
+    end
+    lower_aabb_q = minimum(q_corners,dims=2)[1:3]
+    upper_aabb_q = maximum(q_corners,dims=2)[1:3]
+    return lower_aabb_q, upper_aabb_q
+end
+
 

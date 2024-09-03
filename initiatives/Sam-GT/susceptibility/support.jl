@@ -102,7 +102,7 @@ function Base.show(io::IO, ::MIME"text/plain", ints::Sunny.Interactions)
     end
 
     if isempty(ints.pair)
-        if iszero(ints.onsite.matrep)
+        if iszero(ints.onsite)
            println(io,"No interactions")
         end
         return
