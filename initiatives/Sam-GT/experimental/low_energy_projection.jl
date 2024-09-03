@@ -1,4 +1,12 @@
-
+# Analyzes the onsite anisotropy matrix of an SU(N) system in order
+# to determine a low energy manifold (defined as the part of the spectrum
+# that is protected by a gap at least gap_clearance*Δ, where Δ is the energy gap
+# to the first excited state. The first excited state is defined as the first one
+# not degenerate with the ground state according to the degeneracy_tol[erance]).
+#
+# The intention is that, once the low energy part is identified, the interactions
+# can be projected and the entire system can be simulated using only the few low-energy
+# degrees of freedom :). Example systems are TMGO or YMGO.
 function project_system(sys;gap_clearance = 10.,degeneracy_tol = 1e-4)
   Na = length(sys.crystal.positions)
   anisos = [sys.interactions_union[i].onsite for i = 1:Na]

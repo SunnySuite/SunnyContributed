@@ -23,6 +23,11 @@ The momentum-space resolution of the diffuse scattering function $S(Q)$ computed
 However, when only short-range correlations are present, it's possible to (correctly) upscale to arbitrary momentum-space resolution as a post-processing step, using [this script](realspace/classical.jl).
 This explainer demonstrates how to use this functionality as well as the limits of validity.
 
+## [Projecting Semiclassical Dynamics to a Low-Energy Manifold](experimental/low_energy_projection.jl)
+In some systems, especially with sites that have large spin, the few lowest energy states can be dramatically more important for the dynamics than any other level.
+One way to detect this is if the spectrum of eigenvalues of the anisotropy has a large gap.
+This script detects such gaps, and attempts to project the system (but the projection is not comprehensively implemented yet).
+
 ## [Compute Spectral Response Functions using Sunny](susceptibility/susceptibility.jl)
 Usually, Sunny focuses on generating neutron scattering intensity data.
 By a simple calculation, it's possible to instead extract linear response theoretic quantities, e.g. the complex generalized susceptibility.
@@ -45,7 +50,11 @@ Benchmarks not yet written.
 
 ## [Inverse modelling toolkit](inverse-toolkit/)
 Tools for using Sunny to perform inverse modelling tasks.
-Currently under development (Nov 15) and currently under-documented.
+This includes:
+- [A tutorial on the "transverse binning effect,"](docs/bin_effect_tutorial.md) aka why it's important to evaluate your model on the same pixels as you measure in experiment.
+- [A basic tutorial on fitting experimental data using Sunny](docs/fitting_tutorial.md). It uses the following two tools:
+- *Exact* rebinning functions for manipulating histogram data, [see here](inverse-toolkit/bin_tools.jl).
+- A "thermal basin" code for detecting directions in parameter space which are unconstrained by a given loss function, and estimating error bars of constrained directions, [see here](inverse-toolkit/thermal_basin.jl).
 
 ## [Detailed Balance Factors (Desmos widget)](https://www.desmos.com/calculator/e4xnsq6hf3)
 Which functions $g$ obey $g(x) = e^x g(-x)$?

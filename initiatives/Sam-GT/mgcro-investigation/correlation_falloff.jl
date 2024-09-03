@@ -1,5 +1,9 @@
 using Sunny, FFTW, LinearAlgebra, GLMakie, ProgressMeter, Statistics
 
+# This code applies an inverse fourier transform to the comptued complex correlation
+# data from Sunny to retrieve the real-space correlations, and then plots those in various
+# ways to demonstrate how slowly/quickly the correlation falls off with distance
+
 function spatial_correlation(sc)
   # Because the data was already in units S^2/BZ/fs, we need to divide by the
   # number of lattice offsets in the BZ to produce S^2/fs. This gets done

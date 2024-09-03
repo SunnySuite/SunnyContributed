@@ -1,5 +1,15 @@
 using Sunny, GLMakie, HDF5, StaticArrays
 
+# N.B. 9/2/2024: This is an unfinished attempt at integrating an arbitrary
+# Point Spread Function (in momentum) into the calculation of histogrammed intensities.
+# This is because Sunny lacks most usual kinds of "Q-resolution" despite this being
+# highly important for correct comparison with experimental data!
+#
+# However: please note that the binning effect captures the Q-resolution effect
+# whenever the point spread function is much sharper than a histogram bin.
+# This means that you can always make an accurate comparison without this PSF code
+# by simply making your bins coarser than the PSF!
+
 # The `.nxs` file exported from Mantid looks something like this:
 
 fn = "../inverse-toolkit/data/LaSrCrO4_prepared.nxs"

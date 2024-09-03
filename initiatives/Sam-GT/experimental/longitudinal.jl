@@ -1,5 +1,8 @@
 using Sunny, LinearAlgebra
 
+# N.B. 9/2/24: Probably not currently working. Intention was to include
+# the static structure factor (aka Bragg peaks) into the Spin Wave caclculation.
+# This is done better and more generally in the "higher spin wave theory" code.
 function include_longitudinal_fluctuations(swt,q_res,formula)
   qrx,qry,qrz = q_res
 

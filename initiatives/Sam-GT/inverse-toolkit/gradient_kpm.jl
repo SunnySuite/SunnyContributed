@@ -1,5 +1,9 @@
 using Sunny
 
+# N.B. 9/2/2024: This is an unfinished attempt at taking gradients through the KPM
+# (Kernel Polynomial Method) of https://arxiv.org/abs/2312.08349 which would enable
+# very quick fitting of experimental data by gradient descent :)
+
 function get_all_coefficients(M, ωs, broadening, σ, kT,γ;η=0.05, regularization_style)
     f = (ω,x) -> broadening(ω, x*γ, σ)
     output = OffsetArray(zeros(M, length(ωs)), 0:M-1, 1:length(ωs))

@@ -1,5 +1,9 @@
 using LinearAlgebra, Statistics, GLMakie
 
+# These are *exact* methods which manipulate histogram data by coarsening up the binning.
+# They introduce no additional approximation associated with "rebinning" because they only
+# deal with entire bins (integer numbers of bins).
+
 """
     chunk_params(params,data;chunking = (1,1,1,1), nan = true)
 

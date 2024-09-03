@@ -1,6 +1,10 @@
 using MKL
 using Sunny, LinearAlgebra, GLMakie, Optim, Random, LineSearches, Observables
 
+# This is a worked example of how to define a loss function and fit to it using the other
+# example code in this directory. You probably can't run this unless you have my copy of
+# the .nxs referenced below, sorry :(. But you can base your own fit code on this anyway!
+
 function load_data()
   # Load experiment data (so we have histogram_parameters)
   data_folder = "C:\\Users\\Sam\\Dropbox (GaTech)\\Sam-Research\\Projects\\LaSrCrO4\\Data\\sliced"

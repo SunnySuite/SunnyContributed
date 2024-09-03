@@ -1,5 +1,7 @@
 using Sunny, GLMakie, LinearAlgebra, FFTW
 
+# This is an example of a system where xy and yx correlations are inequivalent.
+
 cryst = Crystal(I(3),[[0,0,0],[1/3,0,0],[1/2,0,0]])
 
 sys = System(cryst,(20,1,1),[SpinInfo(1,S=1,g=1),SpinInfo(2,S=1,g=1),SpinInfo(3,S=1,g=1)],:dipole)
