@@ -1,4 +1,4 @@
-using Sunny, LinearAlgebra
+using LinearAlgebra
 
 ### Getting around
 
@@ -99,6 +99,9 @@ volume(dots, colorrange=(0, 0.2))
 
 ### Matrix representation of spin operators
 
+using Sunny
+@assert pkgversion(Sunny) >= v"0.7.1"
+
 S = spin_matrices(1)
 S.z
 S.x
@@ -109,9 +112,7 @@ n = normalize(randn(3))
 R = exp(im * θ * n' * S)
 
 R' ≈ inv(R)
-
-# Rodrigues formula
-R ≈ I + im * (n' * S) * sin(θ) + (n' * S)^2 * (cos(θ) - 1)
+R ≈ I + im * (n' * S) * sin(θ) + (n' * S)^2 * (cos(θ) - 1) # Rodrigues
 
 
 ### Performance tuning
@@ -164,8 +165,6 @@ view_crystal(cryst; ndims=2, ghost_radius=2)
 sys = System(cryst, [1 => Moment(s=1, g=2)], :dipole; seed=1, dims=(10, 10, 1))
 J = -1.0
 set_exchange!(sys, J, Bond(1, 1, (1, 0, 0)))
-view_crystal(sys; ndims=2, ghost_radius=2)
-
 randomize_spins!(sys)
 fig = plot_spins(sys; colorfn=i->sys.dipoles[i].z, colorrange=(-1, 1), ndims=2)
 
@@ -188,7 +187,7 @@ end
 latvecs = lattice_vectors(1, 1, 10, 90, 90, 120)
 positions = [[0, 0, 0], [0.5, 0, 0], [0, 0.5, 0]]
 cryst = Crystal(latvecs, positions)
-view_crystal(cryst; dims=2, ghost_radius=3)
+view_crystal(cryst; ndims=2, ghost_radius=3)
 
 sys = System(cryst, (10,10,1), [SpinInfo(1, S=1, g=2)], :dipole; seed=1)
 J1 = -1.0
