@@ -21,7 +21,7 @@
 #
 # This tutorial gives a simple illustration of this idea using Sunny's
 # experimental entangled unit formalism. The model we will consider is the the
-# strong-run _S_=1/2 ladder.
+# strong-rung _S_=1/2 ladder.
 
 # ## Making an `EntangledSystem`
 #
@@ -29,11 +29,11 @@
 # `System` in the standard way, with an individual spin on each site.
 # Interactions are specified in the standard way. Note that this system must be
 # built in `:SUN` mode, even when _S_=1/2. Another important restriction is that
-# any spins which one wishes to entangle must exist within a crystalographic
+# any spins which one wishes to entangle must lie within a crystalographic
 # unit cell. This may require reshaping from the conventional unit cell. For the 
 # spin ladder this presents no difficulties. First specify a the crystal.
 
-using Sunny, GLMakie
+using Sunny, LinearAlgebra, GLMakie
 
 latvecs = [
     1 0 0
@@ -44,8 +44,13 @@ positions = [[0, 0, 0], [0, 1/2 + 0.001, 0]]
 crystal = Crystal(latvecs, positions)
 view_crystal(crystal)
 
-# Then specify a system and the two exchange interactions, J (rungs)
-# and J′ (lengthwise bonds). 
+# We are interested in a quasi-1D system, without periodic boundary conditions
+# along the b axis. For this reason, we set the second site slightly off of 
+# the `[0, 0.5, 0]` position, which would induce Sunny to identify the bonds
+# between the two sides (1 -> 2 and 2 -> 1) as equivalent.
+
+# Specify a system and the two exchange interactions, J (rungs) and J′
+# (lengthwise bonds). 
 
 J = 1
 J′ = 0.2J
@@ -62,9 +67,11 @@ plot_spins(sys)
 
 # ## Spin Wave Calculations
 
-# Note that the spins form an antiferromagnetic, $q=(π,π)$. Because this model is
-# Heisenberg, the Hamiltonian has an SU(2) symmetry, and any such ground state
-# breaks this symmetry. This will lead to a Goldstone mode.
+# The result is the expected classical ordering, with full-length dipoles
+# arranged antiferromagnetically. This results in a `q=(π,π)` ordering. Because
+# this model is Heisenberg, the Hamiltonian has an SU(2) symmetry, and any such
+# ground state breaks this symmetry. This will lead to a Goldstone mode, as
+# can readily be seen when we calculate the excitations with spin wave theory.
 
 swt = SpinWaveTheory(sys; measure=ssf_trace(sys))
 qs = q_space_path(crystal, [[0, 1, 0], [1/2, 1, 0], [1, 1, 0]], 200)
@@ -77,31 +84,26 @@ plot_intensities(res)
 # excitations should be gapped singlet-triplet excitations. This can be reproduced 
 # using the entangled units formalism. An `EntangledSystem` is constructed from
 # an ordinary `System` by providing a list of sites "to entangle" within each unit cell.
-# This time we will build a system with only one rung, since the ordering wave vector
-# of the singlet ground state is q=0.
-
-## TODO: Public reshape?
-J = 1
-J′ = 0.3J
-sys = System(crystal, [1 => Moment(s=1/2, g=2)], :SUN)
-set_exchange!(sys, J′, Bond(1, 1, [1, 0, 0]))
-set_exchange!(sys, J, Bond(1, 2, [0, 0, 0]))
 
 esys = Sunny.EntangledSystem(sys, [(1, 2)])
 randomize_spins!(esys)
 minimize_energy!(esys)
 plot_spins(esys)
 
-# Corresponding to the fact that the new ground state is a singlet state, the
-# dipoles now have magnitude 0 (at least to numerical precision). Next calculate
-# the excitations using linear spin wave theory.
+# The ground state here is a pair of singlets, and the magnitude is of the
+# dipoles on each site is zero (up to numerical precision). The ordering wave
+# vector is now `q=0`, so the system should be reshaped into the magnetic unit
+# cell (one bond) before performing spin wave calculations.
 
-eswt = Sunny.EntangledSpinWaveTheory(esys; measure=ssf_trace(sys)) ## TODO: ssf functions for esys
+esys = reshape_supercell(esys, I)
+plot_spins(esys)
+
+# Next create a `SpinWaveTheory` and calculate intensities just as would be
+# done for an ordinary Sunny `System`.
+
+eswt = SpinWaveTheory(esys; measure=ssf_trace(esys)) ## TODO: ssf functions for esys
 res = intensities(eswt, qs; energies, kernel=gaussian(; fwhm=0.2))
-
-fig = Figure()
-ax = plot_intensities!(fig[1,1], res)
-fig
+plot_intensities(res)
 
 # This reproduces the expected gapped, triplon mode. Note that this mode is only
 # visible when looking at the antisymmetric channel. Since we placed our second
@@ -116,18 +118,12 @@ fig
 # along the a-axis so that we have sufficient momentum resolution to resolve the
 # dispersion. 
 
-sys = System(crystal, [1 => Moment(s=1/2, g=2)], :SUN; dims=(10, 1, 1))
-set_exchange!(sys, J′, Bond(1, 1, [1, 0, 0]))
-set_exchange!(sys, J, Bond(1, 2, [0, 0, 0]))
-
-esys = Sunny.EntangledSystem(sys, [(1, 2)])
-
-# Construct a Langevin integrator and thermalize the system.
+esys = repeat_periodically(esys, (10, 1, 1))
 
 damping = 0.2
 kT = 0.1J
 integrator = Langevin(; damping, kT)
-suggest_timestep(esys.sys, integrator; tol=1e-2)
+suggest_timestep(esys, integrator; tol=1e-2)
 dt = integrator.dt = 0.13
 
 for _ in 1:500
@@ -137,7 +133,7 @@ end
 # Next construct an `SampledCorrelations` and collect the correlations of
 # sampled trajectories.
 
-sc = SampledCorrelations(esys; energies, dt, measure=ssf_trace(sys))
+sc = SampledCorrelations(esys; energies, dt, measure=ssf_trace(esys))
 
 for _ in 1:10
     for _ in 1:300
@@ -166,7 +162,7 @@ fig
 # temperatures, where the classical theory can be expected to be even more
 # accurate.
 
-sc = SampledCorrelations(esys; energies, dt, measure=ssf_trace(sys))
+sc = SampledCorrelations(esys; energies, dt, measure=ssf_trace(esys))
 
 integrator.kT = 20.0J
 for _ in 1:500
