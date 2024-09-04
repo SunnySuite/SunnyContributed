@@ -48,6 +48,17 @@ a .= sin.(b) .* b
 @. a = sin(b) * b  # Macro
 
 
+### Anonymous function syntax
+
+(x -> x^2)(5)
+
+map(x -> x^2, [1, 2, 3])
+
+map([1, 2, 3]) do x
+    x^2
+end
+
+
 ### Linear algebra
 
 A = randn(3, 3)
