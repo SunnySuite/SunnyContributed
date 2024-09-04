@@ -59,6 +59,8 @@ sx = expectation(Sx, Z)
 sy = expectation(Sy, Z) 
 sz = expectation(Sz, Z) 
 
+## EXERCISE: Examine the expectation value of a quadrupolar operator.
+
 # This is obviously a non-magnetic state that cannot be represented as a
 # classical dipole of fixed length $S$. The SU(_N_) formalism provides a way for
 # modeling states like these and calculating their dynamics. To see this in
@@ -126,6 +128,7 @@ sys.coherents[1,1,1,1]
 # 8.3194 Å` and `c= 5.336 Å`.
 
 ## EXERCISE: Specify this crystal
+units = Units(:meV, :angstrom)
 a = 8.3194
 c = 5.336
 latvecs = lattice_vectors(a, a, c, 90, 90, 90)
@@ -147,21 +150,21 @@ sys = System(crystal, [1 => Moment(s=2, g=1.93)], :SUN; dims)
 # ````
 #
 # Here $A=1.16 K$, $C=-1.74 K$ and $D=28.65 K$. By default, Sunny using $meV$
-# and $T$ for units. These values can be converted to $meV$ with the constant `meV_per_K` 
+# and $T$ for units. These values can be converted to $meV$ with the constant `units.K` 
 
 ## EXERCISE: Express the single ion anisotropy as a matrix and assign it to the `sys`.
-A = 1.16 * meV_per_K
-C = -1.74 * meV_per_K
-D = 28.65 * meV_per_K
+A = 1.16 * units.K
+C = -1.74 * units.K
+D = 28.65 * units.K
 
 Sx, Sy, Sz = spin_matrices(2)
 H_SI = D*(Sz)^2 + A*((Sx)^4 + (Sy)^4) + C*(Sz)^4
 set_onsite_coupling!(sys, H_SI, 1)
 
 # The single-ion Hamiltonian was described as a polynomial in spin operators.
-# Often times one has access to a description of the crystal-field Hamiltoniann
-# in terms of Stevens operators. Sunny also provides a function for generating
-# this matrices, very similar to `spin_matrices`. It returns a 2-dimensional
+# Oftentimes one has access to a description of the crystal-field Hamiltoniann
+# in terms of Stevens' operators. Sunny also provides a function for generating
+# these matrices, very similar to `spin_matrices`. It returns a 2-dimensional
 # array, where the first index corresponds to $k$ (irrep label) and the second
 # to $q$ (row label):
 
@@ -187,7 +190,7 @@ bond1 = Bond(1, 2, [0, 0, 0])
 bond2 = Bond(1, 1, [1, 0, 0])
 bond3 = Bond(1, 1, [0, 0, 1])
 
-J = 1.028 * meV_per_K
+J = 1.028 * units.K
 J′ = 0.1J
 set_exchange!(sys, J, bond1)
 set_exchange!(sys, J′, bond2)
@@ -216,9 +219,9 @@ function BFSO(dims; mode=:SUN, seed=1)
 
     sys = System(crystal, [1 => Moment(s=2, g=1.93)], mode; dims, seed)
 
-    A = 1.16 * meV_per_K
-    C = -1.74 * meV_per_K
-    D = 28.65 * meV_per_K
+    A = 1.16 * units.K
+    C = -1.74 * units.K
+    D = 28.65 * units.K
 
     Sx, Sy, Sz = spin_matrices(2)
     H_SI = D*(Sz)^2 + A*((Sx)^4 + (Sy)^4) + C*(Sz)^4
@@ -228,7 +231,7 @@ function BFSO(dims; mode=:SUN, seed=1)
     bond2 = Bond(1, 1, [1, 0, 0]) 
     bond3 = Bond(1, 1, [0, 0, 1])
 
-    J = 1.028 * meV_per_K
+    J = 1.028 * units.K
     J′ = 0.1J
     set_exchange!(sys, J, bond1)
     set_exchange!(sys, J′, bond2)
@@ -253,13 +256,16 @@ magnetization(sys)
 # which in this case is staggered magnetization in the plane. 
 
 function order_parameter(sys)
-    xy = [1/√2, 1/√2, 0]  # Unit vector in the (1, 1, 0) direction
-    M_xy = 0.0
+    xy1 = [1/√2, 1/√2, 0]   # Unit vector in the (1, -1, 0) direction
+    xy2 = [-1/√2, 1/√2, 0]  # Unit vector in the (1, 1, 0) direction
+    M_xy1 = 0.0
+    M_xy2 = 0.0
     for site in eachsite(sys)
         sublattice = (-1)^(site.I[4]) * (-1)^(site.I[3])  
-        M_xy = sublattice * (magnetic_moment(sys, site) ⋅ xy)
+        M_xy1 = sublattice * (magnetic_moment(sys, site) ⋅ xy1)
+        M_xy2 = sublattice * (magnetic_moment(sys, site) ⋅ xy2)
     end
-    return abs(M_xy)
+    return max(abs(M_xy1), abs(M_xy2))
 end
 
 order_parameter(sys)
@@ -267,7 +273,6 @@ order_parameter(sys)
 # Then we'll simply generate a list of applied field values and iteratively
 # apply those fields, reoptimizing the spin configuration each time.
 
-units = Units(:meV, :angstrom)
 Hs = range(0.0, 55.0, 50)
 Ms = Float64[]
 OPs = Float64[]
@@ -308,15 +313,15 @@ sys = BFSO((6, 6, 2))
 randomize_spins!(sys)
 minimize_energy!(sys)
 
-integrator = Langevin(; kT=0.1*meV_per_K, damping=0.1)
+integrator = Langevin(; kT=0.1*units.K, damping=0.1)
 suggest_timestep(sys, integrator; tol=1e-2)
-integrator.kT = 1.0*meV_per_K
+integrator.kT = 1.0*units.K
 suggest_timestep(sys, integrator; tol=1e-2)
-integrator.kT = 10.0*meV_per_K
+integrator.kT = 10.0*units.K
 suggest_timestep(sys, integrator; tol=1e-2)
 
 integrator.dt = dt = 0.04
-integrator.kT = kT = 0.1 * meV_per_K
+integrator.kT = kT = 0.1 * units.K
 minimize_energy!(sys)
 
 dur = 25.0
@@ -384,7 +389,7 @@ plot_spins(sys)
 ## Select a temperature range
 nkTs = 25 
 kTs = 10 .^ collect(range(log10(0.1), log10(2.5), nkTs))  # In Kelvin
-kTs *= meV_per_K         # Convert to meV
+kTs *= units.K         # Convert to meV
 
 ## Reset the system in the zero-field ground state
 set_external_field!(sys, (0, 0, 0))
@@ -434,9 +439,9 @@ kTs_mid = (kTs[1:end-1] + kTs[2:end]) / 2
 
 ## Plot the results
 fig = Figure()
-scatter(fig[1,1], kTs / meV_per_K, Es_μ; axis=(xscale=log10, ylabel="Energy (meV)", xlabel="T (K)"))
-## scatter(fig[1,2], kTs_mid / meV_per_K, ΔE ./ ΔT; axis=(xscale=log10, ylabel="dE/dT", xlabel="T (K)"))
-## scatter(fig[1,3], kTs / meV_per_K, OPs_μ; axis=(xscale=log10, ylabel="OP", xlabel="T (K)"))
+scatter(fig[1,1], kTs / units.K, Es_μ; axis=(xscale=log10, ylabel="Energy (meV)", xlabel="T (K)"))
+## scatter(fig[1,2], kTs_mid / units.K, ΔE ./ ΔT; axis=(xscale=log10, ylabel="dE/dT", xlabel="T (K)"))
+## scatter(fig[1,3], kTs / units.K, OPs_μ; axis=(xscale=log10, ylabel="OP", xlabel="T (K)"))
 ## EXERCISE: Collect statistics for a long time, uncomment the above, and examine the results.
 fig
 
@@ -630,7 +635,7 @@ fig
 # Now let's repeat the procedure above at several different temperatures.
 
 kTs_K = [6, 10, 40] .* (1.38/5.2)
-kTs = kTs_K * meV_per_K
+kTs = kTs_K * units.K
 scs = []
 for kT in kTs
     sc = dynamical_correlations(sys; nω, ωmax, dt)
