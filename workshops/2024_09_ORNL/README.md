@@ -2,7 +2,7 @@
 
 ![image](QR.png)
 
-### 1. [Install Julia and Sunny](https://github.com/SunnySuite/Sunny.jl/wiki/Getting-started-with-Julia)
+### 1. [Install Julia and Sunny](https://github.com/SunnySuite/Sunny.jl/wiki/Getting-started-with-Julia) and [VSCode editor](https://www.julia-vscode.org/)
 
 ### 2. Check that a basic script runs
 
