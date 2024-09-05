@@ -15,10 +15,10 @@ using Base.Threads
 using DelimitedFiles
 using JLD2
 
-# In this file, we run all simulations for the triangular lattice UUD problem in a single-file.
-# The parameters are chosen to reproduce the results in 
-# [Ref]: npj Quantum Materials 8.1 (2023): 48.
-Δ     = 100
+# In this file, we run all simulations for the triangular lattice UUD problem.
+# The parameters are chosen to reproduce the DMRG results in 
+# [Ref]: npj Quantum Materials 8.1 (2023): 48. Supplementary Information: Fig S.16
+Δ     = 5.0
 Lmag  = 9
 
 # `commons.jl` includes some auxilary functions
@@ -75,19 +75,12 @@ swt = SpinWaveTheory(sys_min; regularization=1e-5, measure=ssf_perp(sys_min))
 # Then create the object for `NonPerturbativeTheory`
 npt = Sunny.NonPerturbativeTheory(swt, (Lmag, Lmag, 1));
 
-result_path = joinpath(@__DIR__, "results")
-isdir(result_path) || mkdir(result_path)
-
 # Get the renormalized single-particle energies
 if Δ == 1.0
     npt′ = generate_renormalized_npt(npt; single_particle_correction=true, atol=1e-4);
 else
     npt′ = npt;
 end
-
-# Save the results for future
-resultname = joinpath(result_path, "npt′_L"*string(Lmag)*"Δ_"*string(round(Δ, digits=4))*".jld2")
-jldsave(resultname; npt′)
 
 # Here we focus on the [H,H,0] cut
 Hs  = [i/Lmag for i in 0:Lmag-1]
@@ -104,22 +97,19 @@ Threads.@threads for i in 1:Lmag
     E2ps[:, i] = E[1:num_2ps]
     next!(pm)
 end
-writedlm(joinpath(result_path, "triuud_E2ps_HH0_L"*string(Lmag)*"Δ_"*string(round(Δ, digits=4))*".dat"), E2ps)
 
 δω = 0.025
-ωs = collect(198:δω:202) * J
+ωs = collect(8:δω:20) * J;
 η  = 2δω
 
 # Get the free two-particle intensities
-Szz_free_continuum = zeros(Lmag, length(ωs));
+Szz_fr = zeros(Lmag, length(ωs));
 pm = Progress(Lmag; desc="Calculating the free continuum intensities")
 Threads.@threads for i in 1:Lmag
-    ret = Sunny.dssf_free_two_particle_continuum_component(swt, qs[i], ωs, η, 3, 3; atol=1e-5)
-    Szz_free_continuum[i, :] = ret
+    ret = Sunny.dssf_free_two_particle_continuum_component(swt, qs[i], ωs, η, 3, 3; atol=1e-3)
+    Szz_fr[i, :] = ret
     next!(pm)
 end
-
-writedlm(joinpath(result_path, "triuud_Szz_free_HH0_L"*string(Lmag)*"Δ_"*string(round(Δ, digits=4))*".dat"), Szz_free_continuum)
 
 # Get the two-particle intensities from continued fraction
 Szz_cf = zeros(Lmag, length(ωs));
@@ -129,36 +119,28 @@ Threads.@threads for i in 1:Lmag
     Szz_cf[i, :] = Sunny.dssf_continued_fraction_two_particle(npt′, qs[i], ωs, η, n_iters)
     next!(pm)
 end
-writedlm(joinpath(result_path, "triuud_Szz_HH0_L"*string(Lmag)*"Δ_"*string(round(Δ, digits=4))*".dat"), Szz_cf)
 
-
-# Plot the results
-result_path = joinpath(@__DIR__, "results")
-E2ps = readdlm(joinpath(result_path, "triuud_E2ps_HH0_L"*string(Lmag)*"Δ_"*string(round(Δ, digits=4))*".dat"))
+# Renormalization the units
 @. E2ps /= J
-is_cf = readdlm(joinpath(result_path, "triuud_Szz_HH0_L"*string(Lmag)*"Δ_"*string(round(Δ, digits=4))*".dat"))
-is_fr = readdlm(joinpath(result_path, "triuud_Szz_free_HH0_L"*string(Lmag)*"Δ_"*string(round(Δ, digits=4))*".dat"))
+@. ωs = ωs / J
 
 # Plot the one-particle and two-particle energies
 num_2ps = size(E2ps, 1)
 
-@. ωs = ωs / J
 fig = Figure()
-ax  = Axis(fig[1, 1]; xlabel="(H, H, 0)", ylabel="Energy", title="Interacting continuum")
-heatmap!(ax, Hs, ωs, is_cf, colorrange=(0, 5e-3))
+ax_l = Axis(fig[1, 1]; xlabel="(H, H, 0)", ylabel="Energy (J)", title="Interacting continuum")
+heatmap!(ax_l, Hs, ωs, Szz_cf, colorrange=(0, 0.8))
 for i in 1:num_2ps
-    scatter!(ax, Hs, E2ps[i, :], color=:blue, marker=:rect, label="Two-particle")
+    scatter!(ax_l, Hs, E2ps[i, :], color=:blue, marker=:rect, label="Two-particle")
 end
-xlims!(ax, 0.0, 0.5)
-ylims!(ax, 198, 202)
-fig
+xlims!(ax_l, 0.0, 0.5)
+ylims!(ax_l, 8, 20)
 
-fig = Figure()
-ax  = Axis(fig[1, 1]; xlabel="(H, H, 0)", ylabel="Energy", title="Free continuum")
-heatmap!(ax, Hs, ωs, is_fr, colorrange=(0, 5e-3))
-# for i in 1:num_2ps
-#     scatter!(ax, Hs, E2ps[i, :], color=:blue, marker=:rect, label="Two-particle")
-# end
-xlims!(ax, 0.0, 0.5)
-ylims!(ax, 198, 202)
+ax_r = Axis(fig[1, 2]; xlabel="(H, H, 0)", ylabel="Energy (J)", title="Free continuum")
+heatmap!(ax_r, Hs, ωs, Szz_fr, colorrange=(0, 0.8))
+for i in 1:num_2ps
+    scatter!(ax_r, Hs, E2ps[i, :], color=:blue, marker=:rect, label="Two-particle")
+end
+xlims!(ax_r, 0.0, 0.5)
+ylims!(ax_r, 8, 20)
 fig
