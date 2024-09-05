@@ -45,6 +45,7 @@ end
 
 # Acceptance rates for (rank, rank+1)
 A = PT.n_accept ./ PT.n_exch
+plot(A)
 
 # Apply multiple histogram reweighting to PT data to get ln_g(E)
 E, ln_g = Sunny.WHAM(E_hists, PT.kT_sched; n_iters=1000)
@@ -56,7 +57,7 @@ U² = Sunny.ensemble_average(E, ln_g, E.^2, kT)
 C = @. abs( (U² - U^2) / kT^2 )
 
 # Plots
-fig = Figure()
+fig = Figure(size=(600, 800))
 lines(fig[1,1], E/L^2, ln_g .- minimum(ln_g); axis=(xlabel="E/N", ylabel="ln[g(E)]"))
 lines(fig[2,1], kT, U/L^2; axis=(xlabel="kT/J", ylabel="U/N"))
 lines(fig[3,1], kT, C/L^2; axis=(xlabel="kT/J", ylabel="C/N"))
