@@ -26,18 +26,6 @@ randomize_spins!(sys)
 minimize_energy!(sys)
 plot_spins(sys)
 
-# Let's examine the static correlations.
-sys_large = repeat_periodically(sys, (10, 10, 2))
-minimize_energy!(sys_large)
-sc = SampledCorrelationsStatic(sys_large; measure=ssf_perp(sys_large))
-add_sample!(sc, sys_large)
-qpts = q_space_grid(crystal, [1, 0, 0], range(-1, 1, 400), [0, 1, 0], (-1, 1); offset=[0, 0, 5.0], orthogonalize=true)
-is = intensities_static(sc, qpts)
-plot_spins(sys_large)
-plot_intensities(is)
-plot_intensities(is)
-
-
 
 esys = Sunny.EntangledSystem(sys, [(1, 2), (3, 4), (5, 6)])
 # set_field!(esys, [0, 0, 3*units.T])
@@ -61,4 +49,56 @@ qpts = q_space_path(crystal, points, 400)
 energies = range(0.0, 4.0, 400)
 res = intensities(swt, qpts; energies, kernel=gaussian(; fwhm))
 
+plot_intensities(res)
+
+# Classical dynamics
+sys = System(crystal, [1 => Moment(s=1, g=2)], :SUN; dims=(12, 12, 1))
+D = -0.032
+J0 = 1.642
+J1 = 0.118
+J2 = 0.256
+J3 = 0.142
+J4 = 0.037
+
+set_exchange!(sys, J0, Bond(1, 2, [0, 0, 0]))
+set_exchange!(sys, J1, Bond(2, 3, [0, 0, 0]))
+set_exchange!(sys, J2, Bond(1, 1, [1, 0, 0]))
+set_exchange!(sys, J3, Bond(1, 2, [1, 0, 0]))
+set_exchange!(sys, J4, Bond(4, 5, [0, 1, 0]))
+set_onsite_coupling!(sys, S -> D*S[3]^2, 1)
+
+randomize_spins!(sys)
+minimize_energy!(sys)
+plot_spins(sys)
+
+
+esys = Sunny.EntangledSystem(sys, [(1, 2), (3, 4), (5, 6)])
+randomize_spins!(esys)
+minimize_energy!(esys)
+plot_spins(esys)
+
+kT = 0.5
+integrator = Langevin(; damping=0.1, kT)
+suggest_timestep(esys, integrator; tol=1e-2)
+integrator.dt = dt = 0.06835
+
+nsteps = 1000
+Es = zeros(nsteps)
+for i in 1:nsteps
+    step!(esys, integrator)
+    Es[i] = energy(esys)
+end
+lines(Es; axis=(xlabel="Steps", ylabel="E"))
+
+energies = range(0, 3.0, 200)
+sc = SampledCorrelations(esys; energies, dt, measure=ssf_perp(esys))
+
+@time for _ in 1:3
+    for _ in 1:100
+        step!(esys, integrator)
+    end
+    add_sample!(sc, esys)
+end
+
+res = intensities(sc, qpts; energies=:available, kT)
 plot_intensities(res)

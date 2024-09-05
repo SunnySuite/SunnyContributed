@@ -69,7 +69,7 @@ res_SUN = intensities_bands(swt_SUN, qpts)
 
 fig = Figure(size=(1200,400))
 ymax = 6.0
-plot_intensities!(fig[1,1], res_S; ylims=(0, 6), title="Large-S")
-plot_intensities!(fig[1,2], res_SUN; ylims=(0, 6), title="SU(N)")
-plot_intensities!(fig[1,3], res_dip; ylims=(0, 6), title="RCS")
+plot_intensities!(fig[1,1], res_S; ylims=(0, 12), title="Large-S")
+plot_intensities!(fig[1,2], res_SUN; ylims=(0, 12), title="SU(N)")
+plot_intensities!(fig[1,3], res_dip; ylims=(0, 12), title="RCS")
 fig

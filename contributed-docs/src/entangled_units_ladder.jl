@@ -70,8 +70,8 @@ plot_spins(sys)
 # The result is the expected classical ordering, with full-length dipoles
 # arranged antiferromagnetically. This results in a `q=(π,π)` ordering. Because
 # this model is Heisenberg, the Hamiltonian has an SU(2) symmetry, and any such
-# ground state breaks this symmetry. This will lead to a Goldstone mode, as
-# can readily be seen when we calculate the excitations with spin wave theory.
+# ground state breaks this symmetry. This will lead to a Goldstone mode, as can
+# readily be seen when we calculate the excitations with spin wave theory.
 
 swt = SpinWaveTheory(sys; measure=ssf_trace(sys))
 qs = q_space_path(crystal, [[0, 1, 0], [1/2, 1, 0], [1, 1, 0]], 200)
@@ -79,11 +79,12 @@ energies = range(0, 2.5, 200)
 res = intensities(swt, qs; energies, kernel=gaussian(; fwhm=0.2))
 plot_intensities(res)
 
-# This result is incorrect for such a small J′. Instead, the ground state on each
-# bond should be a singlet, i.e. a non-magnetic ground state. Correspondingly, the 
-# excitations should be gapped singlet-triplet excitations. This can be reproduced 
-# using the entangled units formalism. An `EntangledSystem` is constructed from
-# an ordinary `System` by providing a list of sites "to entangle" within each unit cell.
+# This result is incorrect for such a small J′. Instead, the ground state on
+# each bond should be a singlet, i.e. a non-magnetic ground state.
+# Correspondingly, the excitations should be gapped singlet-triplet excitations.
+# This can be reproduced using the entangled units formalism. An
+# `EntangledSystem` is constructed from an ordinary `System` by providing a list
+# of sites "to entangle" within each unit cell.
 
 esys = Sunny.EntangledSystem(sys, [(1, 2)])
 randomize_spins!(esys)
