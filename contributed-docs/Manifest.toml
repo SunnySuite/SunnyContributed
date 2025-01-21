@@ -2,7 +2,7 @@
 
 julia_version = "1.11.2"
 manifest_format = "2.0"
-project_hash = "abd28f46e6a6a18247da9393fd2c1d9f1079e9d2"
+project_hash = "e70b5c33e9e18b830d8e0bb875d2093e6158cb81"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1609,11 +1609,9 @@ version = "7.7.0+0"
 
 [[deps.Sunny]]
 deps = ["Brillouin", "CrystalInfoFramework", "DynamicPolynomials", "ElasticArrays", "FFTW", "HCubature", "JLD2", "LinearAlgebra", "OffsetArrays", "Optim", "PrecompileTools", "Printf", "Random", "RowEchelon", "SpecialFunctions", "Spglib", "StaticArrays", "Statistics"]
-git-tree-sha1 = "80beff3fe0a8f080a86d30d9e656ba5cc6b840ad"
-repo-rev = "main"
-repo-url = "https://github.com/SunnySuite/Sunny.jl.git"
+git-tree-sha1 = "eb8f6eb11f3f96fd77799d83f0dd9e8641b58a71"
 uuid = "2b4a2ac8-8f8b-43e8-abf4-3cb0c45e8736"
-version = "0.7.6"
+version = "0.7.5"
 
     [deps.Sunny.extensions]
     ExportVTKExt = "WriteVTK"

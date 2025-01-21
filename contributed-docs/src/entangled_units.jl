@@ -1,11 +1,11 @@
 # # Entangled Units Formalism
-# **AUTHOR** David Dahlbom (dahlbomda@ornl.gov), **DATE**: August 30, 2024
+# **AUTHOR** David Dahlbom (dahlbomda@ornl.gov), **DATE**: January 21, 2025
 
 # Traditional "large-_S_" classical methods start by modeling a spin system as a
 # set of two-level quantum systems (dipoles) on each site of a lattice. This is
 # the so-called product state assumption. In classical dynamics, these different
-# two-level systems _interact_ with each other, but they are never _entangled_.
-# The classical dynamics evolves these product states into other product states,
+# two-level systems interact with each other, but they are never entangled. The
+# classical dynamics evolves these product states into other product states,
 # meaning that one can always think about the state of a system as a set of
 # individual spins (dipoles or, equivalently, two-level quantum systems)
 # existing on each site of the lattice.
@@ -19,21 +19,21 @@
 # puts two-spins inside each one of these sites, the entanglement between the
 # two spins will be faithfully represented and evolved.
 #
-# This tutorial gives a simple illustration of this idea using Sunny's
-# experimental entangled unit formalism. The model we will consider is the the
-# strong-rung _S_=1/2 ladder.
+# This tutorial gives a simple illustration of this idea using Sunny's entangled
+# unit formalism. The first model we will consider is the the strong-rung
+# _S_=1/2 ladder.
 
-# ## Making an `EntangledSystem`
+# ## Making an `EntangledSystem` for the Heisenberg spin ladder
 #
 # The approach to modeling systems with localized entangled is to first build a
 # `System` in the standard way, with an individual spin on each site.
-# Interactions are specified as usual in Sunny. Note that this system must be
-# built in `:SUN` mode, even when _S_=1/2. Another important restriction is that
-# any spins which one wishes to entangle must lie within a crystalographic unit
-# cell. This may require reshaping from the conventional unit cell or displacing
-# the atom positions within the unit cell. We plan to automate this step in
-# later versions. For the spin ladder, there is no need to worry about this
-# step. 
+# Interactions are specified as usual. Note that this system must be built in
+# `:SUN` mode, even when _S_=1/2. Another important restriction is that any
+# group of spins which one wishes to entangle must lie entirely within a
+# crystalographic unit cell. This may require reshaping from the conventional
+# unit cell or displacing the atoms from their standard positions within the
+# unit cell. We plan to automate this step in later versions. The spin ladder
+# presents no difficulties in this regard.
 
 # Specify a the crystal.
 
@@ -44,9 +44,9 @@ positions = [[0, 0, 0], [0, 1/2 - 1e-4, 0]]
 crystal = Crystal(latvecs, positions)
 view_crystal(crystal)
 
-# To model a quasi-1D system, symmetry must be broken along the b-axis by
-# making bonds 1 -> 2 and 2 -> 1 inequivalent. This is achieved by offsetting
-# the position of the second atom slightly from `[0, 0.5, 0]`.
+# To model a quasi-1D system, symmetry must be broken along the b-axis by making
+# bonds 1 -> 2 and 2 -> 1 inequivalent. This was achieved by offsetting the
+# position of the second atom slightly from `[0, 0.5, 0]`.
 
 # Specify a system and the two exchange interactions, J (rungs) and J′
 # (lengthwise bonds). 
@@ -57,8 +57,9 @@ sys = System(crystal, [1 => Moment(s=1/2, g=2)], :SUN; dims=(2, 1, 1))
 set_exchange!(sys, J, Bond(1, 2, [0, 0, 0]))
 set_exchange!(sys, J′, Bond(1, 1, [1, 0, 0]))
 
-# This completes specification of the model without entanglement between the
-# sites bonded by rungs. Examine now a ground state of this system.
+# This completes specification of the model without consideration for
+# entanglement between the sites bonded by rungs. Examine a ground state of
+# this system.
 
 randomize_spins!(sys)
 minimize_energy!(sys)
@@ -91,7 +92,7 @@ randomize_spins!(esys)
 minimize_energy!(esys)
 plot_spins(esys)
 
-# The ground state here is a pair of singlets, and the magnitude is of the
+# The ground state here is a pair of singlets, and the magnitude of the
 # dipoles on each site is zero (up to numerical precision). The ordering wave
 # vector is now `q=0`, so the system should be reshaped into the magnetic unit
 # cell (one bond) before performing spin wave calculations.
@@ -106,7 +107,7 @@ eswt = SpinWaveTheory(esys; measure=ssf_trace(esys))
 res = intensities(eswt, qs; energies, kernel=gaussian(; fwhm=0.2))
 plot_intensities(res)
 
-# This reproduces the expected gapped, triplon mode. Note that this mode is only
+# This produces the expected gapped, triplon mode. Note that this mode is only
 # visible when looking at the antisymmetric channel. Since we placed our second
 # atom at a position of 1/2 along the b-axis, the excitations are visible along
 # [H, 1, 0]. 
@@ -160,7 +161,7 @@ fig
 
 # Note that the classical dynamics reproduces the same dispersion as spin wave
 # theory. We can now easily examine the behavior of the system at much higher
-# temperatures, where the classical theory can be expected to be even more
+# temperatures where the classical theory can be expected to be even more
 # accurate.
 
 sc = SampledCorrelations(esys; energies, dt, measure=ssf_trace(esys))
@@ -188,6 +189,8 @@ fig
 # A pseudogap persists even well above the ordering temperature, in agreement
 # with exact solutions. This is in contrast with traditional Landau-Lifshitz
 # dynamics, which remains gapless throughout all temperatures.
+
+# For a more complete study of this model, see [D. Dahlbom et al., PRB 110 (2024)](https://arxiv.org/abs/0804.4437).
 
 ## Material Example: Ba₃Mn₂O₈
 
@@ -257,5 +260,5 @@ res = intensities(swt, qpts; energies, kernel=gaussian(; fwhm))
 
 plot_intensities(res)
 
-# Compare the resulting dispersion with the experimental data reported in
-# [Stone et al., PRL 100 (2008)](https://arxiv.org/abs/0804.4437).
+# Compare the resulting dispersion and intensities with the scattering data
+# reported in [Stone et al., PRL 100 (2008)](https://arxiv.org/abs/0804.4437).

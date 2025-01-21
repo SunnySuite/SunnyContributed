@@ -2,7 +2,7 @@
 
 # **Author**: Martin Mourigal
 #
-# **Date**: September 9, 2022 (Updated August 29, 2024 using Sunny 0.7.0)
+# **Date**: September 9, 2022 (Updated January 21, 2025 using Sunny 0.7.5)
 # 
 # In this tutorial, we will walk through an example in Sunny and calculate
 # the spin dynamical properties of the Heisenberg pyrochlore antiferromagnet and

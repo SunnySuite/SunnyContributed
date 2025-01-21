@@ -2,7 +2,7 @@
 
 **Author**: Martin Mourigal
 
-**Date**: September 9, 2022 (Updated August 29, 2024 using Sunny 0.7.0)
+**Date**: September 9, 2022 (Updated January 21, 2025 using Sunny 0.7.5)
 
 In this tutorial, we will walk through an example in Sunny and calculate
 the spin dynamical properties of the Heisenberg pyrochlore antiferromagnet and
@@ -72,7 +72,7 @@ Crystal
 Spacegroup 'F d -3 m' (227)
 Lattice params a=8.334, b=8.334, c=8.334, α=90°, β=90°, γ=90°
 Cell volume 578.9
-Type 'B', Wyckoff 16c (point group '.-3m'):
+Type 'B', Wyckoff 16c (site sym. '.-3m'):
    1. [7/8, 5/8, 3/8]
    2. [5/8, 1/8, 5/8]
    3. [7/8, 7/8, 1/8]
@@ -119,11 +119,11 @@ Crystal
 Spacegroup 'R 3 m' (160)
 Lattice params a=8.334, b=8.334, c=8.334, α=90°, β=90°, γ=90°
 Cell volume 578.9
-Type 'Mg', Wyckoff 3a (point group '3m'):
+Type 'Mg', Wyckoff 3a (site sym. '3m'):
    1. [1/8, 1/8, 1/8]
-Type 'Cr', Wyckoff 3a (point group '3m'):
+Type 'Cr', Wyckoff 3a (site sym. '3m'):
    2. [1/2, 1/2, 1/2]
-Type 'O', Wyckoff 3a (point group '3m'):
+Type 'O', Wyckoff 3a (site sym. '3m'):
    3. [0.2607, 0.2607, 0.2607]
 
 ````
@@ -154,7 +154,7 @@ Crystal
 Spacegroup 'F d -3 m' (227)
 Lattice params a=8.334, b=8.334, c=8.334, α=90°, β=90°, γ=90°
 Cell volume 578.9
-Type 'Mg', Wyckoff 8b (point group '-43m'):
+Type 'Mg', Wyckoff 8a (site sym. '-43m'):
    1. [1/8, 1/8, 1/8]
    2. [5/8, 5/8, 1/8]
    3. [7/8, 3/8, 3/8]
@@ -163,7 +163,7 @@ Type 'Mg', Wyckoff 8b (point group '-43m'):
    6. [1/8, 5/8, 5/8]
    7. [3/8, 3/8, 7/8]
    8. [7/8, 7/8, 7/8]
-Type 'Cr', Wyckoff 16c (point group '.-3m'):
+Type 'Cr', Wyckoff 16d (site sym. '.-3m'):
    9. [1/2, 0, 0]
    10. [3/4, 1/4, 0]
    11. [0, 1/2, 0]
@@ -180,7 +180,7 @@ Type 'Cr', Wyckoff 16c (point group '.-3m'):
    22. [0, 1/4, 3/4]
    23. [3/4, 1/2, 3/4]
    24. [1/2, 3/4, 3/4]
-Type 'O', Wyckoff 32e (point group '.3m'):
+Type 'O', Wyckoff 32e (site sym. '.3m'):
    25. [0.7393, 0.0107, 0.0107]
    26. [0.5107, 0.2393, 0.0107]
    27. [0.2393, 0.5107, 0.0107]
@@ -234,7 +234,7 @@ Crystal
 Spacegroup 'F d -3 m' (227)
 Lattice params a=8.333, b=8.333, c=8.333, α=90°, β=90°, γ=90°
 Cell volume 578.6
-Type 'Mg1', Wyckoff 8b (point group '-43m'):
+Type 'Mg1', Wyckoff 8a (site sym. '-43m'):
    1. [1/8, 1/8, 1/8]
    2. [5/8, 5/8, 1/8]
    3. [7/8, 3/8, 3/8]
@@ -243,7 +243,7 @@ Type 'Mg1', Wyckoff 8b (point group '-43m'):
    6. [1/8, 5/8, 5/8]
    7. [3/8, 3/8, 7/8]
    8. [7/8, 7/8, 7/8]
-Type 'Cr1', Wyckoff 16c (point group '.-3m'):
+Type 'Cr1', Wyckoff 16d (site sym. '.-3m'):
    9. [1/2, 0, 0]
    10. [3/4, 1/4, 0]
    11. [0, 1/2, 0]
@@ -260,7 +260,7 @@ Type 'Cr1', Wyckoff 16c (point group '.-3m'):
    22. [0, 1/4, 3/4]
    23. [3/4, 1/2, 3/4]
    24. [1/2, 3/4, 3/4]
-Type 'O1', Wyckoff 32e (point group '.3m'):
+Type 'O1', Wyckoff 32e (site sym. '.3m'):
    25. [0.7388, 0.0112, 0.0112]
    26. [0.5112, 0.2388, 0.0112]
    27. [0.2388, 0.5112, 0.0112]
@@ -310,7 +310,7 @@ Crystal
 Spacegroup 'F d -3 m' (227)
 Lattice params a=8.334, b=8.334, c=8.334, α=90°, β=90°, γ=90°
 Cell volume 578.9
-Type 'Cr', Wyckoff 16c (point group '.-3m'):
+Type 'Cr', Wyckoff 16d (site sym. '.-3m'):
    1. [1/2, 0, 0]
    2. [3/4, 1/4, 0]
    3. [0, 1/2, 0]
@@ -357,17 +357,17 @@ print_symmetry_table(xtal_pyro, 5.9)
 
 ````
 Atom 1
-Type 'B', position [7/8, 5/8, 3/8], multiplicity 16
+Type 'B', position [7/8, 5/8, 3/8], Wyckoff 16c
 Allowed g-tensor: [ A B -B
                     B A  B
                    -B B  A]
 Allowed anisotropy in Stevens operators:
-    c₁*(𝒪[2,-2]+2𝒪[2,-1]-2𝒪[2,1]) +
+    c₁*(-𝒪[2,-2]-2𝒪[2,-1]+2𝒪[2,1]) +
     c₂*(7𝒪[4,-3]+2𝒪[4,-2]-𝒪[4,-1]+𝒪[4,1]+7𝒪[4,3]) + c₃*(𝒪[4,0]+5𝒪[4,4]) +
-    c₄*(-11𝒪[6,-6]-8𝒪[6,-3]+𝒪[6,-2]-8𝒪[6,-1]+8𝒪[6,1]-8𝒪[6,3]) + c₅*(𝒪[6,0]-21𝒪[6,4]) + c₆*((9/5)𝒪[6,-6]+(24/5)𝒪[6,-5]+𝒪[6,-2]+(8/5)𝒪[6,-1]-(8/5)𝒪[6,1]-(24/5)𝒪[6,5])
+    c₄*(11𝒪[6,-6]+8𝒪[6,-3]-𝒪[6,-2]+8𝒪[6,-1]-8𝒪[6,1]+8𝒪[6,3]) + c₅*(-𝒪[6,0]+21𝒪[6,4]) + c₆*(-9𝒪[6,-6]-24𝒪[6,-5]-5𝒪[6,-2]-8𝒪[6,-1]+8𝒪[6,1]+24𝒪[6,5])
 
 Bond(1, 3, [0, 0, 0])
-Distance 2.9465846678825, coordination 6
+Distance 2.946584668, coordination 6
 Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [7/8, 7/8, 1/8]
 Allowed exchange matrix: [ A -D D
                            D  B C
@@ -375,7 +375,7 @@ Allowed exchange matrix: [ A -D D
 Allowed DM vector: [0 -D -D]
 
 Bond(1, 2, [0, 0, 0])
-Distance 5.1036343535759, coordination 12
+Distance 5.103634354, coordination 12
 Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [5/8, 1/8, 5/8]
 Allowed exchange matrix: [  A  C-E  D-F
                           C+E    B -C+E
@@ -383,14 +383,14 @@ Allowed exchange matrix: [  A  C-E  D-F
 Allowed DM vector: [E F -E]
 
 Bond(2, 6, [0, 0, 0])
-Distance 5.8931693357649, coordination 6
+Distance 5.893169336, coordination 6
 Connects 'B' at [5/8, 1/8, 5/8] to 'B' at [5/8, 5/8, 1/8]
 Allowed exchange matrix: [A D D
                           D B C
                           D C B]
 
 Bond(1, 5, [0, 0, 0])
-Distance 5.8931693357649, coordination 6
+Distance 5.893169336, coordination 6
 Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [7/8, 1/8, 7/8]
 Allowed exchange matrix: [ A D -D
                            D B  C
@@ -407,17 +407,17 @@ print_symmetry_table(xtal_mgcro, 6.0)
 
 ````
 Atom 1
-Type 'Cr', position [1/2, 0, 0], multiplicity 16
+Type 'Cr', position [1/2, 0, 0], Wyckoff 16d
 Allowed g-tensor: [A B B
                    B A B
                    B B A]
 Allowed anisotropy in Stevens operators:
     c₁*(𝒪[2,-2]+2𝒪[2,-1]+2𝒪[2,1]) +
     c₂*(-7𝒪[4,-3]-2𝒪[4,-2]+𝒪[4,-1]+𝒪[4,1]+7𝒪[4,3]) + c₃*(𝒪[4,0]+5𝒪[4,4]) +
-    c₄*(-11𝒪[6,-6]-8𝒪[6,-3]+𝒪[6,-2]-8𝒪[6,-1]-8𝒪[6,1]+8𝒪[6,3]) + c₅*(𝒪[6,0]-21𝒪[6,4]) + c₆*((9/5)𝒪[6,-6]+(24/5)𝒪[6,-5]+𝒪[6,-2]+(8/5)𝒪[6,-1]+(8/5)𝒪[6,1]+(24/5)𝒪[6,5])
+    c₄*(11𝒪[6,-6]+8𝒪[6,-3]-𝒪[6,-2]+8𝒪[6,-1]+8𝒪[6,1]-8𝒪[6,3]) + c₅*(-𝒪[6,0]+21𝒪[6,4]) + c₆*(9𝒪[6,-6]+24𝒪[6,-5]+5𝒪[6,-2]+8𝒪[6,-1]+8𝒪[6,1]+24𝒪[6,5])
 
 Bond(1, 2, [0, 0, 0])
-Distance 2.9465846678825, coordination 6
+Distance 2.946584668, coordination 6
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [3/4, 1/4, 0]
 Allowed exchange matrix: [A C -D
                           C A -D
@@ -425,7 +425,7 @@ Allowed exchange matrix: [A C -D
 Allowed DM vector: [-D D 0]
 
 Bond(1, 7, [0, 0, 0])
-Distance 5.1036343535759, coordination 12
+Distance 5.103634354, coordination 12
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [1/4, 1/2, 1/4]
 Allowed exchange matrix: [  A  C-E  D-F
                           C+E    B -C+E
@@ -433,14 +433,14 @@ Allowed exchange matrix: [  A  C-E  D-F
 Allowed DM vector: [E F -E]
 
 Bond(1, 3, [0, 0, 0])
-Distance 5.8931693357649, coordination 6
+Distance 5.893169336, coordination 6
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [0, 1/2, 0]
 Allowed exchange matrix: [A D C
                           D A C
                           C C B]
 
 Bond(1, 3, [1, 0, 0])
-Distance 5.8931693357649, coordination 6
+Distance 5.893169336, coordination 6
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [1, 1/2, 0]
 Allowed exchange matrix: [A D C
                           D A C
