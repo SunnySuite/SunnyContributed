@@ -9,8 +9,7 @@ docnames = if length(ARGS) == 0
     [
         "kappa_tutorial.jl",
         "MgCr2O4-tutorial.jl",
-        # "entangled_units_ladder.jl",
-        # "entangled_units_bamno.jl",
+        "entangled_units.jl",
     ]
 else
     ARGS

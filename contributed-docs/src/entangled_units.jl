@@ -55,7 +55,7 @@ J = 1
 J′ = 0.2J
 sys = System(crystal, [1 => Moment(s=1/2, g=2)], :SUN; dims=(2, 1, 1))
 set_exchange!(sys, J, Bond(1, 2, [0, 0, 0]))
-set_exchange!(sys, J′, Bond(1, 1, [1, 0, 0]))
+set_exchange!(sys, J′, Bond(1, 1, [1, 0, 0]));
 
 # This completes specification of the model without consideration for
 # entanglement between the sites bonded by rungs. Examine a ground state of
@@ -130,7 +130,7 @@ dt = integrator.dt = 0.13
 
 for _ in 1:500
     step!(esys, integrator)
-end
+end;
 
 # Next construct an `SampledCorrelations` and collect the correlations of
 # sampled trajectories.
@@ -222,7 +222,7 @@ set_exchange!(sys, J3, Bond(1, 2, [1, 0, 0]))
 set_exchange!(sys, J4, Bond(4, 5, [0, 1, 0]))
 
 D = -0.032
-set_onsite_coupling!(sys, S -> D*S[3]^2, 1)
+set_onsite_coupling!(sys, S -> D*S[3]^2, 1);
 
 # The strong antiferromagnetic exchange on the `1 -> 2`, `3 -> 4` and `5 -> 6`
 # bonds results in dimerization and a ground state that is a product of
