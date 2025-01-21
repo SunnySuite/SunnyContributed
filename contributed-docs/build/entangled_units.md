@@ -226,9 +226,7 @@ dynamics, which remains gapless throughout all temperatures.
 
 For a more complete study of this model, see [D. Dahlbom et al., PRB 110 (2024)](https://arxiv.org/abs/0804.4437).
 
-````julia
-# Material Example: Ba₃Mn₂O₈
-````
+## Material Example: Ba₃Mn₂O₈
 
 As a more realistic example, this section briefly demonstrates how to reproduce
 the zero-field dispersion of Ba₃Mn₂O₈. This material consists of triangular lattice
