@@ -95,7 +95,7 @@ Type 'B', Wyckoff 16c (site sym. '.-3m'):
 To examine the result interactively, we can call `view_crystal`.
 
 ````julia
-view_crystal(xtal_pyro, 3.2)
+view_crystal(xtal_pyro)
 ````
 ![](MgCr2O4-tutorial-10.png)
 
@@ -362,24 +362,24 @@ Allowed g-tensor: [ A B -B
                     B A  B
                    -B B  A]
 Allowed anisotropy in Stevens operators:
-    c₁*(𝒪[2,-2]+2𝒪[2,-1]-2𝒪[2,1]) +
+    c₁*(-𝒪[2,-2]-2𝒪[2,-1]+2𝒪[2,1]) +
     c₂*(7𝒪[4,-3]+2𝒪[4,-2]-𝒪[4,-1]+𝒪[4,1]+7𝒪[4,3]) + c₃*(𝒪[4,0]+5𝒪[4,4]) +
     c₄*(11𝒪[6,-6]+8𝒪[6,-3]-𝒪[6,-2]+8𝒪[6,-1]-8𝒪[6,1]+8𝒪[6,3]) + c₅*(-𝒪[6,0]+21𝒪[6,4]) + c₆*(9𝒪[6,-6]+24𝒪[6,-5]+5𝒪[6,-2]+8𝒪[6,-1]-8𝒪[6,1]-24𝒪[6,5])
 
 Bond(1, 3, [0, 0, 0])
 Distance 2.946584668, coordination 6
 Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [7/8, 7/8, 1/8]
-Allowed exchange matrix: [ A -D D
-                           D  B C
-                          -D  C B]
-Allowed DM vector: [0 -D -D]
+Allowed exchange matrix: [ A D -D
+                          -D B  C
+                           D C  B]
+Allowed DM vector: [0 D D]
 
 Bond(1, 2, [0, 0, 0])
 Distance 5.103634354, coordination 12
 Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [5/8, 1/8, 5/8]
-Allowed exchange matrix: [  A  C-E  D-F
-                          C+E    B -C+E
-                          D+F -C-E    A]
+Allowed exchange matrix: [   A -C-E D-F
+                          -C+E    B C+E
+                           D+F  C-E   A]
 Allowed DM vector: [E F -E]
 
 Bond(2, 6, [0, 0, 0])
@@ -392,9 +392,9 @@ Allowed exchange matrix: [A D D
 Bond(1, 5, [0, 0, 0])
 Distance 5.893169336, coordination 6
 Connects 'B' at [7/8, 5/8, 3/8] to 'B' at [7/8, 1/8, 7/8]
-Allowed exchange matrix: [ A D -D
-                           D B  C
-                          -D C  B]
+Allowed exchange matrix: [ A -D D
+                          -D  B C
+                           D  C B]
 
 
 ````
@@ -419,17 +419,17 @@ Allowed anisotropy in Stevens operators:
 Bond(1, 2, [0, 0, 0])
 Distance 2.946584668, coordination 6
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [3/4, 1/4, 0]
-Allowed exchange matrix: [A C -D
-                          C A -D
-                          D D  B]
-Allowed DM vector: [-D D 0]
+Allowed exchange matrix: [ A  C D
+                           C  A D
+                          -D -D B]
+Allowed DM vector: [D -D 0]
 
 Bond(1, 7, [0, 0, 0])
 Distance 5.103634354, coordination 12
 Connects 'Cr' at [1/2, 0, 0] to 'Cr' at [1/4, 1/2, 1/4]
-Allowed exchange matrix: [  A  C-E  D-F
-                          C+E    B -C+E
-                          D+F -C-E    A]
+Allowed exchange matrix: [   A -C-E D-F
+                          -C+E    B C+E
+                           D+F  C-E   A]
 Allowed DM vector: [E F -E]
 
 Bond(1, 3, [0, 0, 0])
@@ -456,7 +456,7 @@ inequivalent bonds 3a and 3b having the same length. A question may arises to
 know which bond is J3a and which is J3b, let's plot the structure.
 
 ````julia
-view_crystal(xtal_mgcro, 5.9)
+view_crystal(xtal_mgcro)
 ````
 ![](MgCr2O4-tutorial-29.png)
 
