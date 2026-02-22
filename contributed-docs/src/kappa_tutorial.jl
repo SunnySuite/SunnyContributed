@@ -177,7 +177,7 @@ end;
 
 # Now evaluate the total spectral weight without temperature corrections.
 
-total_spectral_weight(sc) / (prod(sys.dims))
+total_spectral_weight(sc) / nsites(sys)
 
 # The result is 4/3, which is the expected "classical" sum rule. This reference can be
 # established by evaluating $\sum_{\alpha}\langle Z\vert T^{\alpha} \vert Z \rangle^2$
@@ -189,7 +189,7 @@ total_spectral_weight(sc) / (prod(sys.dims))
 # Now let's try again, this time applying the classical-to-quantum
 # correspondence factor by providing the simulation temperature.
 
-total_spectral_weight(sc; kT) / prod(sys.dims) 
+total_spectral_weight(sc; kT) / nsites(sys) 
 
 # This is relatively close to 16/3. So, at low temperatures, application of
 # the classical-to-quantum correspondence factor yields results that
@@ -220,7 +220,7 @@ end
 # again give 4/3, as you can easily verify. Let's examine the result with 
 # the correction:
 
-total_spectral_weight(sc; kT) / prod(sys.dims) 
+total_spectral_weight(sc; kT) / nsites(sys) 
 
 # While this is larger than the classical value of 4/3, it is still
 # substantially short of the quantum value of 16/3.
@@ -229,7 +229,7 @@ total_spectral_weight(sc; kT) / prod(sys.dims)
 #
 # One way to enforce the quantum sum rule is by simply renormalizing the
 # magnetic moments. In Sunny, this can be achieved by
-# calling `set_spin_rescaling!(sys, κ)`, where κ is the desired renormalization.
+# calling `set_spin_rescaling!(sys, [1 => κ])`, where κ is the desired renormalization.
 # Let's repeat the calculation above at the same temperature, this
 # time setting $κ=1.25$.
 
@@ -249,19 +249,19 @@ for _ in 1:nsamples
     end
 
     ## Renormalize magnetic moments before collecting a time-evolved sample.
-    set_spin_rescaling!(sys, κ)
+    set_spin_rescaling!(sys, [1 => κ])
 
     ## Generate a trajectory and calculate correlations.
     add_sample!(sc, sys)
 
     ## Turn off κ renormalization before generating a new equilibrium sample.
-    set_spin_rescaling!(sys, 1.0)
+    set_spin_rescaling!(sys, [1 => 1.0])
 end
 
 # Finally, we evaluate the sum.
-total_spectral_weight(sc; kT) / prod(sys.dims) 
+total_spectral_weight(sc; kT) / nsites(sys) 
 
-# The result is something slightly greater than 5, substantially closer to the
+# The result is approximately 5, substantially closer to the
 # expected quantum sum rule. We can now adjust $\kappa$ and iterate
 # until we reach a value sufficiently close to 16/3.  In general, this should
 # be done while collecting substantially more statistics. 

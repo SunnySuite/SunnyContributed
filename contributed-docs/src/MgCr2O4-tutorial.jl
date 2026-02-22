@@ -64,7 +64,7 @@ xtal_pyro   = Crystal(latvecs, positions; types) # We will call this crystal the
 
 # To examine the result interactively, we can call `view_crystal`.
 
-view_crystal(xtal_pyro, 3.2) 
+view_crystal(xtal_pyro) 
 
 # ### "Experimentalist" Method #1 (Incorrect)
 # A real crystal is more complicated than this, however, and we will now
@@ -147,7 +147,7 @@ print_symmetry_table(xtal_mgcro, 6.0)
 # inequivalent bonds 3a and 3b having the same length. A question may arises to
 # know which bond is J3a and which is J3b, let's plot the structure.
  
-view_crystal(xtal_mgcro, 5.9)
+view_crystal(xtal_mgcro)
  
 # The crystal viewer shows that the second interaction -- cyan color with
 # distance of 5.89Å -- is in fact the one hopping through a chromium site,
