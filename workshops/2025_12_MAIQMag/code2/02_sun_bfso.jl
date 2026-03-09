@@ -75,7 +75,7 @@ view_crystal(crystal)
 # will now set the mode to `:SUN`.
 
 dims = (6, 6, 2)
-sys = System(crystal, [1 => Moment(s=2, g=2)], :SUN; dims, seed=1)
+sys = System(crystal, [1 => Moment(s=2, g=2)], :dipole; dims, seed=1)
 set_onsite_coupling!(sys, Sz^2, 1) # Set the anisotropy term
 
 randomize_spins!(sys)
@@ -126,7 +126,7 @@ bond1 = Bond(1, 2, [0, 0, 0])
 bond2 = Bond(1, 1, [1, 0, 0])
 bond3 = Bond(1, 1, [0, 0, 1])
 
-J = 1.028 * meV_per_K
+J = 1.028 * units.K 
 J′ = 0.1J
 set_exchange!(sys, J, bond1)
 set_exchange!(sys, J′, bond2)
@@ -265,7 +265,7 @@ integrator = ImplicitMidpoint(dt)
 suggest_timestep(sys, integrator; tol=1e-2)
 integrator.dt = 0.01
 
-fig = plot_spins(sys; colorfn=i->norm(sys.dipoles[i][3]))
+fig = plot_spins(sys)
 
 for _ in 1:500
     for _ in 1:5
