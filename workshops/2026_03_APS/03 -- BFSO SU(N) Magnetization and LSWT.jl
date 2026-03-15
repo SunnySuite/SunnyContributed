@@ -1,9 +1,8 @@
-using Sunny, GLMakie, LinearAlgebra, FFTW, Statistics
+using Sunny, GLMakie, LinearAlgebra, Statistics
 
 ################################################################################
 # Single-ion anisotropies in SU(N) mode
 ################################################################################
-
 S = spin_matrices(2)  
 Sx, Sy, Sz = S        
 
@@ -18,6 +17,7 @@ sx = expectation(Sx, Z)
 sy = expectation(Sy, Z) 
 sz = expectation(Sz, Z) 
 
+# Let's see how Sunny handles this anisotropy.
 latvecs = lattice_vectors(1, 1, 1.2, 90, 90, 90)
 positions = [[0, 0, 0]]
 crystal = Crystal(latvecs, positions)
@@ -32,11 +32,15 @@ minimize_energy!(sys; g_tol=1e-16)
 plot_spins(sys)
 
 sys.dipoles[1,1,1,1]
-sys.coherents[1,1,1,1]
+sys.coherents[1,1,1,1] / exp(im*angle(sys.coherents[1,1,1,1][3]))
+
+# -- Question: What would happen if the system were in :dipole mode? Try it.
+
 
 ################################################################################
 # BFSO 
 ################################################################################
+units = Units(:meV, :angstrom)
 
 a = 8.3194
 c = 5.336
@@ -50,16 +54,16 @@ view_crystal(crystal)
 dims = (6, 6, 2)
 sys = System(crystal, [1 => Moment(s=2, g=1.93)], :SUN; dims)
 
-A = 1.16 * meV_per_K
-C = -1.74 * meV_per_K
-D = 28.65 * meV_per_K
+A = 1.16  * units.K
+C = -1.74 * units.K
+D = 28.65 * units.K
 
 Sx, Sy, Sz = spin_matrices(2)
 H_SI = D*(Sz)^2 + A*((Sx)^4 + (Sy)^4) + C*(Sz)^4
 set_onsite_coupling!(sys, H_SI, 1)
 
 
-J = 1.028 * meV_per_K
+J = 1.028units.K
 J′ = 0.1J
 bond1 = Bond(1, 2, [0, 0, 0])
 bond2 = Bond(1, 1, [1, 0, 0])
@@ -74,6 +78,7 @@ plot_spins(sys)
 
 norm(sys.dipoles[1,1,1,1])
 
+# For future convenience, we'll define a function to make this model.
 function BFSO(dims; mode=:SUN, seed=1)
     a = 8.3194
     c = 5.336
@@ -82,11 +87,11 @@ function BFSO(dims; mode=:SUN, seed=1)
     spacegroup = 113    # Want to use the space group for original lattice, of which the Fe ions form a subcrystal
     crystal = Crystal(latvecs, positions, spacegroup; types=["Fe"])
 
-    sys = System(crystal, dims, [SpinInfo(1; S=2, g=1.93)], mode; seed)
+    sys = System(crystal, dims, [1 => Moment(s=2, g=1.93)], mode; seed)
 
-    A = 1.16 * meV_per_K
-    C = -1.74 * meV_per_K
-    D = 28.65 * meV_per_K
+    A = 1.16 * units.K
+    C = -1.74 * units.K
+    D = 28.65 * units.K
 
     Sx, Sy, Sz = spin_matrices(2)
     H_SI = D*(Sz)^2 + A*((Sx)^4 + (Sy)^4) + C*(Sz)^4
@@ -96,8 +101,9 @@ function BFSO(dims; mode=:SUN, seed=1)
     bond2 = Bond(1, 1, [1, 0, 0]) 
     bond3 = Bond(1, 1, [0, 0, 1])
 
-    J = 1.028 * meV_per_K
-    J′ = 0.1J
+    J = 1.028 * units.K
+    J′ = 0.1J * units.K
+
     set_exchange!(sys, J, bond1)
     set_exchange!(sys, J′, bond2)
     set_exchange!(sys, J′, bond3)
@@ -106,9 +112,7 @@ function BFSO(dims; mode=:SUN, seed=1)
 end
 
 function magnetization(sys, dir=[0, 0, 1.])
-    nsites = prod(size(sys.dipoles))
-    M_avg = sum(magnetic_moment(sys, site) for site in eachsite(sys)) / nsites
-    return M_avg ⋅ dir
+    sum(magnetic_moments(sys)) ⋅ dir / length(eachsite(sys))
 end
 
 function staggered_magnetization(sys)
@@ -121,18 +125,33 @@ function staggered_magnetization(sys)
     return abs(M_xy)
 end
 
+
+sys = BFSO((6, 6, 2); mode=:SUN)
+
 randomize_spins!(sys)
 minimize_energy!(sys)
 plot_spins(sys)
 staggered_magnetization(sys)
 magnetization(sys, [0, 0, 1])
 
-units = Units(:meV, :angstrom)
-Hs = range(0.0, 1000.0, 50)
+Hs = range(0.0, 55, 100)
+fig = plot_spins(sys; colorfn=i->sys.dipoles[i][2], colorrange=(-1, 1))
+for H in Hs 
+    set_field!(sys, [0, 0, H*units.T])
+    minimize_energy!(sys)
+    notify(fig)
+    sleep(1/10)
+end
+
+
+set_field!(sys, [0, 0, 0])
+randomize_spins!(sys)
+minimize_energy!(sys)
+staggered_magnetization(sys)
 Ms = Float64[]
 OPs = Float64[]
 for H in Hs
-    set_external_field!(sys, (0, 0, H*units.T))
+    set_field!(sys, [0, 0, H*units.T])
     minimize_energy!(sys)
     push!(Ms, magnetization(sys))
     push!(OPs, staggered_magnetization(sys))
@@ -143,11 +162,13 @@ scatter(fig[1,1], Hs, Ms; axis=(xlabel="H", ylabel="M"))
 scatter(fig[1,2], Hs, OPs; axis=(xlabel="H", ylabel="Staggered XY Magnetization"))
 fig
 
+
+
 ################################################################################
 # Dynamics
 ################################################################################
 
-set_external_field!(sys, (0, 0, 0))
+set_field!(sys, [0, 0, 0])
 minimize_energy!(sys)
 plot_spins(sys)
 
@@ -164,19 +185,22 @@ minimize_energy!(sys)
 plot_spins(sys)
 
 set_field!(sys, (0, 0, 0))
-integrator = ImplicitMidpoint(dt)
+integrator = ImplicitMidpoint(0.1)
 suggest_timestep(sys, integrator; tol=1e-2)
-integrator.dt = 0.01
+integrator.dt = 0.03
 
-fig = plot_spins(sys; colorfn=i->norm(sys.dipoles[i][3]))
+fig = plot_spins(sys; colorfn=i->norm(sys.dipoles[i]), colorrange=(-0.5, 0.5))
 
 for _ in 1:500
-    for _ in 1:5
+    for _ in 1:2
         step!(sys, integrator)
     end
     notify(fig)
     sleep(1/60)
 end
+
+
+# Spin wave calculation
 
 sys_sun = BFSO((2, 2, 2); mode=:SUN)
 sys_dip = BFSO((2, 2, 2); mode=:dipole)

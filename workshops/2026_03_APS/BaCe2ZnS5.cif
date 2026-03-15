@@ -1,0 +1,66 @@
+
+#======================================================================
+# CRYSTAL DATA
+#----------------------------------------------------------------------
+data_VESTA_phase_1
+
+_chemical_name_common                  '#(C) '
+_cell_length_a                         7.910200
+_cell_length_b                         7.910200
+_cell_length_c                         13.657900
+_cell_angle_alpha                      90.000000
+_cell_angle_beta                       90.000000
+_cell_angle_gamma                      90.000000
+_cell_volume                           854.592084
+_space_group_name_H-M_alt              'I 4/m c m'
+_space_group_IT_number                 140
+
+loop_
+_space_group_symop_operation_xyz
+   'x, y, z'
+   '-x, -y, -z'
+   '-x, -y, z'
+   'x, y, -z'
+   '-y, x, z'
+   'y, -x, -z'
+   'y, -x, z'
+   '-y, x, -z'
+   '-x, y, -z+1/2'
+   'x, -y, z+1/2'
+   'x, -y, -z+1/2'
+   '-x, y, z+1/2'
+   'y, x, -z+1/2'
+   '-y, -x, z+1/2'
+   '-y, -x, -z+1/2'
+   'y, x, z+1/2'
+   'x+1/2, y+1/2, z+1/2'
+   '-x+1/2, -y+1/2, -z+1/2'
+   '-x+1/2, -y+1/2, z+1/2'
+   'x+1/2, y+1/2, -z+1/2'
+   '-y+1/2, x+1/2, z+1/2'
+   'y+1/2, -x+1/2, -z+1/2'
+   'y+1/2, -x+1/2, z+1/2'
+   '-y+1/2, x+1/2, -z+1/2'
+   '-x+1/2, y+1/2, -z'
+   'x+1/2, -y+1/2, z'
+   'x+1/2, -y+1/2, -z'
+   '-x+1/2, y+1/2, z'
+   'y+1/2, x+1/2, -z'
+   '-y+1/2, -x+1/2, z'
+   '-y+1/2, -x+1/2, -z'
+   'y+1/2, x+1/2, z'
+
+loop_
+   _atom_site_label
+   _atom_site_occupancy
+   _atom_site_fract_x
+   _atom_site_fract_y
+   _atom_site_fract_z
+   _atom_site_adp_type
+   _atom_site_U_iso_or_equiv
+   _atom_site_type_symbol
+   Ba1        1.0     0.000000     0.000000     0.250000    Uiso  ? Ba
+   Ce1        1.0     0.162000     0.662000     0.000000    Uiso  ? Ce
+   Zn1        1.0     0.000000     0.500000     0.250000    Uiso  ? Zn
+   S1         1.0     0.000000     0.000000     0.000000    Uiso  ? S
+   S2         1.0     0.150500     0.650500     0.635900    Uiso  ? S
