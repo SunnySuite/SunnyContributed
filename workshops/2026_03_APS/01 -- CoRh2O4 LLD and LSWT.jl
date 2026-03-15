@@ -103,7 +103,7 @@ dt = 2*langevin.dt
 energies = range(0, 6, 50)
 sc = SampledCorrelations(sys; dt, energies, measure)
 
-for _ in 1:10
+for _ in 1:5
     for _ in 1:100
         step!(sys, langevin)
     end
@@ -130,7 +130,6 @@ plot_intensities(res; units, title="Intensities at 16 K")
 
 # -- Question: How does this change when collecting more samples?
 # -- Look it up: Sunny function `print_irreducible_bz_paths`
-print_irreducible_bz_paths(crystal)
 
 # Let's now go to a lower temperature. We've learned from Hao that LL and LSWT
 # are somehow equivalent in the T->0 limit. We'll perform a low-temperature
@@ -195,7 +194,7 @@ fig
 # averaged" spectrum, both for LL and LSWT calculations.
 
 radii = range(0, 3.5, 200) # (1/Å)
-res = powder_average(cryst, radii, 350) do qs
+res = powder_average(crystal, radii, 350) do qs
     intensities(sc_lo, qs; energies, langevin.kT)
 end
 plot_intensities(res; units, title="Powder Average at 16 K")

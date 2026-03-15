@@ -1,37 +1,97 @@
-# # 4. Generalized spin dynamics of FeI₂ at finite *T*
+# This tutorial illustrates various advanced features such as symmetry analysis,
+# energy minimization, and spin wave theory with multi-flavor bosons.
+#
+# Our context will be FeI₂, an effective spin-1 material with strong single-ion
+# anisotropy. Quadrupolar fluctuations give rise to a single-ion bound state
+# that is observable in neutron scattering, and cannot be described by a
+# dipole-only model. We will use the linear spin wave theory of SU(3) coherent
+# states (i.e. 2-flavor bosons) to model the magnetic spectrum of FeI₂. The
+# original study was performed in [Bai et al., Nature Physics **17**, 467–472
+# (2021)](https://doi.org/10.1038/s41567-020-01110-1).
+#
+# ```@raw html
+# <img src="https://raw.githubusercontent.com/SunnySuite/Sunny.jl/main/docs/src/assets/FeI2_crystal.jpg" style="float: left;" width="400">
+# ```
+#
+# The Fe atoms are arranged in stacked triangular layers. The effective spin
+# Hamiltonian takes the form,
+# 
+# ```math
+# \mathcal{H}=\sum_{(i,j)} 𝐒_i ⋅ J_{ij} 𝐒_j - D\sum_i \left(S_i^z\right)^2,
+# ```
+#
+# where the exchange matrices ``J_{ij}`` between bonded sites ``(i,j)`` include
+# competing ferromagnetic and antiferromagnetic interactions. This model also
+# includes a strong easy axis anisotropy, ``D > 0``.
 
-# The [previous FeI₂ tutorial](@ref "3. Multi-flavor spin wave simulations of
-# FeI₂") used multi-flavor spin wave theory to calculate the dynamical spin
-# structure factor. This tutorial performs an analogous calculation at finite
-# temperature using the [classical dynamics of SU(_N_) coherent
-# states](https://doi.org/10.1103/PhysRevB.106.054423).
-#
-# Compared to spin wave theory, classical spin dynamics in real-space is
-# typically much slower and is limited in ``𝐪``-space resolution. The approach,
-# however, allows for thermal fluctuations. This allows to explore [finite
-# temperature phases](https://doi.org/10.1103/PhysRevB.109.014427) and enables
-# the study of [non-equilibrium
-# processes](https://doi.org/10.1103/PhysRevB.106.235154).
-#
-# The structure of this tutorial largely follows the [previous study of CoRh₂O₄
-# at finite *T*](@ref "2. Landau-Lifshitz dynamics of CoRh₂O₄ at finite *T*").
-# The main difference is that CoRh₂O₄ can be well described with `:dipole` mode,
-# whereas FeI₂ is best modeled using `:SUN` mode, owing to its strong easy-axis
-# anisotropy.
-#
-# Construct the FeI₂ system as [previously described](@ref "3. Multi-flavor spin
-# wave simulations of FeI₂").
+# Load packages.
 
 using Sunny, GLMakie
 
-units = Units(:meV, :angstrom)
-a = b = 4.05012
-c = 6.75214
-latvecs = lattice_vectors(a, b, c, 90, 90, 120)
-cryst = Crystal(latvecs, [[0,0,0]], 164; types=["Fe"])
+# Construct the chemical cell of FeI₂ by specifying the lattice vectors and the
+# full set of atoms.
 
-sys = System(cryst, [1 => Moment(s=1, g=2)], :SUN)
-J1pm   = -0.236
+units = Units(:meV, :angstrom)
+a = b = 4.05012  # Lattice constants for triangular lattice (Å)
+c = 6.75214      # Spacing between layers (Å)
+latvecs = lattice_vectors(a, b, c, 90, 90, 120)
+positions = [[0, 0, 0], [1/3, 2/3, 1/4], [2/3, 1/3, 3/4]]
+types = ["Fe", "I", "I"]
+cryst = Crystal(latvecs, positions; types)
+
+# Observe that the space group 'P -3 m 1' (164) has been inferred, as well as
+# point group symmetries. Only the Fe atoms are magnetic, so we focus on them
+# with [`subcrystal`](@ref). Importantly, the new crystal retains the symmetry
+# information for spacegroup 164.
+
+cryst = subcrystal(cryst, "Fe")
+view_crystal(cryst)
+
+# ### Symmetry analysis
+#
+# The command [`print_symmetry_table`](@ref) provides a list of all the
+# symmetry-allowed interactions out to 8 Å.
+
+print_symmetry_table(cryst, 8.0)
+
+# The allowed ``g``-tensor is expressed as a 3×3 matrix in the free coefficients
+# `A`, `B`, ... The allowed single-ion anisotropy is expressed as a linear
+# combination of Stevens operators. The latter correspond to polynomials of the
+# spin operators, as we will describe below.
+# 
+# The allowed exchange interactions are given as 3×3 matrices for representative
+# bonds. The notation `Bond(i, j, n)` indicates a bond between atom indices `i`
+# and `j`, with cell offset `n`. Note that the order of the pair ``(i, j)`` is
+# significant if the exchange tensor contains antisymmetric
+# Dzyaloshinskii–Moriya (DM) interactions.
+# 
+# The bonds can be visualized in the `view_crystal` interface. By default,
+# `Bond(1, 1, [1,0,0])` is toggled on, to show the 6 nearest-neighbor Fe-Fe
+# bonds on a triangular lattice layer. Toggling `Bond(1, 1, [0,0,1])` shows the
+# Fe-Fe bond between layers, etc.
+
+# ### Defining the spin model
+
+# Construct a [`System`](@ref) with spin $s=1$ and $g=2$ for the Fe ions.
+#
+# Recall that quantum spin-1 is, in reality, a linear combination of basis
+# states ``|m⟩`` with well-defined angular momentum ``m = -1, 0, 1``. FeI₂ has a
+# strong easy-axis anisotropy, which stabilizes a single-ion bound state of zero
+# angular momentum, ``|m=0⟩``. Such a bound state is inaccessible to traditional
+# spin wave theory, which works with dipole expectation values of fixed
+# magnitude. This physics is, however, well captured with a theory of SU(_N_)
+# coherent states, where ``N = 2S+1 = 3`` is the number of levels. Activate this
+# generalized theory by selecting `:SUN` mode instead of `:dipole` mode.
+#
+# An optional `seed` for random number generation can be used to to make the
+# calculation exactly reproducible.
+
+sys = System(cryst, [1 => Moment(s=1, g=2)], :SUN; seed=2)
+
+# Set the exchange interactions for FeI₂ following the fits of [Bai et
+# al.](https://doi.org/10.1038/s41567-020-01110-1)
+
+J1pm   = -0.236 # (meV)
 J1pmpm = -0.161
 J1zpm  = -0.261
 J2pm   = 0.026
@@ -39,147 +99,149 @@ J3pm   = 0.166
 J′0pm  = 0.037
 J′1pm  = 0.013
 J′2apm = 0.068
+
 J1zz   = -0.236
 J2zz   = 0.113
 J3zz   = 0.211
 J′0zz  = -0.036
 J′1zz  = 0.051
 J′2azz = 0.073
-J1xx = J1pm + J1pmpm
+
+J1xx = J1pm + J1pmpm 
 J1yy = J1pm - J1pmpm
 J1yz = J1zpm
-set_exchange!(sys, [J1xx 0.0 0.0; 0.0 J1yy J1yz; 0.0 J1yz J1zz], Bond(1,1,[1,0,0]))
-set_exchange!(sys, [J2pm 0.0 0.0; 0.0 J2pm 0.0; 0.0 0.0 J2zz], Bond(1,1,[1,2,0]))
-set_exchange!(sys, [J3pm 0.0 0.0; 0.0 J3pm 0.0; 0.0 0.0 J3zz], Bond(1,1,[2,0,0]))
-set_exchange!(sys, [J′0pm 0.0 0.0; 0.0 J′0pm 0.0; 0.0 0.0 J′0zz], Bond(1,1,[0,0,1]))
-set_exchange!(sys, [J′1pm 0.0 0.0; 0.0 J′1pm 0.0; 0.0 0.0 J′1zz], Bond(1,1,[1,0,1]))
-set_exchange!(sys, [J′2apm 0.0 0.0; 0.0 J′2apm 0.0; 0.0 0.0 J′2azz], Bond(1,1,[1,2,1]))
-D = 2.165
+
+set_exchange!(sys, [J1xx   0.0    0.0;
+                    0.0    J1yy   J1yz;
+                    0.0    J1yz   J1zz], Bond(1,1,[1,0,0]))
+set_exchange!(sys, [J2pm   0.0    0.0;
+                    0.0    J2pm   0.0;
+                    0.0    0.0    J2zz], Bond(1,1,[1,2,0]))
+set_exchange!(sys, [J3pm   0.0    0.0;
+                    0.0    J3pm   0.0;
+                    0.0    0.0    J3zz], Bond(1,1,[2,0,0]))
+set_exchange!(sys, [J′0pm  0.0    0.0;
+                    0.0    J′0pm  0.0;
+                    0.0    0.0    J′0zz], Bond(1,1,[0,0,1]))
+set_exchange!(sys, [J′1pm  0.0    0.0;
+                    0.0    J′1pm  0.0;
+                    0.0    0.0    J′1zz], Bond(1,1,[1,0,1]))
+set_exchange!(sys, [J′2apm 0.0    0.0;
+                    0.0    J′2apm 0.0;
+                    0.0    0.0    J′2azz], Bond(1,1,[1,2,1]))
+
+# The function [`set_onsite_coupling!`](@ref) assigns a single-ion anisotropy.
+# The argument can be constructed using [`spin_matrices`](@ref) or
+# [`stevens_matrices`](@ref). Here we use Julia's anonymous function syntax to
+# assign an easy-axis anisotropy along the direction ``\hat{z}``.
+
+D = 2.165 # (meV)
 set_onsite_coupling!(sys, S -> -D*S[3]^2, 1)
 
-# ### Thermalization
+# ### Finding the ground state
 
-# To study thermal fluctuations in real-space, use a large system size with
-# 16×16×4 copies of the chemical cell.
+# The model parameters have already been fitted so that energy minimization
+# yields the physically correct ground state. Knowing this, one could manually
+# set the magnetic configuration by calling [`set_dipole!`](@ref) at each site.
+# Alternatively, Sunny provides tools to interactively search for the ground
+# state.
+#
+# Use [`resize_supercell`](@ref) to create a relatively large system of 4×4×4
+# chemical cells. Call [`randomize_spins!`](@ref) and [`minimize_energy!`](@ref)
+# in sequence.
 
-sys = resize_supercell(sys, (16, 16, 4))
-
-# Direct optimization via [`minimize_energy!`](@ref) is susceptible to trapping
-# in a local minimum. An alternative approach is to simulate the system using
-# [`Langevin`](@ref) spin dynamics. This requires a bit more set-up, but allows
-# sampling from thermal equilibrium at any target temperature. Select the
-# temperature 2.3 K ≈ 0.2 meV. This temperature is small enough to magnetically
-# order, but large enough so that the dynamics can readily overcome local energy
-# barriers and annihilate defects.
-
-langevin = Langevin(; damping=0.2, kT=2.3*units.K)
-
-# Use [`suggest_timestep`](@ref) to select an integration timestep for the error
-# tolerance `tol=1e-2`. Initializing `sys` to some low-energy configuration
-# usually works well.
-
+sys = resize_supercell(sys, (4, 4, 4))
 randomize_spins!(sys)
-minimize_energy!(sys; maxiters=10)
-suggest_timestep(sys, langevin; tol=1e-2)
-langevin.dt = 0.03;
+minimize_energy!(sys)
 
-# Run a Langevin trajectory for 10,000 time-steps and plot the spins. The
-# magnetic order is present, but may be difficult to see.
+# Despite successful convergence to a local energy minimum, defects in the spin
+# configuration are visually apparent.
 
-for _ in 1:10_000
-    step!(sys, langevin)
-end
 plot_spins(sys; color=[S[3] for S in sys.dipoles])
 
-# Verify the expected two-up, two-down spiral magnetic order by calling
-# [`print_wrapped_intensities`](@ref). A single propagation wavevector ``±𝐤``
-# dominates the static intensity in ``\mathcal{S}(𝐪)``, indicating the expected
-# 2 up, 2 down magnetic spiral order. A smaller amount of intensity is spread
-# among many other wavevectors due to thermal fluctuations.
+# Finding the true ground state can be a challenging task. If the system is not
+# too large, a good strategy is repeated randomization and then energy
+# minimization. This particular system might require about 30 minimization runs
+# to find the defect-free ground state.
+#
+# Another tool is [`print_wrapped_intensities`](@ref). It reports weights
+# analogous to the static structure factor ``\mathcal{S}(𝐪)``, but without
+# accounting for phase interference between magnetic sublattices. To calculate
+# the true ``\mathcal{S}(𝐪)``, use instead [`SampledCorrelationsStatic`](@ref).
 
 print_wrapped_intensities(sys)
 
-# Thermalization has not substantially altered the suggested `dt`.
+# The correct ground state for FeI₂ is known to be a generalized spiral with one
+# of three propagation wavevectors, ``[0, -1/4, 1/4]`` or ``[1/4, 0, 1/4]`` or
+# ``[-1/4, 1/4, 1/4]``, which are equivalent under 120° rotations. The result of
+# `print_wrapped_intensities` hints at this spiral phase.
+#
+# Let's break the 3-fold symmetry by hand. The function
+# [`suggest_magnetic_supercell`](@ref) takes any number of propagation
+# wavevectors and suggests a commensurate magnetic cell.
 
-suggest_timestep(sys, langevin; tol=1e-2)
+suggest_magnetic_supercell([[0, -1/4, 1/4]])
 
-# ### Structure factor in the paramagnetic phase
+# After calling [`reshape_supercell`](@ref), it becomes easy to find the ground
+# state. Plot the system again, now including "ghost" spins out to 12Å. The
+# correct two-up, two-down magnetic order is visually apparent.
 
-# The remainder of this tutorial will focus on the paramagnetic phase.
-# Re-thermalize the system to the temperature of 3.5 K ≈ 0.30 meV.
+sys_min = reshape_supercell(sys, [1 0 0; 0 1 -2; 0 1 2])
+randomize_spins!(sys_min)
+minimize_energy!(sys_min)
+plot_spins(sys_min; color=[S[3] for S in sys_min.dipoles], ghost_radius=12)
 
-langevin.kT = 3.5 * units.K
-for _ in 1:10_000
-    step!(sys, langevin)
+# ### Spin wave theory
+#
+# Now that the system has been relaxed to an energy minimized ground state, we
+# can calculate the spin wave spectrum. Because the system was constructed in
+# `:SUN` mode, the spin wave calculation will automatically employ bosons with
+# ``N = 2s+1 = 3` flavors.
+
+swt = SpinWaveTheory(sys_min; measure=ssf_perp(sys_min))
+
+# Calculate and plot the spectrum along a momentum-space path that connects a
+# sequence of high-symmetry ``𝐪``-points. This interface abstracts over the
+# underlying calculator type.
+
+qs = [[0,0,0], [1,0,0], [0,1,0], [1/2,0,0], [0,1,0], [0,0,0]]
+path = q_space_path(cryst, qs, 500)
+res = intensities_bands(swt, path)
+plot_intensities(res; units, ylims=(0, 10), title="Single Crystal Bands")
+
+# To make direct comparison with inelastic neutron scattering (INS) data, we
+# must account for empirical broadening of the data. Model this using a
+# [`lorentzian`](@ref) kernel, with a full-width at half-maximum of 0.3 meV.
+
+kernel = lorentzian(fwhm=0.3)
+energies = range(0, 10, 300);  # 0 < ω < 10 (meV)
+
+# Also, a real FeI₂ sample will exhibit competing magnetic domains. We use
+# [`domain_average`](@ref) to average over the three possible domain
+# orientations. This involves 120° rotations about the axis ``\hat{z} = [0, 0,
+# 1]`` in global Cartesian coordinates.
+
+rotations = [([0,0,1], n*(2π/3)) for n in 0:2]
+weights = [1, 1, 1]
+res = domain_average(cryst, path; rotations, weights) do path_rotated
+    intensities(swt, path_rotated; energies, kernel)
 end
+plot_intensities(res; units, colormap=:viridis, title="Domain Averaged Intensities")
 
-# The suggested timestep has increased slightly. Following this suggestion will
-# make the simulations a bit faster.
-
-suggest_timestep(sys, langevin; tol=1e-2)
-langevin.dt = 0.040;
-
-# Collect dynamical spin structure factor data using
-# [`SampledCorrelations`](@ref). This procedure involves sampling spin
-# configurations from thermal equilibrium and using the [spin dynamics of
-# SU(_N_) coherent states](https://arxiv.org/abs/2204.07563) to estimate
-# dynamical correlations. With proper classical-to-quantum corrections, the
-# associated structure factor intensities ``S^{αβ}(q,ω)`` can be compared with
-# finite-temperature inelastic neutron scattering data. Incorporate the
-# [`FormFactor`](@ref) appropriate to Fe²⁺. 
-
-dt = 2*langevin.dt
-energies = range(0, 7.5, 120)
-formfactors = [1 => FormFactor("Fe2"; g_lande=3/2)]
-sc = SampledCorrelations(sys; dt, energies, measure=ssf_perp(sys; formfactors))
-
-# The function [`add_sample!`](@ref) will collect data by running a dynamical
-# trajectory starting from the current system configuration. 
-
-add_sample!(sc, sys)
-
-# To collect additional data, it is required to re-sample the spin configuration
-# from the thermal distribution. Statistical error is reduced by fully
-# decorrelating the spin configurations between calls to `add_sample!`.
-
-for _ in 1:2
-    for _ in 1:1000               # Enough steps to decorrelate spins
-        step!(sys, langevin)
-    end
-    add_sample!(sc, sys)
-end
-
-# Perform an intensity calculation for two special ``𝐪``-points in reciprocal
-# lattice units (RLU). A classical-to-quantum rescaling of normal mode
-# occupations will be performed according to the temperature `kT`. The large
-# statistical noise could be reduced by averaging over more thermal samples.
-
-res = intensities(sc, [[0, 0, 0], [0.5, 0.5, 0.5]]; energies, langevin.kT)
-fig = lines(res.energies, res.data[:, 1]; axis=(xlabel="Energy (meV)", ylabel="Intensity"), label="(0,0,0)")
-lines!(res.energies, res.data[:, 2]; label="(π,π,π)")
-axislegend()
-fig
-
-# Next, we will measure intensities along a [`q_space_path`](@ref) that connects
-# high symmetry points. Because this is a real-space calculation, data is only
-# available for discrete ``𝐪`` modes, with resolution that scales inversely to
-# linear system size. Intensities at ``ω = 0`` dominate, so to enhance
-# visibility, we restrict the color range empirically.
-
-qs = [[0,   0, 0],  # List of wave vectors that define a path
-      [1,   0, 0],
-      [0,   1, 0],
-      [1/2, 0, 0],
-      [0,   1, 0],
-      [0,   0, 0]] 
-qpath = q_space_path(cryst, qs, 500)
-res = intensities(sc, qpath; energies, langevin.kT)
-plot_intensities(res; units, colorrange=(0.0, 1.0), title="Intensities at T = 2.3 K")
-
-# One can also view the intensity along a [`q_space_grid`](@ref) for a fixed
-# energy value. Alternatively, use [`intensities_static`](@ref) to integrate
-# over all available energies.
-
-grid = q_space_grid(cryst, [1, 0, 0], range(-1.5, 1.5, 300), [0, 1, 0], (-1.5, 1.5); orthogonalize=true)
-res = intensities(sc, grid; energies=[3.5], langevin.kT)
-plot_intensities(res; title="Intensity slice at ω = 3.5 meV")
+# This result can be directly compared to experimental neutron scattering data
+# from [Bai et al.](https://doi.org/10.1038/s41567-020-01110-1)
+# ```@raw html
+# <img src="https://raw.githubusercontent.com/SunnySuite/Sunny.jl/main/docs/src/assets/FeI2_intensity.jpg">
+# ```
+#
+# (The publication figure used a non-standard coordinate system to label the
+# wave vectors.)
+# 
+# To get this agreement, the theory of SU(3) coherent states is essential. The
+# lower band has large quadrupolar character and arises from the strong
+# easy-axis anisotropy of FeI₂.
+#
+# An interesting exercise is to repeat the same study, but using `:dipole` mode
+# instead of `:SUN`. That alternative choice would constrain the coherent state
+# dynamics to the space of dipoles only, and the flat band of single-ion bound
+# states would be missing.
