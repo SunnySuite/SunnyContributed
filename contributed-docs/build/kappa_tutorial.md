@@ -81,14 +81,6 @@ units = Units(:meV, :angstrom)
 sys, cryst = FeI2_sys_and_cryst(dims; seed);
 ````
 
-````
-Precompiling packages...
-  11793.1 ms  ✓ JLD2
-  20560.7 ms  ✓ Sunny
-  2 dependencies successfully precompiled in 33 seconds. 154 already precompiled.
-
-````
-
 We will next estimate $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$ using
 classical dynamics. (For more details on setting up such a calculation, see
 the tutorials in the official Sunny documentation.)
