@@ -1,6 +1,6 @@
 # # Enforcing the quantum sum rule with moment renormalization 
 #
-# **AUTHOR**: David Dahlbom (dahlbomda@ornl.gov), **DATE**: January 22, 2025 (Sunny 0.7.5)
+# **Last Update**: July 15, 2026 (Sunny 0.9.2)
 #
 # One goal of the Sunny project is to extend classical techniques to incorporate
 # a greater number of quantum effects. The generalization of the Landau-Lifshitz
@@ -88,7 +88,7 @@ sys, cryst = FeI2_sys_and_cryst(dims; seed);
 dt_therm = 0.004                            # Step size for Langevin integrator
 dur_therm = 10.0                            # Safe thermalization time
 damping = 0.1                               # Phenomenological coupling to thermal bath
-kT = 0.3 * units.K 
+kT = 0.3units.K 
 langevin = Langevin(dt_therm; damping, kT)  # Langevin integrator
 
 ## Parameters for sampling correlations. 
@@ -204,13 +204,13 @@ langevin = Langevin(dt_therm; damping, kT)
 sc = SampledCorrelations(sys; dt, energies, measure)
 
 ## Thermalize
-for _ in 1:5_000
+for _ in 1:5000
     step!(sys, langevin)
 end
 
 for _ in 1:nsamples
     ## Decorrelate sample
-    for _ in 1:2_000
+    for _ in 1:2000
         step!(sys, langevin)
     end
     add_sample!(sc, sys)

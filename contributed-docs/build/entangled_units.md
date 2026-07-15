@@ -1,5 +1,5 @@
 # Entangled Units Formalism
-**AUTHOR** David Dahlbom (dahlbomda@ornl.gov), **DATE**: January 21, 2025, **UPDATED**: June 30, 2025
+**LAST UPDATED**: July 15, 2026 (Sunny 0.9.2)
 
 Traditional "large-_S_" classical methods start by modeling a spin system as a
 set of dipoles (equivalently, 2-level quantum systems) on each site of a
@@ -40,6 +40,8 @@ presents no difficulties in this regard.
 Specify a the crystal.
 
 ````julia
+using Pkg
+
 using Sunny, LinearAlgebra, GLMakie
 
 latvecs = lattice_vectors(1, 1, 2, 90, 90, 90)

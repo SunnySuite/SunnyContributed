@@ -2,7 +2,7 @@
 
 **Author**: Martin Mourigal
 
-**Date**: September 9, 2022 (Updated January 21, 2025 using Sunny 0.7.5)
+**Date**: September 9, 2022 (Updated July 15, 2026 using Sunny 0.9.2)
 
 In this tutorial, we will walk through an example in Sunny and calculate
 the spin dynamical properties of the Heisenberg pyrochlore antiferromagnet and
@@ -28,6 +28,30 @@ We will begin by loading the relevant packages.
 ````julia
 using Sunny # The main package
 using GLMakie # Plotting package
+````
+
+````
+Precompiling packages...
+   2584.8 ms  ✓ Distributions
+   1191.7 ms  ✓ Distributions → DistributionsChainRulesCoreExt
+    798.8 ms  ✓ KernelDensity
+  12862.0 ms  ✓ TiffImages
+  78725.2 ms  ✓ Makie
+  46301.1 ms  ✓ GLMakie
+  6 dependencies successfully precompiled in 138 seconds. 294 already precompiled.
+Precompiling packages...
+    797.0 ms  ✓ Distributions → DistributionsTestExt
+  1 dependency successfully precompiled in 1 seconds. 64 already precompiled.
+Precompiling packages...
+   2859.3 ms  ✓ Brillouin → BrillouinMakieExt
+  1 dependency successfully precompiled in 3 seconds. 286 already precompiled.
+Precompiling packages...
+   5375.2 ms  ✓ Sunny → PlottingExt
+  1 dependency successfully precompiled in 6 seconds. 360 already precompiled.
+Precompiling packages...
+  47733.4 ms  ✓ Sunny → GLMakiePrecompilesExt
+  1 dependency successfully precompiled in 48 seconds. 379 already precompiled.
+
 ````
 
 ## Setting up the crystal structure

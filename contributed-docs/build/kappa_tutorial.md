@@ -1,6 +1,6 @@
 # Enforcing the quantum sum rule with moment renormalization
 
-**AUTHOR**: David Dahlbom (dahlbomda@ornl.gov), **DATE**: January 22, 2025 (Sunny 0.7.5)
+**Last Update**: July 15, 2026 (Sunny 0.9.2)
 
 One goal of the Sunny project is to extend classical techniques to incorporate
 a greater number of quantum effects. The generalization of the Landau-Lifshitz
@@ -81,6 +81,14 @@ units = Units(:meV, :angstrom)
 sys, cryst = FeI2_sys_and_cryst(dims; seed);
 ````
 
+````
+Precompiling packages...
+  11793.1 ms  ✓ JLD2
+  20560.7 ms  ✓ Sunny
+  2 dependencies successfully precompiled in 33 seconds. 154 already precompiled.
+
+````
+
 We will next estimate $\mathcal{S}_{\mathrm{cl}}(\mathbf{q}, \omega)$ using
 classical dynamics. (For more details on setting up such a calculation, see
 the tutorials in the official Sunny documentation.)
@@ -90,7 +98,7 @@ the tutorials in the official Sunny documentation.)
 dt_therm = 0.004                            # Step size for Langevin integrator
 dur_therm = 10.0                            # Safe thermalization time
 damping = 0.1                               # Phenomenological coupling to thermal bath
-kT = 0.3 * units.K
+kT = 0.3units.K
 langevin = Langevin(dt_therm; damping, kT)  # Langevin integrator
 
 # Parameters for sampling correlations.
@@ -194,7 +202,7 @@ total_spectral_weight(sc) / nsites(sys)
 ````
 
 ````
-1.333333333333334
+1.3333333333333335
 ````
 
 The result is 4/3, which is the expected "classical" sum rule. This reference can be
@@ -212,7 +220,7 @@ total_spectral_weight(sc; kT) / nsites(sys)
 ````
 
 ````
-5.479290633486059
+5.469562774897613
 ````
 
 This is relatively close to 16/3. So, at low temperatures, application of
@@ -229,13 +237,13 @@ langevin = Langevin(dt_therm; damping, kT)
 sc = SampledCorrelations(sys; dt, energies, measure)
 
 # Thermalize
-for _ in 1:5_000
+for _ in 1:5000
     step!(sys, langevin)
 end
 
 for _ in 1:nsamples
     # Decorrelate sample
-    for _ in 1:2_000
+    for _ in 1:2000
         step!(sys, langevin)
     end
     add_sample!(sc, sys)
@@ -251,7 +259,7 @@ total_spectral_weight(sc; kT) / nsites(sys)
 ````
 
 ````
-2.8839418399163197
+2.926837399723775
 ````
 
 While this is larger than the classical value of 4/3, it is still
@@ -299,7 +307,7 @@ total_spectral_weight(sc; kT) / nsites(sys)
 ````
 
 ````
-4.998189307443137
+5.057612439449414
 ````
 
 The result is approximately 5, substantially closer to the
